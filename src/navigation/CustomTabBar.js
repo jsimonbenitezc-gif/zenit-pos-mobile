@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, Animated,
+  View, Text, Pressable, StyleSheet, Animated,
   PanResponder, Modal, TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -37,7 +37,8 @@ export default function CustomTabBar({ state, navigation }) {
   const [showMore, setShowMore]         = useState(false);
   const [configuringIdx, setConfiguring] = useState(null);
 
-  // Animación del panel "más" (posición Y, inicia fuera de pantalla abajo)
+  // Un solo Animated.Value controla la posición del panel:
+  // 0 = abierto, 500 = cerrado (fuera de pantalla abajo)
   const panelY = useRef(new Animated.Value(500)).current;
 
   const availableScreens = ALL_SCREENS.filter(s => !s.ownerOnly || isOwner);
@@ -63,37 +64,71 @@ export default function CustomTabBar({ state, navigation }) {
 
   function openMore() {
     setShowMore(true);
-    Animated.spring(panelY, { toValue: 0, useNativeDriver: true, bounciness: 3 }).start();
+    Animated.spring(panelY, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 80,
+      friction: 10,
+    }).start();
   }
 
   function closeMore() {
-    Animated.timing(panelY, { toValue: 500, duration: 220, useNativeDriver: true }).start(() => setShowMore(false));
+    Animated.timing(panelY, {
+      toValue: 500,
+      duration: 250,
+      useNativeDriver: true,
+    }).start(() => setShowMore(false));
   }
 
-  // PanResponder en el HANDLE de la barra inferior → swipe hacia arriba abre el panel
+  // ── PanResponder: handle inferior → swipe arriba abre el panel ──────────────
+  // Usa onMoveShouldSetPanResponder para no interferir con taps en los tabs.
+  // Durante el swipe, actualiza panelY en tiempo real (aunque el panel aún
+  // no sea visible). Al soltar, si el gesto fue suficiente → Modal + spring.
+
   const handlePan = useRef(PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
+    onStartShouldSetPanResponder: () => false, // no capturar taps
+    onMoveShouldSetPanResponder: (_, g) =>
+      g.dy < -8 && Math.abs(g.dy) > Math.abs(g.dx), // solo swipe hacia arriba
+    onPanResponderGrant: () => {
+      panelY.setValue(500); // parte siempre desde abajo
+    },
+    onPanResponderMove: (_, g) => {
+      // g.dy es negativo al subir → 500 + g.dy disminuye
+      panelY.setValue(Math.max(0, 500 + g.dy));
+    },
     onPanResponderRelease: (_, g) => {
-      if (g.dy < -20 || (Math.abs(g.dy) < 10 && Math.abs(g.dx) < 10)) {
-        openMore();
+      const y = Math.max(0, 500 + g.dy);
+      if (y < 350 || g.vy < -0.5) {
+        // Suficiente swipe → mostrar panel y terminar de abrir con spring
+        setShowMore(true);
+        Animated.spring(panelY, { toValue: 0, useNativeDriver: true, tension: 80, friction: 10 }).start();
+      } else {
+        panelY.setValue(500); // no fue suficiente, resetear sin animación
       }
     },
   })).current;
 
-  // PanResponder en el handle del PANEL → swipe hacia abajo cierra el panel
-  const panelDragY = useRef(new Animated.Value(0)).current;
+  // ── PanResponder: panel completo → swipe abajo cierra el panel ──────────────
+  // Aplicado al panel entero; onMoveShouldSetPanResponder evita capturar taps.
+
   const panelPan = useRef(PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 8,
+    onStartShouldSetPanResponder: () => false, // no capturar taps (permite tocar ítems del grid)
+    onMoveShouldSetPanResponder: (_, g) =>
+      g.dy > 8 && Math.abs(g.dy) > Math.abs(g.dx), // solo swipe hacia abajo
+    onPanResponderGrant: () => {
+      // Guardar posición actual como offset para continuar desde ahí
+      panelY.setOffset(panelY._value);
+      panelY.setValue(0);
+    },
     onPanResponderMove: (_, g) => {
-      if (g.dy > 0) panelDragY.setValue(g.dy);
+      if (g.dy > 0) panelY.setValue(g.dy);
     },
     onPanResponderRelease: (_, g) => {
-      if (g.dy > 70 || g.vy > 0.8) {
-        panelDragY.setValue(0);
+      panelY.flattenOffset();
+      if (g.dy > 55 || g.vy > 0.6) {
         closeMore();
       } else {
-        Animated.spring(panelDragY, { toValue: 0, useNativeDriver: true }).start();
+        Animated.spring(panelY, { toValue: 0, useNativeDriver: true }).start();
       }
     },
   })).current;
@@ -132,16 +167,17 @@ export default function CustomTabBar({ state, navigation }) {
             if (!screen) return null;
             const isActive = currentRoute === screenName;
             return (
-              <TouchableOpacity
+              <Pressable
                 key={idx}
                 style={styles.tab}
                 onPress={() => navigateTo(screenName)}
                 onLongPress={() => setConfiguring(idx)}
-                delayLongPress={500}
-                activeOpacity={0.7}
+                delayLongPress={450}
               >
                 <View style={styles.iconWrap}>
-                  {isActive && <View style={styles.glow} />}
+                  {/* Resplandor radial: dos círculos concéntricos → degradado centro→afuera */}
+                  {isActive && <View style={styles.glowOuter} />}
+                  {isActive && <View style={styles.glowInner} />}
                   <Ionicons
                     name={isActive ? screen.active : screen.icon}
                     size={26}
@@ -151,7 +187,7 @@ export default function CustomTabBar({ state, navigation }) {
                 <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]} numberOfLines={1}>
                   {screen.label}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             );
           })}
         </View>
@@ -159,39 +195,42 @@ export default function CustomTabBar({ state, navigation }) {
 
       {/* ── Panel "ver todo" ── */}
       {showMore && (
-        <Modal visible transparent animationType="fade" onRequestClose={closeMore}>
+        <Modal visible transparent animationType="none" onRequestClose={closeMore}>
           <TouchableWithoutFeedback onPress={closeMore}>
             <View style={styles.overlay} />
           </TouchableWithoutFeedback>
 
+          {/* panelPan aplicado al panel entero para swipe-down en cualquier parte */}
           <Animated.View
             style={[
               styles.morePanel,
               { paddingBottom: insets.bottom || spacing.sm },
-              { transform: [{ translateY: Animated.add(panelY, panelDragY) }] },
+              { transform: [{ translateY: panelY }] },
             ]}
+            {...panelPan.panHandlers}
           >
-            {/* Handle del panel para cerrar con swipe */}
-            <View style={styles.panelHandleWrap} {...panelPan.panHandlers}>
+            {/* Handle visual (decorativo — el swipe funciona en todo el panel) */}
+            <View style={styles.panelHandleWrap}>
               <View style={styles.handleBar} />
             </View>
 
             <Text style={styles.moreTitle}>Todas las secciones</Text>
+            <Text style={styles.moreTip}>Desliza hacia abajo para cerrar · Mantén un ícono para cambiarlo</Text>
             <View style={styles.moreGrid}>
               {availableScreens.map(screen => {
                 const isActive = currentRoute === screen.name;
                 return (
-                  <TouchableOpacity key={screen.name} style={styles.moreItem} onPress={() => navigateTo(screen.name)}>
+                  <Pressable key={screen.name} style={styles.moreItem} onPress={() => navigateTo(screen.name)}>
                     <View style={[styles.moreIconWrap, isActive && styles.moreIconWrapActive]}>
-                      {isActive && <View style={styles.moreGlow} />}
+                      {isActive && <View style={styles.moreGlowOuter} />}
+                      {isActive && <View style={styles.moreGlowInner} />}
                       <Ionicons name={isActive ? screen.active : screen.icon} size={26} color={isActive ? colors.primary : colors.textSecondary} />
                     </View>
                     <Text style={[styles.moreItemLabel, isActive && styles.moreItemLabelActive]}>{screen.label}</Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 );
               })}
             </View>
-            <Text style={styles.moreTip}>Mantén presionado un ícono para cambiarlo de lugar</Text>
           </Animated.View>
         </Modal>
       )}
@@ -211,9 +250,10 @@ export default function CustomTabBar({ state, navigation }) {
               {availableScreens.map(screen => {
                 const isCurrent = slots[configuringIdx] === screen.name;
                 return (
-                  <TouchableOpacity key={screen.name} style={styles.moreItem} onPress={() => assignToSlot(screen.name)}>
+                  <Pressable key={screen.name} style={styles.moreItem} onPress={() => assignToSlot(screen.name)}>
                     <View style={[styles.moreIconWrap, isCurrent && styles.moreIconWrapActive]}>
-                      {isCurrent && <View style={styles.moreGlow} />}
+                      {isCurrent && <View style={styles.moreGlowOuter} />}
+                      {isCurrent && <View style={styles.moreGlowInner} />}
                       <Ionicons name={isCurrent ? screen.active : screen.icon} size={26} color={isCurrent ? colors.primary : colors.textSecondary} />
                       {isCurrent && (
                         <View style={styles.checkBadge}>
@@ -222,7 +262,7 @@ export default function CustomTabBar({ state, navigation }) {
                       )}
                     </View>
                     <Text style={[styles.moreItemLabel, isCurrent && styles.moreItemLabelActive]}>{screen.label}</Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 );
               })}
             </View>
@@ -243,9 +283,8 @@ const styles = StyleSheet.create({
   },
   handleWrap: {
     alignItems: 'center',
-    paddingTop: spacing.sm,
+    paddingTop: spacing.sm + 2,
     paddingBottom: spacing.xs,
-    // área amplia para el gesto
     paddingHorizontal: spacing.xxl,
   },
   handleBar: {
@@ -269,12 +308,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  glow: {
+  // Resplandor: círculo exterior grande y muy tenue → interior más concentrado
+  glowOuter: {
     position: 'absolute',
     width: 48,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.primary + '25',
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.primary + '14', // ~8% opacidad
+  },
+  glowInner: {
+    position: 'absolute',
+    width: 30,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.primary + '30', // ~19% opacidad
   },
   tabLabel: {
     fontSize: 11,
@@ -303,15 +350,21 @@ const styles = StyleSheet.create({
   panelHandleWrap: {
     alignItems: 'center',
     paddingTop: spacing.md,
-    paddingBottom: spacing.md,
+    paddingBottom: spacing.sm,
     paddingHorizontal: spacing.xxl,
   },
   moreTitle: {
     fontSize: font.md,
     fontWeight: '800',
     color: colors.textPrimary,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xs,
     textAlign: 'center',
+  },
+  moreTip: {
+    fontSize: 11,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginBottom: spacing.lg,
   },
   moreGrid: {
     flexDirection: 'row',
@@ -339,12 +392,19 @@ const styles = StyleSheet.create({
   moreIconWrapActive: {
     borderColor: colors.primary + '44',
   },
-  moreGlow: {
+  moreGlowOuter: {
     position: 'absolute',
     width: 56,
     height: 56,
     borderRadius: radius.lg,
-    backgroundColor: colors.primary + '18',
+    backgroundColor: colors.primary + '14',
+  },
+  moreGlowInner: {
+    position: 'absolute',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.primary + '2a',
   },
   moreItemLabel: {
     fontSize: 11,
@@ -355,12 +415,6 @@ const styles = StyleSheet.create({
   moreItemLabelActive: {
     color: colors.primary,
     fontWeight: '700',
-  },
-  moreTip: {
-    fontSize: font.sm - 2,
-    color: colors.textMuted,
-    textAlign: 'center',
-    marginTop: spacing.sm,
   },
   configPanel: {
     position: 'absolute',

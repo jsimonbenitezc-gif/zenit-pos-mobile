@@ -86,17 +86,46 @@ export default function NuevaVentaScreen() {
   const [textoNota, setTextoNota]         = useState('');
   const [enviando, setEnviando]           = useState(false);
 
-  // Swipe para cerrar carrito — PanResponder SOLO en el drag handle
+  // Swipe para cerrar carrito — funciona en el header completo (handle + título)
+  // Deslizar abajo = cerrar · Deslizar arriba = efecto elástico
   const cartPan = useRef(new Animated.Value(0)).current;
-  const cartHandlePan = useRef(PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onPanResponderMove: (_, g) => { if (g.dy > 0) cartPan.setValue(g.dy); },
+  const scrollYRef = useRef(0);
+
+  const cartHeaderPan = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponder: (_, g) =>
+      Math.abs(g.dy) > 6 && Math.abs(g.dy) > Math.abs(g.dx),
+    onPanResponderMove: (_, g) => {
+      if (g.dy > 0) {
+        cartPan.setValue(g.dy); // deslizar abajo: mueve el modal hacia abajo
+      } else {
+        cartPan.setValue(g.dy * 0.12); // deslizar arriba: leve efecto elástico
+      }
+    },
     onPanResponderRelease: (_, g) => {
-      if (g.dy > 80 || g.vy > 0.8) {
+      if (g.dy > 70 || g.vy > 0.7) {
         cartPan.setValue(0);
         setShowCarrito(false);
       } else {
-        Animated.spring(cartPan, { toValue: 0, useNativeDriver: true }).start();
+        Animated.spring(cartPan, { toValue: 0, useNativeDriver: true, tension: 120, friction: 8 }).start();
+      }
+    },
+  })).current;
+
+  // PanResponder adicional para el área del ScrollView (solo cuando scroll está al tope)
+  const cartScrollPan = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponder: (_, g) =>
+      scrollYRef.current <= 1 && g.dy > 10 && g.dy > Math.abs(g.dx),
+    onPanResponderMove: (_, g) => {
+      if (g.dy > 0) cartPan.setValue(g.dy);
+    },
+    onPanResponderRelease: (_, g) => {
+      if (g.dy > 70 || g.vy > 0.7) {
+        cartPan.setValue(0);
+        setShowCarrito(false);
+      } else {
+        Animated.spring(cartPan, { toValue: 0, useNativeDriver: true, tension: 120, friction: 8 }).start();
       }
     },
   })).current;
@@ -351,27 +380,32 @@ export default function NuevaVentaScreen() {
         <Animated.View
           style={[{ flex: 1, backgroundColor: colors.background }, { transform: [{ translateY: cartPan }] }]}
         >
-          {/* Drag handle — swipe aquí para cerrar */}
-          <View style={styles.dragHandleWrap} {...cartHandlePan.panHandlers}>
-            <View style={styles.dragHandle} />
-          </View>
-
-          {/* Header */}
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Ticket actual</Text>
-            <View style={{ flexDirection: 'row', gap: spacing.md, alignItems: 'center' }}>
-              {carrito.length > 0 && (
-                <TouchableOpacity onPress={vaciarCarrito}>
-                  <Text style={{ color: colors.danger, fontWeight: '700', fontSize: font.sm }}>Vaciar</Text>
+          {/* Header deslizable — swipe en handle O en el título para cerrar */}
+          <View {...cartHeaderPan.panHandlers}>
+            <View style={styles.dragHandleWrap}>
+              <View style={styles.dragHandle} />
+            </View>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Ticket actual</Text>
+              <View style={{ flexDirection: 'row', gap: spacing.md, alignItems: 'center' }}>
+                {carrito.length > 0 && (
+                  <TouchableOpacity onPress={vaciarCarrito}>
+                    <Text style={{ color: colors.danger, fontWeight: '700', fontSize: font.sm }}>Vaciar</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity onPress={() => setShowCarrito(false)}>
+                  <Ionicons name="close" size={24} color={colors.textSecondary} />
                 </TouchableOpacity>
-              )}
-              <TouchableOpacity onPress={() => setShowCarrito(false)}>
-                <Ionicons name="close" size={24} color={colors.textSecondary} />
-              </TouchableOpacity>
+              </View>
             </View>
           </View>
 
-          <ScrollView contentContainerStyle={{ padding: spacing.lg }}>
+          <ScrollView
+            contentContainerStyle={{ padding: spacing.lg }}
+            onScroll={e => { scrollYRef.current = e.nativeEvent.contentOffset.y; }}
+            scrollEventThrottle={16}
+            {...cartScrollPan.panHandlers}
+          >
             {/* Tipo de pedido */}
             <Text style={styles.sectionLabel}>Tipo de pedido</Text>
             <View style={styles.tipoPedidoRow}>

@@ -38,7 +38,7 @@ function OrderCard({ order, onChangeStatus }) {
         <Text style={styles.cardId}>#{order.id}</Text>
       </View>
       <Text style={styles.cardTipo}>{TIPO_LABEL[order.order_type] || order.order_type}</Text>
-      <Text style={styles.cardTotal}>${parseFloat(order.total).toFixed(2)}</Text>
+      <Text style={styles.cardTotal}>${parseFloat(order.total || 0).toFixed(2)}</Text>
       <View style={[styles.statusBadge, { backgroundColor: color + '22', borderColor: color }]}>
         <Text style={[styles.statusText, { color }]}>{STATUS_LABEL[order.status] || order.status}</Text>
       </View>
@@ -79,8 +79,8 @@ export default function MesasScreen() {
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefresh(true);
     try {
-      const data = await api.getOrders();
-      setOrders(data);
+      const res = await api.getOrders({ limit: 100 });
+      setOrders(res.data || []);
     } catch {
       Alert.alert('Error', 'No se pudieron cargar las órdenes.');
     } finally {
