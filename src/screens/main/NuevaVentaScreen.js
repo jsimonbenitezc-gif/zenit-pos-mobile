@@ -2,10 +2,22 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   TextInput, Alert, ActivityIndicator, Modal, ScrollView,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../api/client';
 import { colors, spacing, radius, font } from '../../theme';
+
+// ─── Chip de arrastre (drag handle) ──────────────────────────────────────────
+
+function DragHandle() {
+  return (
+    <View style={styles.dragHandleWrap}>
+      <View style={styles.dragHandle} />
+    </View>
+  );
+}
 
 // ─── Tarjeta de producto ──────────────────────────────────────────────────────
 
@@ -21,52 +33,58 @@ function ProductCard({ product, onPress }) {
 
 // ─── Fila del carrito ─────────────────────────────────────────────────────────
 
-function CartItem({ item, onAdd, onRemove, onDelete }) {
+function CartItem({ item, onDelete, onEditNota }) {
   return (
     <View style={styles.cartItem}>
       <Text style={styles.cartEmoji}>{item.emoji || '🛍️'}</Text>
       <View style={{ flex: 1 }}>
         <Text style={styles.cartName} numberOfLines={1}>{item.nombre}</Text>
-        <Text style={styles.cartPrice}>${(item.precio * item.cantidad).toFixed(2)}</Text>
+        {item.nota ? (
+          <Text style={styles.cartNota} numberOfLines={1}>📝 {item.nota}</Text>
+        ) : null}
+        <Text style={styles.cartPrice}>${item.precio.toFixed(2)}</Text>
       </View>
-      <View style={styles.qtyControls}>
-        <TouchableOpacity style={styles.qtyBtn} onPress={() => onRemove(item.product_id)}>
-          <Text style={styles.qtyBtnText}>−</Text>
-        </TouchableOpacity>
-        <Text style={styles.qtyNum}>{item.cantidad}</Text>
-        <TouchableOpacity style={styles.qtyBtn} onPress={() => onAdd(item)}>
-          <Text style={styles.qtyBtnText}>+</Text>
-        </TouchableOpacity>
-      </View>
-      <TouchableOpacity style={styles.deleteBtn} onPress={() => onDelete(item.product_id)}>
-        <Text style={{ fontSize: 16 }}>🗑️</Text>
+      <TouchableOpacity style={styles.iconBtn} onPress={() => onEditNota(item)}>
+        <Ionicons
+          name={item.nota ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline'}
+          size={20}
+          color={item.nota ? colors.primary : colors.textMuted}
+        />
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.iconBtn} onPress={() => onDelete(item.uid)}>
+        <Ionicons name="trash-outline" size={20} color={colors.danger} />
       </TouchableOpacity>
     </View>
   );
 }
 
+// ─── Quick tags para notas ────────────────────────────────────────────────────
+
+const QUICK_TAGS = ['Sin', 'Con', 'Extra', 'Poco', 'Mucho', 'Aparte'];
+
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 
 export default function NuevaVentaScreen() {
-  const [categories, setCategories]       = useState([]);
-  const [catActiva, setCatActiva]         = useState(null);
-  const [productos, setProductos]         = useState([]);
-  const [clientes, setClientes]           = useState([]);
-  const [carrito, setCarrito]             = useState([]);
-  const [busqueda, setBusqueda]           = useState('');
-  const [loading, setLoading]             = useState(true);
+  const [categories, setCategories]   = useState([]);
+  const [catActiva, setCatActiva]     = useState(null);
+  const [productos, setProductos]     = useState([]);
+  const [clientes, setClientes]       = useState([]);
+  const [carrito, setCarrito]         = useState([]);
+  const [busqueda, setBusqueda]       = useState('');
+  const [loading, setLoading]         = useState(true);
 
   // Modales
-  const [showCarrito, setShowCarrito]             = useState(false);
-  const [cobrandoModal, setCobrandoModal]         = useState(false);
-  const [showClienteModal, setShowClienteModal]   = useState(false);
+  const [showCarrito, setShowCarrito]           = useState(false);
+  const [cobrandoModal, setCobrandoModal]       = useState(false);
+  const [showClienteModal, setShowClienteModal] = useState(false);
+  const [notaModal, setNotaModal]               = useState(null); // item siendo editado
 
   // Datos del pedido
-  const [metodoPago, setMetodoPago]         = useState('efectivo');
-  const [nota, setNota]                     = useState('');
-  const [clienteSeleccionado, setCliente]   = useState(null); // { id, name, phone }
-  const [busquedaCliente, setBusqCliente]   = useState('');
-  const [enviando, setEnviando]             = useState(false);
+  const [metodoPago, setMetodoPago]       = useState('efectivo');
+  const [clienteSeleccionado, setCliente] = useState(null);
+  const [busquedaCliente, setBusqCliente] = useState('');
+  const [textoNota, setTextoNota]         = useState('');
+  const [enviando, setEnviando]           = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -80,7 +98,7 @@ export default function NuevaVentaScreen() {
       setProductos(all);
       setClientes(clts);
       setCatActiva(null);
-    } catch (e) {
+    } catch {
       Alert.alert('Error', 'No se pudo cargar el catálogo.');
     } finally {
       setLoading(false);
@@ -98,40 +116,52 @@ export default function NuevaVentaScreen() {
   });
 
   function agregarAlCarrito(producto) {
-    setCarrito(prev => {
-      const existe = prev.find(i => i.product_id === producto.id);
-      if (existe) {
-        return prev.map(i => i.product_id === producto.id ? { ...i, cantidad: i.cantidad + 1 } : i);
-      }
-      return [...prev, { product_id: producto.id, nombre: producto.name, emoji: producto.emoji, precio: parseFloat(producto.price), cantidad: 1 }];
-    });
+    const uid = `${producto.id}_${Date.now()}_${Math.random()}`;
+    setCarrito(prev => [...prev, {
+      uid,
+      product_id: producto.id,
+      nombre: producto.name,
+      emoji: producto.emoji || '🛍️',
+      precio: parseFloat(producto.price),
+      nota: '',
+    }]);
   }
 
-  function quitarDelCarrito(productId) {
-    setCarrito(prev => {
-      const item = prev.find(i => i.product_id === productId);
-      if (item?.cantidad === 1) return prev.filter(i => i.product_id !== productId);
-      return prev.map(i => i.product_id === productId ? { ...i, cantidad: i.cantidad - 1 } : i);
-    });
-  }
-
-  function eliminarDelCarrito(productId) {
-    setCarrito(prev => prev.filter(i => i.product_id !== productId));
+  function eliminarDelCarrito(uid) {
+    setCarrito(prev => prev.filter(i => i.uid !== uid));
   }
 
   function vaciarCarrito() {
-    Alert.alert('Vaciar carrito', '¿Eliminar todos los productos?', [
+    Alert.alert('Vaciar ticket', '¿Eliminar todos los productos?', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Vaciar', style: 'destructive', onPress: () => {
         setCarrito([]);
-        setNota('');
         setCliente(null);
       }},
     ]);
   }
 
-  const total = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
-  const totalItems = carrito.reduce((s, i) => s + i.cantidad, 0);
+  // ── Notas individuales ────────────────────────────────────────────────────
+
+  function abrirNota(item) {
+    setTextoNota(item.nota || '');
+    setNotaModal(item);
+  }
+
+  function agregarTagRapido(tag) {
+    setTextoNota(prev => prev ? `${prev}, ${tag}` : tag);
+  }
+
+  function guardarNota() {
+    if (!notaModal) return;
+    setCarrito(prev => prev.map(i => i.uid === notaModal.uid ? { ...i, nota: textoNota.trim() } : i));
+    setNotaModal(null);
+  }
+
+  // ── Totales ────────────────────────────────────────────────────────────────
+
+  const total = carrito.reduce((s, i) => s + i.precio, 0);
+  const totalItems = carrito.length;
 
   // ── Cobrar ─────────────────────────────────────────────────────────────────
 
@@ -140,18 +170,16 @@ export default function NuevaVentaScreen() {
     setEnviando(true);
     try {
       await api.createOrder({
-        items: carrito.map(i => ({ product_id: i.product_id, quantity: i.cantidad })),
+        items: carrito.map(i => ({ product_id: i.product_id, quantity: 1, notes: i.nota || undefined })),
         payment_method: metodoPago,
         order_type: 'comer',
         customer_id: clienteSeleccionado?.id || null,
-        notes: nota.trim() || null,
       });
       setCarrito([]);
-      setNota('');
       setCliente(null);
       setShowCarrito(false);
       setCobrandoModal(false);
-      Alert.alert('✅ Venta registrada', `Total: $${total.toFixed(2)}`);
+      Alert.alert('Venta registrada', `Total: $${total.toFixed(2)}`);
     } catch (e) {
       Alert.alert('Error al registrar', e.message);
     } finally {
@@ -178,21 +206,27 @@ export default function NuevaVentaScreen() {
         <Text style={styles.title}>Nueva Venta</Text>
         {carrito.length > 0 && (
           <TouchableOpacity style={styles.carritoBtn} onPress={() => setShowCarrito(true)}>
-            <Text style={styles.carritoBtnText}>🛒 {totalItems}  ·  ${total.toFixed(2)}</Text>
+            <Ionicons name="cart" size={16} color="#fff" />
+            <Text style={styles.carritoBtnText}> {totalItems}  ·  ${total.toFixed(2)}</Text>
           </TouchableOpacity>
         )}
       </View>
 
       {/* Búsqueda */}
       <View style={styles.searchWrap}>
+        <Ionicons name="search-outline" size={18} color={colors.textMuted} style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
           value={busqueda}
           onChangeText={setBusqueda}
           placeholder="Buscar producto..."
           placeholderTextColor={colors.textMuted}
-          clearButtonMode="while-editing"
         />
+        {busqueda.length > 0 && (
+          <TouchableOpacity onPress={() => setBusqueda('')} style={{ padding: spacing.xs }}>
+            <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Categorías */}
@@ -223,11 +257,16 @@ export default function NuevaVentaScreen() {
       />
 
       {/* ── Modal carrito ── */}
-      <Modal visible={showCarrito} animationType="slide" presentationStyle="pageSheet">
+      <Modal
+        visible={showCarrito}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowCarrito(false)}
+      >
         <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-          {/* Header */}
+          <DragHandle />
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Carrito</Text>
+            <Text style={styles.modalTitle}>Ticket actual</Text>
             <View style={{ flexDirection: 'row', gap: spacing.md, alignItems: 'center' }}>
               {carrito.length > 0 && (
                 <TouchableOpacity onPress={vaciarCarrito}>
@@ -235,37 +274,39 @@ export default function NuevaVentaScreen() {
                 </TouchableOpacity>
               )}
               <TouchableOpacity onPress={() => setShowCarrito(false)}>
-                <Text style={{ color: colors.primary, fontWeight: '700', fontSize: font.md }}>Cerrar</Text>
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
           </View>
 
           <ScrollView contentContainerStyle={{ padding: spacing.lg }}>
-            {/* Productos */}
+            {/* Items */}
             {carrito.map(item => (
               <CartItem
-                key={item.product_id}
+                key={item.uid}
                 item={item}
-                onAdd={agregarAlCarrito.bind(null, { id: item.product_id, name: item.nombre, emoji: item.emoji, price: item.precio })}
-                onRemove={quitarDelCarrito}
                 onDelete={eliminarDelCarrito}
+                onEditNota={abrirNota}
               />
             ))}
 
             {carrito.length === 0 && (
-              <Text style={styles.empty}>El carrito está vacío</Text>
+              <View style={styles.emptyCart}>
+                <Ionicons name="cart-outline" size={48} color={colors.textMuted} />
+                <Text style={styles.emptyCartText}>El ticket está vacío</Text>
+              </View>
             )}
 
+            {/* Selector de cliente */}
             {carrito.length > 0 && (
               <>
-                {/* Selector de cliente */}
                 <Text style={[styles.sectionLabel, { marginTop: spacing.lg }]}>Cliente</Text>
                 <TouchableOpacity
                   style={styles.clienteRow}
                   onPress={() => { setBusqCliente(''); setShowClienteModal(true); }}
                 >
-                  <Text style={styles.clienteRowEmoji}>👤</Text>
-                  <View style={{ flex: 1 }}>
+                  <Ionicons name="person-outline" size={20} color={colors.textMuted} />
+                  <View style={{ flex: 1, marginLeft: spacing.sm }}>
                     <Text style={styles.clienteRowNombre}>
                       {clienteSeleccionado ? clienteSeleccionado.name : 'Sin cliente'}
                     </Text>
@@ -273,20 +314,8 @@ export default function NuevaVentaScreen() {
                       <Text style={styles.clienteRowSub}>{clienteSeleccionado.phone}</Text>
                     )}
                   </View>
-                  <Text style={{ color: colors.textMuted, fontSize: 18 }}>›</Text>
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
                 </TouchableOpacity>
-
-                {/* Nota */}
-                <Text style={[styles.sectionLabel, { marginTop: spacing.lg }]}>Nota del pedido</Text>
-                <TextInput
-                  style={styles.notaInput}
-                  value={nota}
-                  onChangeText={setNota}
-                  placeholder="Ej: Sin cebolla, mesa 4..."
-                  placeholderTextColor={colors.textMuted}
-                  multiline
-                  numberOfLines={3}
-                />
               </>
             )}
           </ScrollView>
@@ -294,7 +323,7 @@ export default function NuevaVentaScreen() {
           {carrito.length > 0 && (
             <View style={styles.carritoFooter}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md }}>
-                <Text style={styles.totalLabel}>Total</Text>
+                <Text style={styles.totalLabel}>Total  ·  {totalItems} {totalItems === 1 ? 'producto' : 'productos'}</Text>
                 <Text style={styles.totalValue}>${total.toFixed(2)}</Text>
               </View>
               <TouchableOpacity style={styles.btnCobrar} onPress={() => { setShowCarrito(false); setCobrandoModal(true); }}>
@@ -305,88 +334,171 @@ export default function NuevaVentaScreen() {
         </SafeAreaView>
       </Modal>
 
-      {/* ── Modal selector de cliente ── */}
-      <Modal visible={showClienteModal} animationType="slide" presentationStyle="pageSheet">
+      {/* ── Modal notas por producto ── */}
+      <Modal
+        visible={notaModal !== null}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setNotaModal(null)}
+      >
         <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+          <DragHandle />
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Nota</Text>
+                {notaModal && <Text style={styles.modalSub}>{notaModal.nombre}</Text>}
+              </View>
+              <TouchableOpacity onPress={() => setNotaModal(null)}>
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView contentContainerStyle={{ padding: spacing.lg }}>
+              {/* Quick tags */}
+              <Text style={styles.sectionLabel}>Tags rápidos</Text>
+              <View style={styles.tagsWrap}>
+                {QUICK_TAGS.map(tag => (
+                  <TouchableOpacity key={tag} style={styles.tag} onPress={() => agregarTagRapido(tag)}>
+                    <Text style={styles.tagText}>{tag}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Texto libre */}
+              <Text style={[styles.sectionLabel, { marginTop: spacing.lg }]}>Detalle</Text>
+              <TextInput
+                style={styles.notaInput}
+                value={textoNota}
+                onChangeText={setTextoNota}
+                placeholder="Ej: Sin cebolla, extra salsa..."
+                placeholderTextColor={colors.textMuted}
+                multiline
+                numberOfLines={3}
+                autoFocus
+              />
+
+              <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg }}>
+                {textoNota.trim().length > 0 && (
+                  <TouchableOpacity
+                    style={[styles.btnSecundario, { flex: 1 }]}
+                    onPress={() => setTextoNota('')}
+                  >
+                    <Text style={styles.btnSecundarioText}>Limpiar</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity style={[styles.btnCobrar, { flex: 2 }]} onPress={guardarNota}>
+                  <Text style={styles.btnCobrarText}>Guardar nota</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* ── Modal selector de cliente ── */}
+      <Modal
+        visible={showClienteModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowClienteModal(false)}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+          <DragHandle />
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Seleccionar cliente</Text>
             <TouchableOpacity onPress={() => setShowClienteModal(false)}>
-              <Text style={{ color: colors.primary, fontWeight: '700', fontSize: font.md }}>Cerrar</Text>
+              <Ionicons name="close" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
           <View style={{ padding: spacing.lg, paddingBottom: spacing.sm }}>
-            <TextInput
-              style={styles.searchInput}
-              value={busquedaCliente}
-              onChangeText={setBusqCliente}
-              placeholder="Buscar por nombre o teléfono..."
-              placeholderTextColor={colors.textMuted}
-              autoFocus
-            />
+            <View style={styles.searchWrap}>
+              <Ionicons name="search-outline" size={18} color={colors.textMuted} style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                value={busquedaCliente}
+                onChangeText={setBusqCliente}
+                placeholder="Buscar por nombre o teléfono..."
+                placeholderTextColor={colors.textMuted}
+                autoFocus
+              />
+            </View>
           </View>
 
           <FlatList
             data={[{ id: null, name: 'Sin cliente', phone: null }, ...clientesFiltrados]}
             keyExtractor={c => String(c.id)}
             contentContainerStyle={{ paddingHorizontal: spacing.lg }}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[styles.clienteOpcion, clienteSeleccionado?.id === item.id && styles.clienteOpcionActive]}
-                onPress={() => {
-                  setCliente(item.id === null ? null : item);
-                  setShowClienteModal(false);
-                }}
-              >
-                <Text style={styles.clienteOpcionEmoji}>{item.id ? '👤' : '🚫'}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.clienteOpcionNombre, clienteSeleccionado?.id === item.id && { color: '#fff' }]}>{item.name}</Text>
-                  {item.phone && <Text style={[styles.clienteOpcionSub, clienteSeleccionado?.id === item.id && { color: '#ffffffaa' }]}>{item.phone}</Text>}
-                </View>
-                {clienteSeleccionado?.id === item.id && <Text style={{ color: '#fff' }}>✓</Text>}
-              </TouchableOpacity>
-            )}
+            renderItem={({ item }) => {
+              const activo = clienteSeleccionado?.id === item.id || (item.id === null && !clienteSeleccionado);
+              return (
+                <TouchableOpacity
+                  style={[styles.clienteOpcion, activo && styles.clienteOpcionActive]}
+                  onPress={() => {
+                    setCliente(item.id === null ? null : item);
+                    setShowClienteModal(false);
+                  }}
+                >
+                  <Ionicons
+                    name={item.id ? 'person' : 'person-remove-outline'}
+                    size={20}
+                    color={activo ? '#fff' : colors.textMuted}
+                  />
+                  <View style={{ flex: 1, marginLeft: spacing.sm }}>
+                    <Text style={[styles.clienteOpcionNombre, activo && { color: '#fff' }]}>{item.name}</Text>
+                    {item.phone && <Text style={[styles.clienteOpcionSub, activo && { color: '#ffffffaa' }]}>{item.phone}</Text>}
+                  </View>
+                  {activo && <Ionicons name="checkmark" size={20} color="#fff" />}
+                </TouchableOpacity>
+              );
+            }}
           />
         </SafeAreaView>
       </Modal>
 
       {/* ── Modal de cobro ── */}
-      <Modal visible={cobrandoModal} animationType="slide" presentationStyle="pageSheet">
+      <Modal
+        visible={cobrandoModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => { setCobrandoModal(false); setShowCarrito(true); }}
+      >
         <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+          <DragHandle />
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Cobrar</Text>
             <TouchableOpacity onPress={() => { setCobrandoModal(false); setShowCarrito(true); }}>
-              <Text style={{ color: colors.primary, fontWeight: '700', fontSize: font.md }}>Atrás</Text>
+              <Ionicons name="close" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
           <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
             {clienteSeleccionado && (
               <View style={styles.resumenCliente}>
-                <Text style={styles.resumenClienteText}>👤 {clienteSeleccionado.name}</Text>
+                <Ionicons name="person" size={16} color={colors.textSecondary} />
+                <Text style={[styles.resumenClienteText, { marginLeft: spacing.xs }]}>{clienteSeleccionado.name}</Text>
               </View>
             )}
 
             <Text style={styles.totalLabel}>Total a cobrar</Text>
-            <Text style={[styles.totalValue, { fontSize: 36, marginBottom: spacing.xl }]}>${total.toFixed(2)}</Text>
-
-            {nota.trim() !== '' && (
-              <View style={styles.resumenNota}>
-                <Text style={styles.resumenNotaText}>📝 {nota}</Text>
-              </View>
-            )}
+            <Text style={[styles.totalValue, { fontSize: 40, marginBottom: spacing.xs }]}>${total.toFixed(2)}</Text>
+            <Text style={{ color: colors.textMuted, fontSize: font.sm, marginBottom: spacing.xl }}>
+              {totalItems} {totalItems === 1 ? 'producto' : 'productos'}
+            </Text>
 
             <Text style={styles.sectionLabel}>Método de pago</Text>
             {[
-              { key: 'efectivo', label: '💵 Efectivo' },
-              { key: 'tarjeta', label: '💳 Tarjeta' },
-              { key: 'transferencia', label: '📱 Transferencia' },
+              { key: 'efectivo', label: 'Efectivo', icon: 'cash-outline' },
+              { key: 'tarjeta', label: 'Tarjeta', icon: 'card-outline' },
+              { key: 'transferencia', label: 'Transferencia', icon: 'phone-portrait-outline' },
             ].map(m => (
               <TouchableOpacity
                 key={m.key}
                 style={[styles.metodoPagoBtn, metodoPago === m.key && styles.metodoPagoBtnActive]}
                 onPress={() => setMetodoPago(m.key)}
               >
+                <Ionicons name={m.icon} size={20} color={metodoPago === m.key ? '#fff' : colors.textSecondary} />
                 <Text style={[styles.metodoPagoText, metodoPago === m.key && { color: '#fff' }]}>{m.label}</Text>
               </TouchableOpacity>
             ))}
@@ -411,12 +523,15 @@ export default function NuevaVentaScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  dragHandleWrap: { alignItems: 'center', paddingTop: spacing.sm, paddingBottom: spacing.xs },
+  dragHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.lg, paddingBottom: spacing.sm },
   title: { fontSize: font.xl, fontWeight: '800', color: colors.textPrimary },
-  carritoBtn: { backgroundColor: colors.primary, paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2, borderRadius: radius.xl },
+  carritoBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary, paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2, borderRadius: radius.xl },
   carritoBtnText: { color: '#fff', fontWeight: '700', fontSize: font.sm },
-  searchWrap: { paddingHorizontal: spacing.lg, marginBottom: spacing.sm },
-  searchInput: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: spacing.md, fontSize: font.md, color: colors.textPrimary },
+  searchWrap: { flexDirection: 'row', alignItems: 'center', marginHorizontal: spacing.lg, marginBottom: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, paddingHorizontal: spacing.md },
+  searchIcon: { marginRight: spacing.xs },
+  searchInput: { flex: 1, padding: spacing.md, paddingLeft: 0, fontSize: font.md, color: colors.textPrimary },
   catScroll: { flexGrow: 0, marginBottom: spacing.sm },
   catChip: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2, borderRadius: radius.xl, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   catChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
@@ -428,38 +543,39 @@ const styles = StyleSheet.create({
   productName: { fontSize: font.sm, fontWeight: '600', color: colors.textPrimary, textAlign: 'center', marginBottom: spacing.xs },
   productPrice: { fontSize: font.md, fontWeight: '800', color: colors.primary },
   empty: { textAlign: 'center', color: colors.textMuted, marginTop: spacing.xxl, fontSize: font.md },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingBottom: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
   modalTitle: { fontSize: font.xl, fontWeight: '800', color: colors.textPrimary },
+  modalSub: { fontSize: font.sm, color: colors.textMuted, marginTop: 2 },
   cartItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm, borderWidth: 1, borderColor: colors.border },
   cartEmoji: { fontSize: 24, marginRight: spacing.sm },
   cartName: { fontSize: font.sm, fontWeight: '600', color: colors.textPrimary },
-  cartPrice: { fontSize: font.md, fontWeight: '800', color: colors.primary, marginTop: 2 },
-  qtyControls: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  qtyBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  qtyBtnText: { fontSize: font.lg, fontWeight: '700', color: colors.textPrimary, lineHeight: 20 },
-  qtyNum: { fontSize: font.md, fontWeight: '700', color: colors.textPrimary, minWidth: 20, textAlign: 'center' },
-  deleteBtn: { padding: spacing.xs, marginLeft: spacing.xs },
+  cartNota: { fontSize: font.sm - 1, color: colors.textMuted, marginTop: 1, marginBottom: 1 },
+  cartPrice: { fontSize: font.md, fontWeight: '800', color: colors.primary },
+  iconBtn: { padding: spacing.sm, marginLeft: spacing.xs },
+  emptyCart: { alignItems: 'center', paddingVertical: spacing.xxl, gap: spacing.sm },
+  emptyCartText: { color: colors.textMuted, fontSize: font.md },
   sectionLabel: { fontSize: font.sm, fontWeight: '700', color: colors.textSecondary, marginBottom: spacing.sm },
-  clienteRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.md, borderWidth: 1, borderColor: colors.border, gap: spacing.sm },
-  clienteRowEmoji: { fontSize: 20 },
+  clienteRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.md, borderWidth: 1, borderColor: colors.border },
   clienteRowNombre: { fontSize: font.md, fontWeight: '600', color: colors.textPrimary },
   clienteRowSub: { fontSize: font.sm - 1, color: colors.textMuted },
-  notaInput: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.md, color: colors.textPrimary, textAlignVertical: 'top', minHeight: 80 },
-  clienteOpcion: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderRadius: radius.md, marginBottom: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, gap: spacing.sm },
+  clienteOpcion: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderRadius: radius.md, marginBottom: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   clienteOpcionActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  clienteOpcionEmoji: { fontSize: 20 },
   clienteOpcionNombre: { fontSize: font.md, fontWeight: '600', color: colors.textPrimary },
   clienteOpcionSub: { fontSize: font.sm - 1, color: colors.textMuted },
-  resumenCliente: { backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.sm + 2, marginBottom: spacing.md, borderWidth: 1, borderColor: colors.border },
-  resumenClienteText: { fontSize: font.sm, fontWeight: '600', color: colors.textSecondary },
-  resumenNota: { backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.sm + 2, marginBottom: spacing.lg, borderWidth: 1, borderColor: colors.border },
-  resumenNotaText: { fontSize: font.sm, color: colors.textSecondary },
+  tagsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  tag: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2, borderRadius: radius.xl, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  tagText: { fontSize: font.sm, fontWeight: '600', color: colors.textSecondary },
+  notaInput: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.md, color: colors.textPrimary, textAlignVertical: 'top', minHeight: 80 },
   carritoFooter: { padding: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface },
-  totalLabel: { fontSize: font.md, color: colors.textSecondary, fontWeight: '600' },
+  totalLabel: { fontSize: font.sm, color: colors.textSecondary, fontWeight: '600' },
   totalValue: { fontSize: font.xxl, fontWeight: '800', color: colors.textPrimary },
   btnCobrar: { backgroundColor: colors.success, borderRadius: radius.md, padding: spacing.md + 2, alignItems: 'center' },
   btnCobrarText: { color: '#fff', fontSize: font.lg, fontWeight: '700' },
-  metodoPagoBtn: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm, backgroundColor: colors.surface },
+  btnSecundario: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md + 2, alignItems: 'center', backgroundColor: colors.surface },
+  btnSecundarioText: { color: colors.textSecondary, fontSize: font.md, fontWeight: '600' },
+  resumenCliente: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.sm + 2, marginBottom: spacing.md, borderWidth: 1, borderColor: colors.border },
+  resumenClienteText: { fontSize: font.sm, fontWeight: '600', color: colors.textSecondary },
+  metodoPagoBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm, backgroundColor: colors.surface },
   metodoPagoBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   metodoPagoText: { fontSize: font.md, fontWeight: '600', color: colors.textPrimary },
 });

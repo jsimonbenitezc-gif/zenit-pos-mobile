@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Alert,
+  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Alert, Image,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
@@ -39,7 +39,11 @@ export default function LoginScreen() {
 
         {/* Logo / Nombre */}
         <View style={styles.header}>
-          <Text style={styles.logo}>⚡</Text>
+          <Image
+            source={require('../../../assets/logo.png')}
+            style={styles.logoImg}
+            resizeMode="contain"
+          />
           <Text style={styles.appName}>Zenit POS</Text>
           <Text style={styles.subtitle}>Sistema de punto de venta</Text>
         </View>
@@ -121,9 +125,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.xxl,
   },
-  logo: {
-    fontSize: 52,
-    marginBottom: spacing.sm,
+  logoImg: {
+    width: 90,
+    height: 90,
+    marginBottom: spacing.md,
   },
   appName: {
     fontSize: font.xxl + 4,
