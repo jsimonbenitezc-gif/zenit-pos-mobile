@@ -1,76 +1,48 @@
-import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, View } from 'react-native';
 
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../theme';
+import CustomTabBar, { ALL_SCREENS } from './CustomTabBar';
 
-// Pantallas de auth
-import LoginScreen from '../screens/auth/LoginScreen';
+import LoginScreen      from '../screens/auth/LoginScreen';
+import DashboardScreen  from '../screens/main/DashboardScreen';
+import NuevaVentaScreen from '../screens/main/NuevaVentaScreen';
+import PedidosScreen    from '../screens/main/PedidosScreen';
+import ProductosScreen  from '../screens/main/ProductosScreen';
+import ClientesScreen   from '../screens/main/ClientesScreen';
+import AjustesScreen    from '../screens/main/AjustesScreen';
 
-// Pantallas principales
-import DashboardScreen   from '../screens/main/DashboardScreen';
-import NuevaVentaScreen  from '../screens/main/NuevaVentaScreen';
-import PedidosScreen     from '../screens/main/PedidosScreen';
-import ProductosScreen   from '../screens/main/ProductosScreen';
-import ClientesScreen    from '../screens/main/ClientesScreen';
-import AjustesScreen     from '../screens/main/AjustesScreen';
+const SCREEN_MAP = {
+  Dashboard:  DashboardScreen,
+  NuevaVenta: NuevaVentaScreen,
+  Pedidos:    PedidosScreen,
+  Productos:  ProductosScreen,
+  Clientes:   ClientesScreen,
+  Ajustes:    AjustesScreen,
+};
 
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
 
-function TabIcon({ name, color, size }) {
-  return <Ionicons name={name} size={size} color={color} />;
-}
-
 function MainTabs() {
   const { isOwner } = useAuth();
+  const screens = ALL_SCREENS.filter(s => !s.ownerOnly || isOwner);
 
   return (
     <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textMuted,
-        tabBarStyle: { borderTopColor: colors.border, paddingBottom: 4, height: 60 },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
-      }}
+      screenOptions={{ headerShown: false }}
+      tabBar={props => <CustomTabBar {...props} />}
     >
-      {isOwner && (
+      {screens.map(s => (
         <Tab.Screen
-          name="Dashboard"
-          component={DashboardScreen}
-          options={{ tabBarLabel: 'Resumen', tabBarIcon: (p) => <TabIcon name="bar-chart-outline" {...p} /> }}
+          key={s.name}
+          name={s.name}
+          component={SCREEN_MAP[s.name]}
         />
-      )}
-      <Tab.Screen
-        name="NuevaVenta"
-        component={NuevaVentaScreen}
-        options={{ tabBarLabel: 'Venta', tabBarIcon: (p) => <TabIcon name="cart-outline" {...p} /> }}
-      />
-      <Tab.Screen
-        name="Pedidos"
-        component={PedidosScreen}
-        options={{ tabBarLabel: 'Pedidos', tabBarIcon: (p) => <TabIcon name="receipt-outline" {...p} /> }}
-      />
-      <Tab.Screen
-        name="Productos"
-        component={ProductosScreen}
-        options={{ tabBarLabel: 'Productos', tabBarIcon: (p) => <TabIcon name="cube-outline" {...p} /> }}
-      />
-      <Tab.Screen
-        name="Clientes"
-        component={ClientesScreen}
-        options={{ tabBarLabel: 'Clientes', tabBarIcon: (p) => <TabIcon name="people-outline" {...p} /> }}
-      />
-      <Tab.Screen
-        name="Ajustes"
-        component={AjustesScreen}
-        options={{ tabBarLabel: 'Ajustes', tabBarIcon: (p) => <TabIcon name="settings-outline" {...p} /> }}
-      />
+      ))}
     </Tab.Navigator>
   );
 }
