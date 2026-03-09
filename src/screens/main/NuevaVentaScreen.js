@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   TextInput, Alert, ActivityIndicator, Modal, ScrollView,
@@ -7,9 +7,21 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../../api/client';
 import { colors, spacing, radius, font } from '../../theme';
 
-// ─── Carrito ─────────────────────────────────────────────────────────────────
+// ─── Tarjeta de producto ──────────────────────────────────────────────────────
 
-function CartItem({ item, onAdd, onRemove }) {
+function ProductCard({ product, onPress }) {
+  return (
+    <TouchableOpacity style={styles.productCard} onPress={() => onPress(product)}>
+      <Text style={styles.productEmoji}>{product.emoji || '🛍️'}</Text>
+      <Text style={styles.productName} numberOfLines={2}>{product.name}</Text>
+      <Text style={styles.productPrice}>${parseFloat(product.price).toFixed(2)}</Text>
+    </TouchableOpacity>
+  );
+}
+
+// ─── Fila del carrito ─────────────────────────────────────────────────────────
+
+function CartItem({ item, onAdd, onRemove, onDelete }) {
   return (
     <View style={styles.cartItem}>
       <Text style={styles.cartEmoji}>{item.emoji || '🛍️'}</Text>
@@ -26,19 +38,10 @@ function CartItem({ item, onAdd, onRemove }) {
           <Text style={styles.qtyBtnText}>+</Text>
         </TouchableOpacity>
       </View>
+      <TouchableOpacity style={styles.deleteBtn} onPress={() => onDelete(item.product_id)}>
+        <Text style={{ fontSize: 16 }}>🗑️</Text>
+      </TouchableOpacity>
     </View>
-  );
-}
-
-// ─── Tarjeta de producto ──────────────────────────────────────────────────────
-
-function ProductCard({ product, onPress }) {
-  return (
-    <TouchableOpacity style={styles.productCard} onPress={() => onPress(product)}>
-      <Text style={styles.productEmoji}>{product.emoji || '🛍️'}</Text>
-      <Text style={styles.productName} numberOfLines={2}>{product.name}</Text>
-      <Text style={styles.productPrice}>${parseFloat(product.price).toFixed(2)}</Text>
-    </TouchableOpacity>
   );
 }
 
@@ -48,21 +51,34 @@ export default function NuevaVentaScreen() {
   const [categories, setCategories]       = useState([]);
   const [catActiva, setCatActiva]         = useState(null);
   const [productos, setProductos]         = useState([]);
+  const [clientes, setClientes]           = useState([]);
   const [carrito, setCarrito]             = useState([]);
   const [busqueda, setBusqueda]           = useState('');
   const [loading, setLoading]             = useState(true);
-  const [showCarrito, setShowCarrito]     = useState(false);
-  const [cobrandoModal, setCobrandoModal] = useState(false);
-  const [metodoPago, setMetodoPago]       = useState('efectivo');
-  const [enviando, setEnviando]           = useState(false);
+
+  // Modales
+  const [showCarrito, setShowCarrito]             = useState(false);
+  const [cobrandoModal, setCobrandoModal]         = useState(false);
+  const [showClienteModal, setShowClienteModal]   = useState(false);
+
+  // Datos del pedido
+  const [metodoPago, setMetodoPago]         = useState('efectivo');
+  const [nota, setNota]                     = useState('');
+  const [clienteSeleccionado, setCliente]   = useState(null); // { id, name, phone }
+  const [busquedaCliente, setBusqCliente]   = useState('');
+  const [enviando, setEnviando]             = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const grouped = await api.getProductsGrouped();
+      const [grouped, clts] = await Promise.all([
+        api.getProductsGrouped(),
+        api.getCustomers(),
+      ]);
       const cats = grouped.map(g => ({ id: g.id, name: g.name, emoji: g.emoji }));
       const all  = grouped.flatMap(g => (g.products || []).map(p => ({ ...p, category_id: g.id })));
       setCategories([{ id: null, name: 'Todos', emoji: '🔍' }, ...cats]);
       setProductos(all);
+      setClientes(clts);
       setCatActiva(null);
     } catch (e) {
       Alert.alert('Error', 'No se pudo cargar el catálogo.');
@@ -73,7 +89,8 @@ export default function NuevaVentaScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Filtrar productos
+  // ── Carrito ────────────────────────────────────────────────────────────────
+
   const productosFiltrados = productos.filter(p => {
     const enCat = catActiva === null || p.category_id === catActiva;
     const enBusqueda = !busqueda || p.name.toLowerCase().includes(busqueda.toLowerCase());
@@ -98,8 +115,25 @@ export default function NuevaVentaScreen() {
     });
   }
 
+  function eliminarDelCarrito(productId) {
+    setCarrito(prev => prev.filter(i => i.product_id !== productId));
+  }
+
+  function vaciarCarrito() {
+    Alert.alert('Vaciar carrito', '¿Eliminar todos los productos?', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Vaciar', style: 'destructive', onPress: () => {
+        setCarrito([]);
+        setNota('');
+        setCliente(null);
+      }},
+    ]);
+  }
+
   const total = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
   const totalItems = carrito.reduce((s, i) => s + i.cantidad, 0);
+
+  // ── Cobrar ─────────────────────────────────────────────────────────────────
 
   async function cobrar() {
     if (carrito.length === 0) return;
@@ -109,8 +143,12 @@ export default function NuevaVentaScreen() {
         items: carrito.map(i => ({ product_id: i.product_id, quantity: i.cantidad })),
         payment_method: metodoPago,
         order_type: 'comer',
+        customer_id: clienteSeleccionado?.id || null,
+        notes: nota.trim() || null,
       });
       setCarrito([]);
+      setNota('');
+      setCliente(null);
       setShowCarrito(false);
       setCobrandoModal(false);
       Alert.alert('✅ Venta registrada', `Total: $${total.toFixed(2)}`);
@@ -120,6 +158,14 @@ export default function NuevaVentaScreen() {
       setEnviando(false);
     }
   }
+
+  // ── Clientes filtrados ─────────────────────────────────────────────────────
+
+  const clientesFiltrados = clientes.filter(c =>
+    !busquedaCliente ||
+    c.name?.toLowerCase().includes(busquedaCliente.toLowerCase()) ||
+    c.phone?.includes(busquedaCliente)
+  );
 
   if (loading) {
     return <View style={styles.centered}><ActivityIndicator size="large" color={colors.primary} /></View>;
@@ -176,25 +222,74 @@ export default function NuevaVentaScreen() {
         ListEmptyComponent={<Text style={styles.empty}>No hay productos en esta categoría</Text>}
       />
 
-      {/* Modal carrito */}
+      {/* ── Modal carrito ── */}
       <Modal visible={showCarrito} animationType="slide" presentationStyle="pageSheet">
         <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+          {/* Header */}
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Carrito</Text>
-            <TouchableOpacity onPress={() => setShowCarrito(false)}>
-              <Text style={{ color: colors.primary, fontWeight: '700', fontSize: font.md }}>Cerrar</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: spacing.md, alignItems: 'center' }}>
+              {carrito.length > 0 && (
+                <TouchableOpacity onPress={vaciarCarrito}>
+                  <Text style={{ color: colors.danger, fontWeight: '700', fontSize: font.sm }}>Vaciar</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity onPress={() => setShowCarrito(false)}>
+                <Text style={{ color: colors.primary, fontWeight: '700', fontSize: font.md }}>Cerrar</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
-          <FlatList
-            data={carrito}
-            keyExtractor={i => String(i.product_id)}
-            contentContainerStyle={{ padding: spacing.lg }}
-            renderItem={({ item }) => (
-              <CartItem item={item} onAdd={agregarAlCarrito.bind(null, { id: item.product_id, name: item.nombre, emoji: item.emoji, price: item.precio })} onRemove={quitarDelCarrito} />
+          <ScrollView contentContainerStyle={{ padding: spacing.lg }}>
+            {/* Productos */}
+            {carrito.map(item => (
+              <CartItem
+                key={item.product_id}
+                item={item}
+                onAdd={agregarAlCarrito.bind(null, { id: item.product_id, name: item.nombre, emoji: item.emoji, price: item.precio })}
+                onRemove={quitarDelCarrito}
+                onDelete={eliminarDelCarrito}
+              />
+            ))}
+
+            {carrito.length === 0 && (
+              <Text style={styles.empty}>El carrito está vacío</Text>
             )}
-            ListEmptyComponent={<Text style={styles.empty}>El carrito está vacío</Text>}
-          />
+
+            {carrito.length > 0 && (
+              <>
+                {/* Selector de cliente */}
+                <Text style={[styles.sectionLabel, { marginTop: spacing.lg }]}>Cliente</Text>
+                <TouchableOpacity
+                  style={styles.clienteRow}
+                  onPress={() => { setBusqCliente(''); setShowClienteModal(true); }}
+                >
+                  <Text style={styles.clienteRowEmoji}>👤</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.clienteRowNombre}>
+                      {clienteSeleccionado ? clienteSeleccionado.name : 'Sin cliente'}
+                    </Text>
+                    {clienteSeleccionado?.phone && (
+                      <Text style={styles.clienteRowSub}>{clienteSeleccionado.phone}</Text>
+                    )}
+                  </View>
+                  <Text style={{ color: colors.textMuted, fontSize: 18 }}>›</Text>
+                </TouchableOpacity>
+
+                {/* Nota */}
+                <Text style={[styles.sectionLabel, { marginTop: spacing.lg }]}>Nota del pedido</Text>
+                <TextInput
+                  style={styles.notaInput}
+                  value={nota}
+                  onChangeText={setNota}
+                  placeholder="Ej: Sin cebolla, mesa 4..."
+                  placeholderTextColor={colors.textMuted}
+                  multiline
+                  numberOfLines={3}
+                />
+              </>
+            )}
+          </ScrollView>
 
           {carrito.length > 0 && (
             <View style={styles.carritoFooter}>
@@ -210,19 +305,76 @@ export default function NuevaVentaScreen() {
         </SafeAreaView>
       </Modal>
 
-      {/* Modal de cobro */}
+      {/* ── Modal selector de cliente ── */}
+      <Modal visible={showClienteModal} animationType="slide" presentationStyle="pageSheet">
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Seleccionar cliente</Text>
+            <TouchableOpacity onPress={() => setShowClienteModal(false)}>
+              <Text style={{ color: colors.primary, fontWeight: '700', fontSize: font.md }}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={{ padding: spacing.lg, paddingBottom: spacing.sm }}>
+            <TextInput
+              style={styles.searchInput}
+              value={busquedaCliente}
+              onChangeText={setBusqCliente}
+              placeholder="Buscar por nombre o teléfono..."
+              placeholderTextColor={colors.textMuted}
+              autoFocus
+            />
+          </View>
+
+          <FlatList
+            data={[{ id: null, name: 'Sin cliente', phone: null }, ...clientesFiltrados]}
+            keyExtractor={c => String(c.id)}
+            contentContainerStyle={{ paddingHorizontal: spacing.lg }}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[styles.clienteOpcion, clienteSeleccionado?.id === item.id && styles.clienteOpcionActive]}
+                onPress={() => {
+                  setCliente(item.id === null ? null : item);
+                  setShowClienteModal(false);
+                }}
+              >
+                <Text style={styles.clienteOpcionEmoji}>{item.id ? '👤' : '🚫'}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.clienteOpcionNombre, clienteSeleccionado?.id === item.id && { color: '#fff' }]}>{item.name}</Text>
+                  {item.phone && <Text style={[styles.clienteOpcionSub, clienteSeleccionado?.id === item.id && { color: '#ffffffaa' }]}>{item.phone}</Text>}
+                </View>
+                {clienteSeleccionado?.id === item.id && <Text style={{ color: '#fff' }}>✓</Text>}
+              </TouchableOpacity>
+            )}
+          />
+        </SafeAreaView>
+      </Modal>
+
+      {/* ── Modal de cobro ── */}
       <Modal visible={cobrandoModal} animationType="slide" presentationStyle="pageSheet">
         <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Cobrar</Text>
-            <TouchableOpacity onPress={() => setCobrandoModal(false)}>
+            <TouchableOpacity onPress={() => { setCobrandoModal(false); setShowCarrito(true); }}>
               <Text style={{ color: colors.primary, fontWeight: '700', fontSize: font.md }}>Atrás</Text>
             </TouchableOpacity>
           </View>
 
           <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
+            {clienteSeleccionado && (
+              <View style={styles.resumenCliente}>
+                <Text style={styles.resumenClienteText}>👤 {clienteSeleccionado.name}</Text>
+              </View>
+            )}
+
             <Text style={styles.totalLabel}>Total a cobrar</Text>
             <Text style={[styles.totalValue, { fontSize: 36, marginBottom: spacing.xl }]}>${total.toFixed(2)}</Text>
+
+            {nota.trim() !== '' && (
+              <View style={styles.resumenNota}>
+                <Text style={styles.resumenNotaText}>📝 {nota}</Text>
+              </View>
+            )}
 
             <Text style={styles.sectionLabel}>Método de pago</Text>
             {[
@@ -286,12 +438,27 @@ const styles = StyleSheet.create({
   qtyBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   qtyBtnText: { fontSize: font.lg, fontWeight: '700', color: colors.textPrimary, lineHeight: 20 },
   qtyNum: { fontSize: font.md, fontWeight: '700', color: colors.textPrimary, minWidth: 20, textAlign: 'center' },
+  deleteBtn: { padding: spacing.xs, marginLeft: spacing.xs },
+  sectionLabel: { fontSize: font.sm, fontWeight: '700', color: colors.textSecondary, marginBottom: spacing.sm },
+  clienteRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.md, borderWidth: 1, borderColor: colors.border, gap: spacing.sm },
+  clienteRowEmoji: { fontSize: 20 },
+  clienteRowNombre: { fontSize: font.md, fontWeight: '600', color: colors.textPrimary },
+  clienteRowSub: { fontSize: font.sm - 1, color: colors.textMuted },
+  notaInput: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.md, color: colors.textPrimary, textAlignVertical: 'top', minHeight: 80 },
+  clienteOpcion: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderRadius: radius.md, marginBottom: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, gap: spacing.sm },
+  clienteOpcionActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  clienteOpcionEmoji: { fontSize: 20 },
+  clienteOpcionNombre: { fontSize: font.md, fontWeight: '600', color: colors.textPrimary },
+  clienteOpcionSub: { fontSize: font.sm - 1, color: colors.textMuted },
+  resumenCliente: { backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.sm + 2, marginBottom: spacing.md, borderWidth: 1, borderColor: colors.border },
+  resumenClienteText: { fontSize: font.sm, fontWeight: '600', color: colors.textSecondary },
+  resumenNota: { backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.sm + 2, marginBottom: spacing.lg, borderWidth: 1, borderColor: colors.border },
+  resumenNotaText: { fontSize: font.sm, color: colors.textSecondary },
   carritoFooter: { padding: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface },
   totalLabel: { fontSize: font.md, color: colors.textSecondary, fontWeight: '600' },
   totalValue: { fontSize: font.xxl, fontWeight: '800', color: colors.textPrimary },
   btnCobrar: { backgroundColor: colors.success, borderRadius: radius.md, padding: spacing.md + 2, alignItems: 'center' },
   btnCobrarText: { color: '#fff', fontSize: font.lg, fontWeight: '700' },
-  sectionLabel: { fontSize: font.sm, fontWeight: '700', color: colors.textSecondary, marginBottom: spacing.sm },
   metodoPagoBtn: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm, backgroundColor: colors.surface },
   metodoPagoBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   metodoPagoText: { fontSize: font.md, fontWeight: '600', color: colors.textPrimary },
