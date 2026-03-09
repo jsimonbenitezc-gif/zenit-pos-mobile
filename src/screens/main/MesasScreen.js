@@ -108,8 +108,8 @@ export default function MesasScreen() {
     try {
       const data = await api.getTables();
       setMesas(data);
-    } catch {
-      Alert.alert('Error', 'No se pudieron cargar las mesas.');
+    } catch (err) {
+      Alert.alert('Error', err?.message || 'No se pudieron cargar las mesas.');
     } finally {
       setLoading(false);
       setRefresh(false);
