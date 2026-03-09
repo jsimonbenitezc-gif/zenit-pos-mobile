@@ -126,6 +126,23 @@ class ApiClient {
     return this.request('/offers/discounts');
   }
 
+  // ─── Mesas ───────────────────────────────────────────────────────────────
+  getTables() {
+    return this.request('/tables');
+  }
+
+  createTable(data) {
+    return this.request('/tables', { method: 'POST', body: data });
+  }
+
+  deleteTable(id) {
+    return this.request(`/tables/${id}`, { method: 'DELETE' });
+  }
+
+  addItemsToOrder(orderId, items) {
+    return this.request(`/orders/${orderId}/items`, { method: 'POST', body: { items } });
+  }
+
   // ─── Plan ────────────────────────────────────────────────────────────────
   getPlanStatus() {
     return this.request('/billing/status');

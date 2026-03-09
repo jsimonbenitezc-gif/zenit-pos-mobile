@@ -1,88 +1,115 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, RefreshControl, Alert,
+  ActivityIndicator, RefreshControl, Alert, TextInput,
+  Modal, ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../api/client';
+import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
 
-const STATUS_COLOR = {
-  pending:     '#f59e0b',
-  in_progress: colors.primary,
-  ready:       colors.success,
-  delivered:   colors.textMuted,
-};
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const STATUS_LABEL = {
-  pending:     'Pendiente',
-  in_progress: 'En proceso',
-  ready:       'Listo',
-  delivered:   'Entregado',
-};
+function tiempoTranscurrido(isoDate) {
+  if (!isoDate) return '';
+  const diff = Date.now() - new Date(isoDate).getTime();
+  const min = Math.floor(diff / 60000);
+  if (min < 60) return `${min}min`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return `${h}h${m > 0 ? ` ${m}m` : ''}`;
+}
 
-const TIPO_LABEL = {
-  comer:     '🍽️ Comer aquí',
-  llevar:    '🛍️ Llevar',
-  domicilio: '🛵 Domicilio',
-};
+// ─── Tarjeta de Mesa ──────────────────────────────────────────────────────────
 
-function OrderCard({ order, onChangeStatus }) {
-  const color = STATUS_COLOR[order.status] || colors.textMuted;
+function MesaCard({ mesa, onPress }) {
+  const ocupada = !!mesa.open_order;
+  const order   = mesa.open_order;
+  const total   = order ? parseFloat(order.total || 0) : 0;
+  const items   = order?.items?.length || 0;
+
   return (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <View style={[styles.statusDot, { backgroundColor: color }]} />
-        <Text style={styles.cardRef}>{order.reference || order.order_type || 'Orden'}</Text>
-        <Text style={styles.cardId}>#{order.id}</Text>
-      </View>
-      <Text style={styles.cardTipo}>{TIPO_LABEL[order.order_type] || order.order_type}</Text>
-      <Text style={styles.cardTotal}>${parseFloat(order.total || 0).toFixed(2)}</Text>
-      <View style={[styles.statusBadge, { backgroundColor: color + '22', borderColor: color }]}>
-        <Text style={[styles.statusText, { color }]}>{STATUS_LABEL[order.status] || order.status}</Text>
-      </View>
-      {order.customer && (
-        <Text style={styles.cardCliente}><Ionicons name="person-outline" size={13} /> {order.customer.name}</Text>
+    <TouchableOpacity
+      style={[styles.card, ocupada ? styles.cardOcupada : styles.cardLibre]}
+      onPress={() => onPress(mesa)}
+      activeOpacity={0.75}
+    >
+      <View style={[styles.statusDot, { backgroundColor: ocupada ? '#f59e0b' : '#22c55e' }]} />
+
+      <Text style={styles.cardName}>{mesa.name}</Text>
+      {mesa.zone ? <Text style={styles.cardZone}>{mesa.zone}</Text> : null}
+
+      {ocupada ? (
+        <>
+          <Text style={styles.cardTotal}>${total.toFixed(2)}</Text>
+          <Text style={styles.cardMeta}>{items} {items === 1 ? 'producto' : 'productos'}</Text>
+          <Text style={styles.cardTiempo}>{tiempoTranscurrido(order.createdAt)}</Text>
+        </>
+      ) : (
+        <View style={styles.cardLibreTag}>
+          <Text style={styles.cardLibreText}>Libre</Text>
+        </View>
       )}
-      {order.notes && (
-        <Text style={styles.cardNota} numberOfLines={1}>📝 {order.notes}</Text>
-      )}
-      {/* Acciones rápidas */}
-      <View style={styles.cardActions}>
-        {order.status === 'pending' && (
-          <TouchableOpacity style={styles.actionBtn} onPress={() => onChangeStatus(order.id, 'in_progress')}>
-            <Text style={styles.actionBtnText}>Iniciar</Text>
-          </TouchableOpacity>
-        )}
-        {order.status === 'in_progress' && (
-          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.success }]} onPress={() => onChangeStatus(order.id, 'ready')}>
-            <Text style={styles.actionBtnText}>Listo</Text>
-          </TouchableOpacity>
-        )}
-        {order.status === 'ready' && (
-          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.textMuted }]} onPress={() => onChangeStatus(order.id, 'delivered')}>
-            <Text style={styles.actionBtnText}>Entregar</Text>
-          </TouchableOpacity>
-        )}
+
+      <View style={styles.capacidadRow}>
+        <Ionicons name="people-outline" size={12} color={colors.textMuted} />
+        <Text style={styles.capacidadText}>{mesa.capacity}</Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
+// ─── Pantalla principal ───────────────────────────────────────────────────────
+
 export default function MesasScreen() {
-  const [orders, setOrders]       = useState([]);
+  const { isOwner } = useAuth();
+
+  const [mesas, setMesas]         = useState([]);
   const [loading, setLoading]     = useState(true);
   const [refreshing, setRefresh]  = useState(false);
-  const [filtro, setFiltro]       = useState('todos'); // 'activos' | 'todos'
+
+  // Selección activa
+  const [mesaSel, setMesaSel]         = useState(null);
+  const [ordenActiva, setOrdenActiva] = useState(null);
+
+  // Modal: abrir mesa (elegir comensales antes de agregar productos)
+  const [modalAbrirVisible, setModalAbrir]   = useState(false);
+  const [comensales, setComensales]          = useState('');
+
+  // Modal: detalle de mesa ocupada
+  const [modalDetalleVisible, setModalDetalle] = useState(false);
+
+  // Modal: agregar productos
+  const [modalAgregarVisible, setModalAgregar]   = useState(false);
+  const [productos, setProductos]                = useState([]);
+  const [carritoAgregar, setCarritoAgregar]      = useState({});
+  const [loadingProductos, setLoadingProductos]  = useState(false);
+  const [agregando, setAgregando]                = useState(false);
+  const [busquedaP, setBusquedaP]                = useState('');
+
+  // Modal: cobrar
+  const [modalCobrarVisible, setModalCobrar] = useState(false);
+  const [metodoPago, setMetodoPago]          = useState('efectivo');
+  const [cobrando, setCobrando]              = useState(false);
+
+  // Modal: crear mesa
+  const [modalCrearVisible, setModalCrear]   = useState(false);
+  const [nuevaNombre, setNuevaNombre]        = useState('');
+  const [nuevaZona, setNuevaZona]            = useState('');
+  const [nuevaCapacidad, setNuevaCapacidad]  = useState('4');
+  const [creando, setCreando]                = useState(false);
+
+  // ── Cargar ──────────────────────────────────────────────────────────────────
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefresh(true);
     try {
-      const res = await api.getOrders({ limit: 100 });
-      setOrders(res.data || []);
+      const data = await api.getTables();
+      setMesas(data);
     } catch {
-      Alert.alert('Error', 'No se pudieron cargar las órdenes.');
+      Alert.alert('Error', 'No se pudieron cargar las mesas.');
     } finally {
       setLoading(false);
       setRefresh(false);
@@ -91,87 +118,513 @@ export default function MesasScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  async function changeStatus(id, status) {
-    try {
-      await api.updateOrderStatus(id, status);
-      setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
-    } catch (e) {
-      Alert.alert('Error', e.message);
+  // ── Tocar una mesa ──────────────────────────────────────────────────────────
+
+  function tocarMesa(mesa) {
+    setMesaSel(mesa);
+    if (mesa.open_order) {
+      setOrdenActiva(mesa.open_order);
+      setModalDetalle(true);
+    } else {
+      setComensales(String(mesa.capacity));
+      setModalAbrir(true);
     }
   }
 
-  const filtrados = orders.filter(o =>
-    filtro === 'todos' || ['pending', 'in_progress', 'ready'].includes(o.status)
+  // ── Cargar catálogo de productos ─────────────────────────────────────────────
+
+  async function cargarProductos() {
+    setLoadingProductos(true);
+    setCarritoAgregar({});
+    setBusquedaP('');
+    try {
+      const grouped = await api.getProductsGrouped();
+      const all = grouped.flatMap(g => (g.products || []).map(p => ({ ...p, categoryName: g.name })));
+      setProductos(all.filter(p => p.active !== false));
+    } catch {
+      Alert.alert('Error', 'No se pudieron cargar los productos.');
+    } finally {
+      setLoadingProductos(false);
+    }
+  }
+
+  // Al abrir mesa libre: pasar directo al catálogo de productos
+  function irAgregarDesdeLibre() {
+    setModalAbrir(false);
+    setModalAgregar(true);
+    cargarProductos();
+  }
+
+  // Desde mesa ocupada: abrir catálogo
+  function abrirAgregarProductos() {
+    setModalAgregar(true);
+    cargarProductos();
+  }
+
+  // ── Carrito de agregar ───────────────────────────────────────────────────────
+
+  function incrementar(producto) {
+    setCarritoAgregar(prev => ({
+      ...prev,
+      [producto.id]: { producto, qty: (prev[producto.id]?.qty || 0) + 1 },
+    }));
+  }
+
+  function decrementar(productoId) {
+    setCarritoAgregar(prev => {
+      const qty = (prev[productoId]?.qty || 0) - 1;
+      if (qty <= 0) {
+        const next = { ...prev };
+        delete next[productoId];
+        return next;
+      }
+      return { ...prev, [productoId]: { ...prev[productoId], qty } };
+    });
+  }
+
+  async function confirmarAgregar() {
+    const items = Object.values(carritoAgregar).map(({ producto, qty }) => ({
+      product_id: producto.id,
+      quantity: qty,
+    }));
+    if (items.length === 0) return;
+
+    setAgregando(true);
+    try {
+      if (!ordenActiva) {
+        // Mesa libre: crear pedido nuevo vinculado a la mesa
+        const order = await api.createOrder({
+          items,
+          order_type: 'comer',
+          table_id: mesaSel?.id,
+          guests: parseInt(comensales) || mesaSel?.capacity || 1,
+        });
+        setOrdenActiva(order);
+        setModalAgregar(false);
+        setModalDetalle(true);
+      } else {
+        // Mesa ocupada: agregar a pedido existente
+        const updated = await api.addItemsToOrder(ordenActiva.id, items);
+        setOrdenActiva(updated);
+        setModalAgregar(false);
+      }
+      load();
+    } catch (e) {
+      Alert.alert('Error', e.message);
+    } finally {
+      setAgregando(false);
+    }
+  }
+
+  // ── Cobrar ───────────────────────────────────────────────────────────────────
+
+  async function confirmarCobrar() {
+    if (!ordenActiva) return;
+    setCobrando(true);
+    try {
+      await api.updateOrderStatus(ordenActiva.id, 'completado');
+      setModalCobrar(false);
+      setModalDetalle(false);
+      setOrdenActiva(null);
+      setMesaSel(null);
+      load();
+    } catch (e) {
+      Alert.alert('Error', e.message);
+    } finally {
+      setCobrando(false);
+    }
+  }
+
+  // ── Crear mesa ───────────────────────────────────────────────────────────────
+
+  async function crearMesa() {
+    if (!nuevaNombre.trim()) return Alert.alert('Error', 'El nombre es requerido.');
+    setCreando(true);
+    try {
+      await api.createTable({
+        name: nuevaNombre.trim(),
+        zone: nuevaZona.trim() || 'General',
+        capacity: parseInt(nuevaCapacidad) || 4,
+      });
+      setModalCrear(false);
+      setNuevaNombre(''); setNuevaZona(''); setNuevaCapacidad('4');
+      load();
+    } catch (e) {
+      Alert.alert('Error', e.message);
+    } finally {
+      setCreando(false);
+    }
+  }
+
+  // ── Derived ──────────────────────────────────────────────────────────────────
+
+  const totalOrden = parseFloat(ordenActiva?.total || 0);
+
+  const productosFiltrados = productos.filter(p =>
+    !busquedaP || p.name.toLowerCase().includes(busquedaP.toLowerCase())
   );
 
-  if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color={colors.primary} /></View>;
+  const totalCarrito = Object.values(carritoAgregar)
+    .reduce((s, { producto, qty }) => s + parseFloat(producto.price) * qty, 0);
+
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  if (loading) {
+    return <View style={styles.centered}><ActivityIndicator size="large" color={colors.primary} /></View>;
+  }
 
   return (
     <SafeAreaView style={styles.safe}>
+
+      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Mesas</Text>
-        <Text style={styles.count}>{filtrados.length} {filtro === 'activos' ? 'activas' : 'pedidos'}</Text>
-      </View>
-
-      {/* Filtro */}
-      <View style={styles.tabRow}>
-        {[{ key: 'activos', label: 'Activos' }, { key: 'todos', label: 'Todos' }].map(t => (
-          <TouchableOpacity
-            key={t.key}
-            style={[styles.tab, filtro === t.key && styles.tabActive]}
-            onPress={() => setFiltro(t.key)}
-          >
-            <Text style={[styles.tabText, filtro === t.key && styles.tabTextActive]}>{t.label}</Text>
+        {isOwner && (
+          <TouchableOpacity style={styles.btnAdd} onPress={() => setModalCrear(true)}>
+            <Ionicons name="add" size={20} color="#fff" />
           </TouchableOpacity>
-        ))}
+        )}
       </View>
 
-      <FlatList
-        data={filtrados}
-        keyExtractor={o => String(o.id)}
-        numColumns={2}
-        contentContainerStyle={styles.grid}
-        columnWrapperStyle={{ gap: spacing.sm }}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
-        renderItem={({ item }) => <OrderCard order={item} onChangeStatus={changeStatus} />}
-        ListEmptyComponent={
-          <View style={styles.emptyWrap}>
-            <Ionicons name="grid-outline" size={48} color={colors.textMuted} />
-            <Text style={styles.empty}>No hay órdenes activas</Text>
+      {/* Leyenda */}
+      <View style={styles.leyenda}>
+        <View style={styles.leyendaItem}><View style={[styles.leyendaDot, { backgroundColor: '#22c55e' }]} /><Text style={styles.leyendaTxt}>Libre</Text></View>
+        <View style={styles.leyendaItem}><View style={[styles.leyendaDot, { backgroundColor: '#f59e0b' }]} /><Text style={styles.leyendaTxt}>Ocupada</Text></View>
+        <Text style={styles.leyendaCount}>{mesas.filter(m => m.open_order).length}/{mesas.length} ocupadas</Text>
+      </View>
+
+      {mesas.length === 0 ? (
+        <View style={styles.emptyWrap}>
+          <Ionicons name="grid-outline" size={52} color={colors.textMuted} />
+          <Text style={styles.emptyTitle}>No hay mesas configuradas</Text>
+          {isOwner && (
+            <TouchableOpacity style={styles.btnCrearVacio} onPress={() => setModalCrear(true)}>
+              <Text style={styles.btnCrearVacioText}>+ Crear primera mesa</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      ) : (
+        <FlatList
+          data={mesas}
+          keyExtractor={m => String(m.id)}
+          numColumns={2}
+          contentContainerStyle={styles.grid}
+          columnWrapperStyle={{ gap: spacing.sm }}
+          ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
+          renderItem={({ item }) => <MesaCard mesa={item} onPress={tocarMesa} />}
+        />
+      )}
+
+      {/* ── Modal: Mesa libre → elegir comensales ── */}
+      <Modal visible={modalAbrirVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModalAbrir(false)}>
+        <SafeAreaView style={styles.modalSafe}>
+          <View style={styles.dragHandleWrap}><View style={styles.dragHandle} /></View>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Abrir {mesaSel?.name}</Text>
+            <TouchableOpacity onPress={() => setModalAbrir(false)}>
+              <Ionicons name="close" size={24} color={colors.textSecondary} />
+            </TouchableOpacity>
           </View>
-        }
-      />
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
+              <Text style={styles.fieldLabel}>Número de comensales</Text>
+              <TextInput
+                style={styles.input}
+                value={comensales}
+                onChangeText={setComensales}
+                keyboardType="number-pad"
+                placeholderTextColor={colors.textMuted}
+                autoFocus
+              />
+              <Text style={styles.hint}>Capacidad de la mesa: {mesaSel?.capacity} personas</Text>
+              <TouchableOpacity style={[styles.btnPrimary, { marginTop: spacing.xl }]} onPress={irAgregarDesdeLibre}>
+                <Ionicons name="restaurant-outline" size={20} color="#fff" />
+                <Text style={styles.btnPrimaryText}>Agregar productos</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* ── Modal: Detalle de mesa ocupada ── */}
+      <Modal visible={modalDetalleVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => { setModalDetalle(false); setOrdenActiva(null); }}>
+        <SafeAreaView style={styles.modalSafe}>
+          <View style={styles.dragHandleWrap}><View style={styles.dragHandle} /></View>
+          <View style={styles.modalHeader}>
+            <View>
+              <Text style={styles.modalTitle}>{mesaSel?.name}</Text>
+              <Text style={styles.modalSub}>
+                {tiempoTranscurrido(ordenActiva?.createdAt)}
+                {ordenActiva?.guests ? ` · ${ordenActiva.guests} personas` : ''}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={() => { setModalDetalle(false); setOrdenActiva(null); }}>
+              <Ionicons name="close" size={24} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView contentContainerStyle={{ padding: spacing.lg }}>
+            {ordenActiva?.items?.map((item, i) => (
+              <View key={i} style={styles.itemRow}>
+                <Text style={styles.itemEmoji}>{item.product?.emoji || '🛍️'}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.itemName}>{item.product?.name || 'Producto'}</Text>
+                  {item.notes ? <Text style={styles.itemNota}>📝 {item.notes}</Text> : null}
+                </View>
+                <Text style={styles.itemQty}>×{item.quantity}</Text>
+                <Text style={styles.itemPrice}>${parseFloat(item.subtotal || 0).toFixed(2)}</Text>
+              </View>
+            ))}
+            {(!ordenActiva?.items || ordenActiva.items.length === 0) && (
+              <Text style={styles.emptyItems}>Sin productos aún</Text>
+            )}
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Total</Text>
+              <Text style={styles.totalValue}>${totalOrden.toFixed(2)}</Text>
+            </View>
+          </ScrollView>
+
+          <View style={styles.detalleFooter}>
+            <TouchableOpacity style={styles.btnSec} onPress={abrirAgregarProductos}>
+              <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
+              <Text style={styles.btnSecText}>Agregar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.btnCobrar} onPress={() => setModalCobrar(true)}>
+              <Ionicons name="cash-outline" size={18} color="#fff" />
+              <Text style={styles.btnCobrarText}>Cobrar ${totalOrden.toFixed(2)}</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
+
+      {/* ── Modal: Agregar productos ── */}
+      <Modal visible={modalAgregarVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModalAgregar(false)}>
+        <SafeAreaView style={styles.modalSafe}>
+          <View style={styles.dragHandleWrap}><View style={styles.dragHandle} /></View>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Agregar a {mesaSel?.name}</Text>
+            <TouchableOpacity onPress={() => setModalAgregar(false)}>
+              <Ionicons name="close" size={24} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.searchWrap}>
+            <Ionicons name="search-outline" size={16} color={colors.textMuted} />
+            <TextInput style={styles.searchInput} value={busquedaP} onChangeText={setBusquedaP} placeholder="Buscar producto..." placeholderTextColor={colors.textMuted} />
+          </View>
+          {loadingProductos ? (
+            <View style={styles.centered}><ActivityIndicator color={colors.primary} /></View>
+          ) : (
+            <FlatList
+              data={productosFiltrados}
+              keyExtractor={p => String(p.id)}
+              numColumns={2}
+              contentContainerStyle={{ padding: spacing.md, paddingBottom: 100 }}
+              columnWrapperStyle={{ gap: spacing.sm }}
+              ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+              renderItem={({ item }) => {
+                const qty = carritoAgregar[item.id]?.qty || 0;
+                return (
+                  <View style={styles.pCard}>
+                    <Text style={styles.pEmoji}>{item.emoji || '🛍️'}</Text>
+                    <Text style={styles.pName} numberOfLines={2}>{item.name}</Text>
+                    <Text style={styles.pPrice}>${parseFloat(item.price).toFixed(2)}</Text>
+                    {qty === 0 ? (
+                      <TouchableOpacity style={styles.btnPlusSm} onPress={() => incrementar(item)}>
+                        <Ionicons name="add" size={18} color="#fff" />
+                      </TouchableOpacity>
+                    ) : (
+                      <View style={styles.qtyRow}>
+                        <TouchableOpacity style={styles.qtyBtn} onPress={() => decrementar(item.id)}>
+                          <Ionicons name="remove" size={14} color={colors.primary} />
+                        </TouchableOpacity>
+                        <Text style={styles.qtyTxt}>{qty}</Text>
+                        <TouchableOpacity style={styles.qtyBtn} onPress={() => incrementar(item)}>
+                          <Ionicons name="add" size={14} color={colors.primary} />
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+                );
+              }}
+            />
+          )}
+          {Object.keys(carritoAgregar).length > 0 && (
+            <View style={styles.agregarFooter}>
+              <TouchableOpacity
+                style={[styles.btnCobrar, { flex: 0 }, agregando && styles.btnDisabled]}
+                onPress={confirmarAgregar}
+                disabled={agregando}
+              >
+                {agregando
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={styles.btnCobrarText}>Agregar · ${totalCarrito.toFixed(2)}</Text>
+                }
+              </TouchableOpacity>
+            </View>
+          )}
+        </SafeAreaView>
+      </Modal>
+
+      {/* ── Modal: Cobrar ── */}
+      <Modal visible={modalCobrarVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModalCobrar(false)}>
+        <SafeAreaView style={styles.modalSafe}>
+          <View style={styles.dragHandleWrap}><View style={styles.dragHandle} /></View>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Cobrar</Text>
+            <TouchableOpacity onPress={() => setModalCobrar(false)}>
+              <Ionicons name="close" size={24} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
+            <Text style={styles.cobrarMesa}>{mesaSel?.name}</Text>
+            <Text style={styles.cobrarTotal}>${totalOrden.toFixed(2)}</Text>
+            <Text style={[styles.fieldLabel, { marginTop: spacing.lg }]}>Método de pago</Text>
+            {[
+              { key: 'efectivo',      label: 'Efectivo',      icon: 'cash-outline'           },
+              { key: 'tarjeta',       label: 'Tarjeta',       icon: 'card-outline'           },
+              { key: 'transferencia', label: 'Transferencia', icon: 'phone-portrait-outline' },
+            ].map(m => (
+              <TouchableOpacity
+                key={m.key}
+                style={[styles.metodoPagoBtn, metodoPago === m.key && styles.metodoPagoBtnActive]}
+                onPress={() => setMetodoPago(m.key)}
+              >
+                <Ionicons name={m.icon} size={20} color={metodoPago === m.key ? '#fff' : colors.textSecondary} />
+                <Text style={[styles.metodoPagoText, metodoPago === m.key && { color: '#fff' }]}>{m.label}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              style={[styles.btnPrimary, { marginTop: spacing.xl }, cobrando && styles.btnDisabled]}
+              onPress={confirmarCobrar}
+              disabled={cobrando}
+            >
+              {cobrando ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnPrimaryText}>Confirmar cobro</Text>}
+            </TouchableOpacity>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* ── Modal: Crear mesa (solo dueño) ── */}
+      {isOwner && (
+        <Modal visible={modalCrearVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModalCrear(false)}>
+          <SafeAreaView style={styles.modalSafe}>
+            <View style={styles.dragHandleWrap}><View style={styles.dragHandle} /></View>
+            <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Nueva mesa</Text>
+                <TouchableOpacity onPress={() => setModalCrear(false)}>
+                  <Ionicons name="close" size={24} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+              <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
+                <Text style={styles.fieldLabel}>Nombre *</Text>
+                <TextInput style={styles.input} value={nuevaNombre} onChangeText={setNuevaNombre} placeholder="Ej: Mesa 1, Barra, Terraza A" placeholderTextColor={colors.textMuted} autoFocus />
+                <Text style={styles.fieldLabel}>Zona</Text>
+                <TextInput style={styles.input} value={nuevaZona} onChangeText={setNuevaZona} placeholder="Ej: Interior, Terraza, Barra" placeholderTextColor={colors.textMuted} />
+                <Text style={styles.fieldLabel}>Capacidad (personas)</Text>
+                <TextInput style={styles.input} value={nuevaCapacidad} onChangeText={setNuevaCapacidad} keyboardType="number-pad" placeholderTextColor={colors.textMuted} />
+                <TouchableOpacity
+                  style={[styles.btnPrimary, { marginTop: spacing.xl }, creando && styles.btnDisabled]}
+                  onPress={crearMesa}
+                  disabled={creando}
+                >
+                  {creando ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnPrimaryText}>Crear mesa</Text>}
+                </TouchableOpacity>
+              </ScrollView>
+            </KeyboardAvoidingView>
+          </SafeAreaView>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
 
+// ─── Estilos ──────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  safe:           { flex: 1, backgroundColor: colors.background },
-  centered:       { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.lg, paddingBottom: spacing.sm },
-  title:          { fontSize: font.xl, fontWeight: '800', color: colors.textPrimary },
-  count:          { fontSize: font.sm, color: colors.textMuted, fontWeight: '600' },
-  tabRow:         { flexDirection: 'row', marginHorizontal: spacing.lg, marginBottom: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
-  tab:            { flex: 1, paddingVertical: spacing.sm + 2, alignItems: 'center' },
-  tabActive:      { backgroundColor: colors.primary },
-  tabText:        { fontSize: font.sm, fontWeight: '700', color: colors.textMuted },
-  tabTextActive:  { color: '#fff' },
-  grid:           { padding: spacing.lg, paddingTop: spacing.sm },
-  card:           { flex: 1, backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.border },
-  cardHeader:     { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs, gap: spacing.xs },
-  statusDot:      { width: 8, height: 8, borderRadius: 4 },
-  cardRef:        { flex: 1, fontSize: font.sm, fontWeight: '700', color: colors.textPrimary },
-  cardId:         { fontSize: font.sm - 2, color: colors.textMuted },
-  cardTipo:       { fontSize: font.sm - 2, color: colors.textMuted, marginBottom: spacing.xs },
-  cardTotal:      { fontSize: font.lg, fontWeight: '800', color: colors.primary, marginBottom: spacing.sm },
-  statusBadge:    { borderWidth: 1, borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 2, alignSelf: 'flex-start', marginBottom: spacing.xs },
-  statusText:     { fontSize: font.sm - 2, fontWeight: '700' },
-  cardCliente:    { fontSize: font.sm - 2, color: colors.textMuted, marginTop: spacing.xs },
-  cardNota:       { fontSize: font.sm - 2, color: colors.textMuted, marginTop: 2 },
-  cardActions:    { marginTop: spacing.sm },
-  actionBtn:      { backgroundColor: colors.primary, borderRadius: radius.sm, padding: spacing.xs + 2, alignItems: 'center' },
-  actionBtnText:  { color: '#fff', fontSize: font.sm - 1, fontWeight: '700' },
-  emptyWrap:      { alignItems: 'center', marginTop: spacing.xxl, gap: spacing.sm },
-  empty:          { color: colors.textMuted, fontSize: font.md },
+  safe:             { flex: 1, backgroundColor: colors.background },
+  centered:         { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  header:           { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.lg, paddingBottom: spacing.sm },
+  title:            { fontSize: font.xl, fontWeight: '800', color: colors.textPrimary },
+  btnAdd:           { backgroundColor: colors.primary, width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+
+  leyenda:          { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, marginBottom: spacing.sm },
+  leyendaItem:      { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  leyendaDot:       { width: 10, height: 10, borderRadius: 5 },
+  leyendaTxt:       { fontSize: font.sm - 1, color: colors.textMuted, fontWeight: '600' },
+  leyendaCount:     { marginLeft: 'auto', fontSize: font.sm - 1, color: colors.textMuted },
+
+  grid:             { padding: spacing.lg, paddingTop: spacing.sm },
+
+  card:             { flex: 1, borderRadius: radius.lg, padding: spacing.md, borderWidth: 2, minHeight: 130, position: 'relative' },
+  cardLibre:        { backgroundColor: '#f0fdf4', borderColor: '#22c55e' },
+  cardOcupada:      { backgroundColor: '#fff7ed', borderColor: '#f59e0b' },
+  statusDot:        { width: 10, height: 10, borderRadius: 5, position: 'absolute', top: spacing.sm, right: spacing.sm },
+  cardName:         { fontSize: font.md, fontWeight: '800', color: colors.textPrimary, marginBottom: 2 },
+  cardZone:         { fontSize: font.sm - 2, color: colors.textMuted, marginBottom: spacing.xs },
+  cardTotal:        { fontSize: font.xl, fontWeight: '800', color: '#d97706', marginTop: spacing.xs },
+  cardMeta:         { fontSize: font.sm - 2, color: colors.textMuted },
+  cardTiempo:       { fontSize: font.sm - 2, color: '#d97706', fontWeight: '700', marginTop: 2 },
+  cardLibreTag:     { marginTop: spacing.sm, alignSelf: 'flex-start', backgroundColor: '#dcfce7', borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 2 },
+  cardLibreText:    { fontSize: font.sm - 2, fontWeight: '700', color: '#16a34a' },
+  capacidadRow:     { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 'auto', paddingTop: spacing.xs },
+  capacidadText:    { fontSize: font.sm - 2, color: colors.textMuted },
+
+  emptyWrap:        { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md },
+  emptyTitle:       { fontSize: font.lg, fontWeight: '700', color: colors.textMuted },
+  btnCrearVacio:    { marginTop: spacing.sm, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, backgroundColor: colors.primary, borderRadius: radius.md },
+  btnCrearVacioText:{ color: '#fff', fontWeight: '700', fontSize: font.md },
+
+  modalSafe:        { flex: 1, backgroundColor: colors.background },
+  dragHandleWrap:   { alignItems: 'center', paddingTop: spacing.sm, paddingBottom: spacing.xs },
+  dragHandle:       { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border },
+  modalHeader:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingBottom: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
+  modalTitle:       { fontSize: font.xl, fontWeight: '800', color: colors.textPrimary },
+  modalSub:         { fontSize: font.sm - 1, color: colors.textMuted, marginTop: 2 },
+
+  fieldLabel:       { fontSize: font.sm, fontWeight: '700', color: colors.textSecondary, marginBottom: spacing.xs },
+  input:            { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.lg, color: colors.textPrimary, backgroundColor: colors.surface, marginBottom: spacing.md },
+  hint:             { fontSize: font.sm - 1, color: colors.textMuted, marginTop: -spacing.xs, marginBottom: spacing.md },
+
+  itemRow:          { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border, gap: spacing.sm },
+  itemEmoji:        { fontSize: 22 },
+  itemName:         { fontSize: font.sm, fontWeight: '600', color: colors.textPrimary },
+  itemNota:         { fontSize: font.sm - 2, color: colors.textMuted },
+  itemQty:          { fontSize: font.sm, fontWeight: '700', color: colors.textSecondary },
+  itemPrice:        { fontSize: font.sm, fontWeight: '700', color: colors.textPrimary, minWidth: 60, textAlign: 'right' },
+  emptyItems:       { textAlign: 'center', color: colors.textMuted, paddingVertical: spacing.xl },
+
+  totalRow:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.md, marginTop: spacing.sm },
+  totalLabel:       { fontSize: font.md, fontWeight: '700', color: colors.textSecondary },
+  totalValue:       { fontSize: font.xxl, fontWeight: '800', color: colors.textPrimary },
+
+  detalleFooter:    { flexDirection: 'row', padding: spacing.lg, gap: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border },
+  btnSec:           { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, borderWidth: 1, borderColor: colors.primary, borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.surface },
+  btnSecText:       { color: colors.primary, fontWeight: '700', fontSize: font.sm },
+  btnCobrar:        { flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, backgroundColor: colors.success, borderRadius: radius.md, padding: spacing.md },
+  btnCobrarText:    { color: '#fff', fontWeight: '700', fontSize: font.md },
+
+  searchWrap:       { flexDirection: 'row', alignItems: 'center', margin: spacing.md, marginBottom: spacing.xs, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, paddingHorizontal: spacing.md, gap: spacing.xs },
+  searchInput:      { flex: 1, paddingVertical: spacing.md, fontSize: font.md, color: colors.textPrimary },
+
+  pCard:            { flex: 1, backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.sm, alignItems: 'center', borderWidth: 1, borderColor: colors.border },
+  pEmoji:           { fontSize: 28, marginBottom: spacing.xs },
+  pName:            { fontSize: font.sm - 1, fontWeight: '600', color: colors.textPrimary, textAlign: 'center', marginBottom: spacing.xs },
+  pPrice:           { fontSize: font.sm, fontWeight: '800', color: colors.primary, marginBottom: spacing.xs },
+  btnPlusSm:        { backgroundColor: colors.primary, width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  qtyRow:           { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  qtyBtn:           { width: 26, height: 26, borderRadius: 13, borderWidth: 1, borderColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  qtyTxt:           { fontSize: font.md, fontWeight: '800', color: colors.textPrimary, minWidth: 18, textAlign: 'center' },
+  agregarFooter:    { padding: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border },
+
+  cobrarMesa:       { fontSize: font.lg, fontWeight: '700', color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.xs },
+  cobrarTotal:      { fontSize: 48, fontWeight: '800', color: colors.textPrimary, textAlign: 'center', marginBottom: spacing.md },
+  metodoPagoBtn:    { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm, backgroundColor: colors.surface },
+  metodoPagoBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  metodoPagoText:   { fontSize: font.md, fontWeight: '600', color: colors.textPrimary },
+
+  btnPrimary:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: colors.primary, borderRadius: radius.md, padding: spacing.md + 2 },
+  btnPrimaryText:   { color: '#fff', fontWeight: '700', fontSize: font.lg },
+  btnDisabled:      { opacity: 0.6 },
 });

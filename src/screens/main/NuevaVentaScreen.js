@@ -1,6 +1,6 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+﻿import { useEffect, useState, useCallback, useRef } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet,
+  View, Text, FlatList, TouchableOpacity, StyleSheet, Pressable,
   TextInput, Alert, ActivityIndicator, Modal, ScrollView,
   KeyboardAvoidingView, Platform, Animated, PanResponder,
 } from 'react-native';
@@ -9,7 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../api/client';
 import { colors, spacing, radius, font } from '../../theme';
 
-// ─── Quick tags para notas ────────────────────────────────────────────────────
+// â”€â”€â”€ Quick tags para notas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const QUICK_TAGS = ['Sin', 'Con', 'Extra', 'Poco', 'Mucho', 'Aparte'];
 
@@ -19,28 +19,28 @@ const TIPO_PEDIDO = [
   { key: 'domicilio',label: 'Domicilio',  icon: 'bicycle-outline'     },
 ];
 
-// ─── Tarjeta de producto ──────────────────────────────────────────────────────
+// â”€â”€â”€ Tarjeta de producto â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function ProductCard({ product, onPress }) {
   return (
     <TouchableOpacity style={styles.productCard} onPress={() => onPress(product)}>
-      <Text style={styles.productEmoji}>{product.emoji || '🛍️'}</Text>
+      <Text style={styles.productEmoji}>{product.emoji || 'ðŸ›ï¸'}</Text>
       <Text style={styles.productName} numberOfLines={2}>{product.name}</Text>
       <Text style={styles.productPrice}>${parseFloat(product.price).toFixed(2)}</Text>
     </TouchableOpacity>
   );
 }
 
-// ─── Fila del carrito ─────────────────────────────────────────────────────────
+// â”€â”€â”€ Fila del carrito â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function CartItem({ item, onDelete, onEditNota }) {
   return (
     <View style={styles.cartItem}>
-      <Text style={styles.cartEmoji}>{item.emoji || '🛍️'}</Text>
+      <Text style={styles.cartEmoji}>{item.emoji || 'ðŸ›ï¸'}</Text>
       <View style={{ flex: 1 }}>
         <Text style={styles.cartName} numberOfLines={1}>{item.nombre}</Text>
         {item.nota ? (
-          <Text style={styles.cartNota} numberOfLines={1}>📝 {item.nota}</Text>
+          <Text style={styles.cartNota} numberOfLines={1}>ðŸ“ {item.nota}</Text>
         ) : null}
         <Text style={styles.cartPrice}>${item.precio.toFixed(2)}</Text>
       </View>
@@ -58,7 +58,7 @@ function CartItem({ item, onDelete, onEditNota }) {
   );
 }
 
-// ─── Pantalla principal ───────────────────────────────────────────────────────
+// â”€â”€â”€ Pantalla principal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function NuevaVentaScreen() {
   const [categories, setCategories] = useState([]);
@@ -86,28 +86,80 @@ export default function NuevaVentaScreen() {
   const [textoNota, setTextoNota]         = useState('');
   const [enviando, setEnviando]           = useState(false);
 
-  // Swipe para cerrar carrito — área grande: handle + barra de título
+  // Swipe para cerrar carrito - área grande: handle + barra de título
   // Deslizar abajo = cerrar · Deslizar arriba = leve efecto elástico
   const cartPan = useRef(new Animated.Value(0)).current;
+  const cartPanRef = useRef(0);
+  const cartScrollYRef = useRef(0);
+  const cartClosedRef = useRef(520);
+
+  const cartOverlayOpacity = cartPan.interpolate({
+    inputRange: [0, 520],
+    outputRange: [0.45, 0],
+    extrapolate: 'clamp',
+  });
+
+  useEffect(() => {
+    const id = cartPan.addListener(({ value }) => { cartPanRef.current = value; });
+    return () => cartPan.removeListener(id);
+  }, [cartPan]);
+
+  function openCartPanel() {
+    cartScrollYRef.current = 0;
+    setShowCarrito(true);
+    cartPan.setValue(cartClosedRef.current);
+    requestAnimationFrame(() => {
+      Animated.spring(cartPan, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 60,
+        friction: 10,
+      }).start();
+    });
+  }
+
+  function closeCartPanel(onClosed) {
+    Animated.timing(cartPan, {
+      toValue: cartClosedRef.current,
+      duration: 220,
+      useNativeDriver: true,
+    }).start(() => {
+      setShowCarrito(false);
+      onClosed?.();
+    });
+  }
 
   const cartHeaderPan = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponderCapture: (_, g) => {
+      const atTop = cartScrollYRef.current <= 4;
+      return atTop && g.dy > 8 && Math.abs(g.dy) > Math.abs(g.dx);
+    },
     onMoveShouldSetPanResponder: (_, g) =>
-      Math.abs(g.dy) > 5 && Math.abs(g.dy) > Math.abs(g.dx),
+      cartScrollYRef.current <= 4 && g.dy > 8 && Math.abs(g.dy) > Math.abs(g.dx),
+    onPanResponderTerminationRequest: () => false,
+    onPanResponderGrant: () => {
+      cartPan.stopAnimation((value) => {
+        cartPan.setValue(Math.max(0, Math.min(cartClosedRef.current, value)));
+      });
+    },
     onPanResponderMove: (_, g) => {
       if (g.dy > 0) {
-        cartPan.setValue(g.dy);
+        cartPan.setValue(Math.min(cartClosedRef.current, g.dy));
       } else {
-        cartPan.setValue(g.dy * 0.12); // resistencia al subir
+        cartPan.setValue(g.dy * 0.12);
       }
     },
     onPanResponderRelease: (_, g) => {
-      if (g.dy > 70 || g.vy > 0.7) {
-        cartPan.setValue(0);
-        setShowCarrito(false);
+      const shouldClose = g.dy > 36 || g.vy > 0.35 || cartPanRef.current > 90;
+      if (shouldClose) {
+        closeCartPanel();
       } else {
         Animated.spring(cartPan, { toValue: 0, useNativeDriver: true, tension: 120, friction: 8 }).start();
       }
+    },
+    onPanResponderTerminate: () => {
+      Animated.spring(cartPan, { toValue: 0, useNativeDriver: true, tension: 120, friction: 8 }).start();
     },
   })).current;
 
@@ -119,7 +171,7 @@ export default function NuevaVentaScreen() {
       ]);
       const cats = grouped.map(g => ({ id: g.id, name: g.name, emoji: g.emoji }));
       const all  = grouped.flatMap(g => (g.products || []).map(p => ({ ...p, category_id: g.id })));
-      setCategories([{ id: null, name: 'Todos', emoji: '🔍' }, ...cats]);
+      setCategories([{ id: null, name: 'Todos', emoji: 'ðŸ”' }, ...cats]);
       setProductos(all);
       setClientes(clts);
     } catch {
@@ -131,7 +183,7 @@ export default function NuevaVentaScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  // ── Búsqueda de cliente inline ────────────────────────────────────────────
+  // â”€â”€ Búsqueda de cliente inline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const sugerencias = clientes.filter(c => {
     if (!busqNombre && !busqTelefono) return false;
@@ -154,7 +206,7 @@ export default function NuevaVentaScreen() {
     setShowSug(false);
   }
 
-  // ── Carrito ────────────────────────────────────────────────────────────────
+  // â”€â”€ Carrito â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const productosFiltrados = productos.filter(p => {
     const enCat = catActiva === null || p.category_id === catActiva;
@@ -168,7 +220,7 @@ export default function NuevaVentaScreen() {
       uid,
       product_id: producto.id,
       nombre: producto.name,
-      emoji: producto.emoji || '🛍️',
+      emoji: producto.emoji || 'ðŸ›ï¸',
       precio: parseFloat(producto.price),
       nota: '',
     }]);
@@ -185,7 +237,7 @@ export default function NuevaVentaScreen() {
     ]);
   }
 
-  // ── Notas individuales ────────────────────────────────────────────────────
+  // â”€â”€ Notas individuales â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   function abrirNota(item) {
     setTextoNota(item.nota || '');
@@ -202,12 +254,12 @@ export default function NuevaVentaScreen() {
     setNotaModal(null);
   }
 
-  // ── Totales ────────────────────────────────────────────────────────────────
+  // â”€â”€ Totales â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const total = carrito.reduce((s, i) => s + i.precio, 0);
   const totalItems = carrito.length;
 
-  // ── Cobrar ─────────────────────────────────────────────────────────────────
+  // â”€â”€ Cobrar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   async function cobrar() {
     if (carrito.length === 0) return;
@@ -243,7 +295,7 @@ export default function NuevaVentaScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Nueva Venta</Text>
         {carrito.length > 0 && (
-          <TouchableOpacity style={styles.carritoBtn} onPress={() => setShowCarrito(true)}>
+          <TouchableOpacity style={styles.carritoBtn} onPress={openCartPanel}>
             <Ionicons name="cart" size={16} color="#fff" />
             <Text style={styles.carritoBtnText}> {totalItems}  ·  ${total.toFixed(2)}</Text>
           </TouchableOpacity>
@@ -351,91 +403,100 @@ export default function NuevaVentaScreen() {
         onScrollBeginDrag={() => setShowSug(false)}
       />
 
-      {/* ── Modal carrito (con swipe para cerrar) ── */}
-      <Modal
-        visible={showCarrito}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowCarrito(false)}
-      >
-        <Animated.View
-          style={[{ flex: 1, backgroundColor: colors.background }, { transform: [{ translateY: cartPan }] }]}
-        >
-          {/* Header deslizable — swipe en handle O en el título para cerrar */}
-          <View {...cartHeaderPan.panHandlers}>
-            <View style={styles.dragHandleWrap}>
-              <View style={styles.dragHandle} />
-            </View>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Ticket actual</Text>
-              <View style={{ flexDirection: 'row', gap: spacing.md, alignItems: 'center' }}>
-                {carrito.length > 0 && (
-                  <TouchableOpacity onPress={vaciarCarrito}>
-                    <Text style={{ color: colors.danger, fontWeight: '700', fontSize: font.sm }}>Vaciar</Text>
+      {/* Panel carrito (sin Modal, para swipe estable) */}
+      {showCarrito && (
+        <View style={styles.cartLayer} pointerEvents="box-none">
+          <Pressable style={styles.cartOverlayPressable} onPress={() => closeCartPanel()}>
+            <Animated.View style={[styles.cartOverlay, { opacity: cartOverlayOpacity }]} />
+          </Pressable>
+          <Animated.View
+            style={[styles.cartPanel, { transform: [{ translateY: cartPan }] }]}
+            onLayout={(e) => {
+              const h = e.nativeEvent.layout.height;
+              if (h > 0) cartClosedRef.current = Math.max(240, Math.round(h + 24));
+            }}
+            {...cartHeaderPan.panHandlers}
+          >
+            {/* Header deslizable - swipe en cualquier parte del panel */}
+            <View>
+              <View style={styles.dragHandleWrap}>
+                <View style={styles.dragHandle} />
+              </View>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Ticket actual</Text>
+                <View style={{ flexDirection: 'row', gap: spacing.md, alignItems: 'center' }}>
+                  {carrito.length > 0 && (
+                    <TouchableOpacity onPress={vaciarCarrito}>
+                      <Text style={{ color: colors.danger, fontWeight: '700', fontSize: font.sm }}>Vaciar</Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity onPress={() => closeCartPanel()}>
+                    <Ionicons name="close" size={24} color={colors.textSecondary} />
                   </TouchableOpacity>
-                )}
-                <TouchableOpacity onPress={() => setShowCarrito(false)}>
-                  <Ionicons name="close" size={24} color={colors.textSecondary} />
-                </TouchableOpacity>
+                </View>
               </View>
             </View>
-          </View>
 
-          <ScrollView contentContainerStyle={{ padding: spacing.lg }}>
-            {/* Tipo de pedido */}
-            <Text style={styles.sectionLabel}>Tipo de pedido</Text>
-            <View style={styles.tipoPedidoRow}>
-              {TIPO_PEDIDO.map(t => (
-                <TouchableOpacity
-                  key={t.key}
-                  style={[styles.tipoBtn, tipoPedido === t.key && styles.tipoBtnActive]}
-                  onPress={() => setTipoPedido(t.key)}
-                >
-                  <Ionicons name={t.icon} size={18} color={tipoPedido === t.key ? '#fff' : colors.textSecondary} />
-                  <Text style={[styles.tipoBtnText, tipoPedido === t.key && { color: '#fff' }]}>{t.label}</Text>
-                </TouchableOpacity>
+            <ScrollView
+              contentContainerStyle={{ padding: spacing.lg }}
+              onScroll={(e) => { cartScrollYRef.current = e.nativeEvent.contentOffset.y; }}
+              scrollEventThrottle={16}
+            >
+              {/* Tipo de pedido */}
+              <Text style={styles.sectionLabel}>Tipo de pedido</Text>
+              <View style={styles.tipoPedidoRow}>
+                {TIPO_PEDIDO.map(t => (
+                  <TouchableOpacity
+                    key={t.key}
+                    style={[styles.tipoBtn, tipoPedido === t.key && styles.tipoBtnActive]}
+                    onPress={() => setTipoPedido(t.key)}
+                  >
+                    <Ionicons name={t.icon} size={18} color={tipoPedido === t.key ? '#fff' : colors.textSecondary} />
+                    <Text style={[styles.tipoBtnText, tipoPedido === t.key && { color: '#fff' }]}>{t.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Cliente */}
+              {clienteSeleccionado && (
+                <View style={[styles.sectionLabel, { flexDirection: 'row', alignItems: 'center', marginTop: spacing.md }]}>
+                  <Ionicons name="person" size={14} color={colors.textSecondary} />
+                  <Text style={[styles.sectionLabel, { marginBottom: 0, marginLeft: spacing.xs }]}>{clienteSeleccionado.name}</Text>
+                </View>
+              )}
+
+              {/* Items */}
+              <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>
+                Productos ({totalItems})
+              </Text>
+              {carrito.map(item => (
+                <CartItem key={item.uid} item={item} onDelete={eliminarDelCarrito} onEditNota={abrirNota} />
               ))}
-            </View>
 
-            {/* Cliente */}
-            {clienteSeleccionado && (
-              <View style={[styles.sectionLabel, { flexDirection: 'row', alignItems: 'center', marginTop: spacing.md }]}>
-                <Ionicons name="person" size={14} color={colors.textSecondary} />
-                <Text style={[styles.sectionLabel, { marginBottom: 0, marginLeft: spacing.xs }]}>{clienteSeleccionado.name}</Text>
+              {carrito.length === 0 && (
+                <View style={styles.emptyCart}>
+                  <Ionicons name="cart-outline" size={48} color={colors.textMuted} />
+                  <Text style={styles.emptyCartText}>El ticket está vacío</Text>
+                </View>
+              )}
+            </ScrollView>
+
+            {carrito.length > 0 && (
+              <View style={styles.carritoFooter}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md }}>
+                  <Text style={styles.totalLabel}>{tipoActivo?.label}  ·  {totalItems} {totalItems === 1 ? 'producto' : 'productos'}</Text>
+                  <Text style={styles.totalValue}>${total.toFixed(2)}</Text>
+                </View>
+                <TouchableOpacity style={styles.btnCobrar} onPress={() => closeCartPanel(() => setCobrandoModal(true))}>
+                  <Text style={styles.btnCobrarText}>Cobrar</Text>
+                </TouchableOpacity>
               </View>
             )}
+          </Animated.View>
+        </View>
+      )}
 
-            {/* Items */}
-            <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>
-              Productos ({totalItems})
-            </Text>
-            {carrito.map(item => (
-              <CartItem key={item.uid} item={item} onDelete={eliminarDelCarrito} onEditNota={abrirNota} />
-            ))}
-
-            {carrito.length === 0 && (
-              <View style={styles.emptyCart}>
-                <Ionicons name="cart-outline" size={48} color={colors.textMuted} />
-                <Text style={styles.emptyCartText}>El ticket está vacío</Text>
-              </View>
-            )}
-          </ScrollView>
-
-          {carrito.length > 0 && (
-            <View style={styles.carritoFooter}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md }}>
-                <Text style={styles.totalLabel}>{tipoActivo?.label}  ·  {totalItems} {totalItems === 1 ? 'producto' : 'productos'}</Text>
-                <Text style={styles.totalValue}>${total.toFixed(2)}</Text>
-              </View>
-              <TouchableOpacity style={styles.btnCobrar} onPress={() => { setShowCarrito(false); setCobrandoModal(true); }}>
-                <Text style={styles.btnCobrarText}>Cobrar</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </Animated.View>
-      </Modal>
-
-      {/* ── Modal notas por producto ── */}
+      {/* â”€â”€ Modal notas por producto â”€â”€ */}
       <Modal
         visible={notaModal !== null}
         animationType="slide"
@@ -489,18 +550,18 @@ export default function NuevaVentaScreen() {
         </SafeAreaView>
       </Modal>
 
-      {/* ── Modal de cobro ── */}
+      {/* â”€â”€ Modal de cobro â”€â”€ */}
       <Modal
         visible={cobrandoModal}
         animationType="slide"
         presentationStyle="pageSheet"
-        onRequestClose={() => { setCobrandoModal(false); setShowCarrito(true); }}
+        onRequestClose={() => { setCobrandoModal(false); openCartPanel(); }}
       >
         <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
           <View style={styles.dragHandleWrap}><View style={styles.dragHandle} /></View>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Cobrar</Text>
-            <TouchableOpacity onPress={() => { setCobrandoModal(false); setShowCarrito(true); }}>
+            <TouchableOpacity onPress={() => { setCobrandoModal(false); openCartPanel(); }}>
               <Ionicons name="close" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
@@ -584,6 +645,10 @@ const styles = StyleSheet.create({
   productName:    { fontSize: font.sm, fontWeight: '600', color: colors.textPrimary, textAlign: 'center', marginBottom: spacing.xs },
   productPrice:   { fontSize: font.md, fontWeight: '800', color: colors.primary },
   empty:          { textAlign: 'center', color: colors.textMuted, marginTop: spacing.xxl, fontSize: font.md },
+  cartLayer:      { ...StyleSheet.absoluteFillObject, zIndex: 30 },
+  cartOverlayPressable: { ...StyleSheet.absoluteFillObject },
+  cartOverlay:    { flex: 1, backgroundColor: '#000' },
+  cartPanel:      { ...StyleSheet.absoluteFillObject, backgroundColor: colors.background },
   dragHandleWrap: { alignItems: 'center', paddingTop: spacing.sm, paddingBottom: spacing.xs },
   dragHandle:     { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border },
   modalHeader:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingBottom: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
@@ -619,3 +684,10 @@ const styles = StyleSheet.create({
   metodoPagoBtnActive:{ backgroundColor: colors.primary, borderColor: colors.primary },
   metodoPagoText: { fontSize: font.md, fontWeight: '600', color: colors.textPrimary },
 });
+
+
+
+
+
+
+
