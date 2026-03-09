@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Animated,
-  PanResponder, Modal, TouchableWithoutFeedback, Pressable,
+  PanResponder, Modal, TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,21 +9,25 @@ import * as SecureStore from 'expo-secure-store';
 import { useAuth } from '../context/AuthContext';
 import { colors, spacing, radius, font } from '../theme';
 
-// ─── Catálogo de todas las pantallas disponibles ──────────────────────────────
+// ─── Catálogo completo de pantallas ───────────────────────────────────────────
 
 export const ALL_SCREENS = [
-  { name: 'NuevaVenta',  label: 'Venta',     icon: 'cart-outline',       active: 'cart',        ownerOnly: false },
-  { name: 'Pedidos',     label: 'Pedidos',   icon: 'receipt-outline',    active: 'receipt',     ownerOnly: false },
-  { name: 'Productos',   label: 'Productos', icon: 'cube-outline',       active: 'cube',        ownerOnly: false },
-  { name: 'Clientes',    label: 'Clientes',  icon: 'people-outline',     active: 'people',      ownerOnly: false },
-  { name: 'Ajustes',     label: 'Ajustes',   icon: 'settings-outline',   active: 'settings',    ownerOnly: false },
-  { name: 'Dashboard',   label: 'Resumen',   icon: 'bar-chart-outline',  active: 'bar-chart',   ownerOnly: true  },
+  { name: 'NuevaVenta',  label: 'Venta',      icon: 'cart-outline',            active: 'cart',            ownerOnly: false },
+  { name: 'Pedidos',     label: 'Pedidos',    icon: 'receipt-outline',         active: 'receipt',         ownerOnly: false },
+  { name: 'Mesas',       label: 'Mesas',      icon: 'grid-outline',            active: 'grid',            ownerOnly: false },
+  { name: 'Productos',   label: 'Productos',  icon: 'cube-outline',            active: 'cube',            ownerOnly: false },
+  { name: 'Clientes',    label: 'Clientes',   icon: 'people-outline',          active: 'people',          ownerOnly: false },
+  { name: 'Turno',       label: 'Turno',      icon: 'time-outline',            active: 'time',            ownerOnly: false },
+  { name: 'Inventario',  label: 'Inventario', icon: 'layers-outline',          active: 'layers',          ownerOnly: true  },
+  { name: 'Ofertas',     label: 'Ofertas',    icon: 'pricetag-outline',        active: 'pricetag',        ownerOnly: true  },
+  { name: 'Dashboard',   label: 'Resumen',    icon: 'bar-chart-outline',       active: 'bar-chart',       ownerOnly: true  },
+  { name: 'Ajustes',     label: 'Ajustes',    icon: 'settings-outline',        active: 'settings',        ownerOnly: false },
 ];
 
-const DEFAULT_SLOTS = ['NuevaVenta', 'Pedidos', 'Productos', 'Clientes', 'Ajustes'];
-const STORE_KEY = 'zenit_tab_slots';
+const DEFAULT_SLOTS = ['NuevaVenta', 'Pedidos', 'Mesas', 'Clientes', 'Ajustes'];
+const STORE_KEY = 'zenit_tab_slots_v2';
 
-// ─── Componente ───────────────────────────────────────────────────────────────
+// ─── CustomTabBar ─────────────────────────────────────────────────────────────
 
 export default function CustomTabBar({ state, navigation }) {
   const { isOwner } = useAuth();
@@ -31,13 +35,15 @@ export default function CustomTabBar({ state, navigation }) {
 
   const [slots, setSlots]               = useState(DEFAULT_SLOTS);
   const [showMore, setShowMore]         = useState(false);
-  const [configuringIdx, setConfiguring] = useState(null); // índice del slot en edición
+  const [configuringIdx, setConfiguring] = useState(null);
 
-  const moreAnim = useRef(new Animated.Value(300)).current;
+  // Animación del panel "más" (posición Y, inicia fuera de pantalla abajo)
+  const panelY = useRef(new Animated.Value(500)).current;
 
   const availableScreens = ALL_SCREENS.filter(s => !s.ownerOnly || isOwner);
 
-  // Cargar slots guardados
+  // ── Persistencia ────────────────────────────────────────────────────────────
+
   useEffect(() => {
     SecureStore.getItemAsync(STORE_KEY).then(saved => {
       if (!saved) return;
@@ -48,48 +54,75 @@ export default function CustomTabBar({ state, navigation }) {
     });
   }, []);
 
-  // Animar el panel "más"
-  useEffect(() => {
-    Animated.spring(moreAnim, {
-      toValue: showMore ? 0 : 300,
-      useNativeDriver: true,
-      bounciness: 4,
-    }).start();
-  }, [showMore]);
+  function saveSlots(newSlots) {
+    setSlots(newSlots);
+    SecureStore.setItemAsync(STORE_KEY, JSON.stringify(newSlots));
+  }
+
+  // ── Abrir / cerrar panel ────────────────────────────────────────────────────
+
+  function openMore() {
+    setShowMore(true);
+    Animated.spring(panelY, { toValue: 0, useNativeDriver: true, bounciness: 3 }).start();
+  }
+
+  function closeMore() {
+    Animated.timing(panelY, { toValue: 500, duration: 220, useNativeDriver: true }).start(() => setShowMore(false));
+  }
+
+  // PanResponder en el HANDLE de la barra inferior → swipe hacia arriba abre el panel
+  const handlePan = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onPanResponderRelease: (_, g) => {
+      if (g.dy < -20 || (Math.abs(g.dy) < 10 && Math.abs(g.dx) < 10)) {
+        openMore();
+      }
+    },
+  })).current;
+
+  // PanResponder en el handle del PANEL → swipe hacia abajo cierra el panel
+  const panelDragY = useRef(new Animated.Value(0)).current;
+  const panelPan = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 8,
+    onPanResponderMove: (_, g) => {
+      if (g.dy > 0) panelDragY.setValue(g.dy);
+    },
+    onPanResponderRelease: (_, g) => {
+      if (g.dy > 70 || g.vy > 0.8) {
+        panelDragY.setValue(0);
+        closeMore();
+      } else {
+        Animated.spring(panelDragY, { toValue: 0, useNativeDriver: true }).start();
+      }
+    },
+  })).current;
+
+  // ── Navegación ──────────────────────────────────────────────────────────────
 
   function navigateTo(screenName) {
     navigation.navigate(screenName);
-    setShowMore(false);
+    closeMore();
   }
 
   function assignToSlot(screenName) {
     const newSlots = [...slots];
     newSlots[configuringIdx] = screenName;
-    setSlots(newSlots);
+    saveSlots(newSlots);
     setConfiguring(null);
-    SecureStore.setItemAsync(STORE_KEY, JSON.stringify(newSlots));
   }
 
-  // PanResponder en el handle — detecta deslizar hacia arriba
-  const panResponder = useRef(PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 5,
-    onPanResponderMove: (_, g) => {
-      if (g.dy < -25) setShowMore(true);
-    },
-  })).current;
-
   const currentRoute = state.routes[state.index]?.name;
+
+  // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <>
       {/* ── Barra principal ── */}
       <View style={[styles.bar, { paddingBottom: insets.bottom || spacing.sm }]}>
-        {/* Handle deslizable */}
-        <View style={styles.handleWrap} {...panResponder.panHandlers}>
-          <TouchableOpacity onPress={() => setShowMore(true)} hitSlop={{ top: 12, bottom: 12, left: 80, right: 80 }}>
-            <View style={styles.handleBar} />
-          </TouchableOpacity>
+        {/* Handle deslizable — swipe arriba para abrir panel */}
+        <View style={styles.handleWrap} {...handlePan.panHandlers}>
+          <View style={styles.handleBar} />
         </View>
 
         {/* 5 tabs */}
@@ -99,87 +132,108 @@ export default function CustomTabBar({ state, navigation }) {
             if (!screen) return null;
             const isActive = currentRoute === screenName;
             return (
-              <Pressable
+              <TouchableOpacity
                 key={idx}
                 style={styles.tab}
                 onPress={() => navigateTo(screenName)}
                 onLongPress={() => setConfiguring(idx)}
-                android_ripple={{ color: colors.primary + '22', borderless: true }}
+                delayLongPress={500}
+                activeOpacity={0.7}
               >
-                <Ionicons
-                  name={isActive ? screen.active : screen.icon}
-                  size={26}
-                  color={isActive ? colors.primary : colors.textMuted}
-                />
+                <View style={styles.iconWrap}>
+                  {isActive && <View style={styles.glow} />}
+                  <Ionicons
+                    name={isActive ? screen.active : screen.icon}
+                    size={26}
+                    color={isActive ? colors.primary : colors.textMuted}
+                  />
+                </View>
                 <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]} numberOfLines={1}>
                   {screen.label}
                 </Text>
-              </Pressable>
+              </TouchableOpacity>
             );
           })}
         </View>
       </View>
 
       {/* ── Panel "ver todo" ── */}
-      <Modal visible={showMore} transparent animationType="fade" onRequestClose={() => setShowMore(false)}>
-        <TouchableWithoutFeedback onPress={() => setShowMore(false)}>
-          <View style={styles.overlay} />
-        </TouchableWithoutFeedback>
-        <Animated.View style={[styles.morePanel, { paddingBottom: insets.bottom || spacing.sm, transform: [{ translateY: moreAnim }] }]}>
-          <TouchableOpacity onPress={() => setShowMore(false)} hitSlop={{ top: 16, bottom: 16, left: 80, right: 80 }}>
-            <View style={styles.moreDragHandle} />
-          </TouchableOpacity>
-          <Text style={styles.moreTitle}>Todas las secciones</Text>
-          <View style={styles.moreGrid}>
-            {availableScreens.map(screen => {
-              const isActive = currentRoute === screen.name;
-              return (
-                <TouchableOpacity key={screen.name} style={styles.moreItem} onPress={() => navigateTo(screen.name)}>
-                  <View style={[styles.moreIconWrap, isActive && styles.moreIconWrapActive]}>
-                    <Ionicons name={isActive ? screen.active : screen.icon} size={28} color={isActive ? '#fff' : colors.textSecondary} />
-                  </View>
-                  <Text style={[styles.moreItemLabel, isActive && styles.moreItemLabelActive]}>{screen.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-          <Text style={styles.moreTip}>Mantén presionado un ícono de abajo para personalizarlo</Text>
-        </Animated.View>
-      </Modal>
+      {showMore && (
+        <Modal visible transparent animationType="fade" onRequestClose={closeMore}>
+          <TouchableWithoutFeedback onPress={closeMore}>
+            <View style={styles.overlay} />
+          </TouchableWithoutFeedback>
+
+          <Animated.View
+            style={[
+              styles.morePanel,
+              { paddingBottom: insets.bottom || spacing.sm },
+              { transform: [{ translateY: Animated.add(panelY, panelDragY) }] },
+            ]}
+          >
+            {/* Handle del panel para cerrar con swipe */}
+            <View style={styles.panelHandleWrap} {...panelPan.panHandlers}>
+              <View style={styles.handleBar} />
+            </View>
+
+            <Text style={styles.moreTitle}>Todas las secciones</Text>
+            <View style={styles.moreGrid}>
+              {availableScreens.map(screen => {
+                const isActive = currentRoute === screen.name;
+                return (
+                  <TouchableOpacity key={screen.name} style={styles.moreItem} onPress={() => navigateTo(screen.name)}>
+                    <View style={[styles.moreIconWrap, isActive && styles.moreIconWrapActive]}>
+                      {isActive && <View style={styles.moreGlow} />}
+                      <Ionicons name={isActive ? screen.active : screen.icon} size={26} color={isActive ? colors.primary : colors.textSecondary} />
+                    </View>
+                    <Text style={[styles.moreItemLabel, isActive && styles.moreItemLabelActive]}>{screen.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <Text style={styles.moreTip}>Mantén presionado un ícono para cambiarlo de lugar</Text>
+          </Animated.View>
+        </Modal>
+      )}
 
       {/* ── Modal configurar slot ── */}
-      <Modal visible={configuringIdx !== null} transparent animationType="fade" onRequestClose={() => setConfiguring(null)}>
-        <TouchableWithoutFeedback onPress={() => setConfiguring(null)}>
-          <View style={styles.overlay} />
-        </TouchableWithoutFeedback>
-        <View style={[styles.configPanel, { paddingBottom: insets.bottom || spacing.sm }]}>
-          <View style={styles.moreDragHandle} />
-          <Text style={styles.moreTitle}>
-            Cambiar posición {configuringIdx !== null ? configuringIdx + 1 : ''}
-          </Text>
-          <View style={styles.moreGrid}>
-            {availableScreens.map(screen => {
-              const isCurrent = slots[configuringIdx] === screen.name;
-              return (
-                <TouchableOpacity key={screen.name} style={styles.moreItem} onPress={() => assignToSlot(screen.name)}>
-                  <View style={[styles.moreIconWrap, isCurrent && styles.moreIconWrapActive]}>
-                    <Ionicons name={isCurrent ? screen.active : screen.icon} size={28} color={isCurrent ? '#fff' : colors.textSecondary} />
-                    {isCurrent && (
-                      <View style={styles.checkBadge}>
-                        <Ionicons name="checkmark" size={10} color="#fff" />
-                      </View>
-                    )}
-                  </View>
-                  <Text style={[styles.moreItemLabel, isCurrent && styles.moreItemLabelActive]}>{screen.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
+      {configuringIdx !== null && (
+        <Modal visible transparent animationType="fade" onRequestClose={() => setConfiguring(null)}>
+          <TouchableWithoutFeedback onPress={() => setConfiguring(null)}>
+            <View style={styles.overlay} />
+          </TouchableWithoutFeedback>
+          <View style={[styles.configPanel, { paddingBottom: insets.bottom || spacing.sm }]}>
+            <View style={styles.panelHandleWrap}>
+              <View style={styles.handleBar} />
+            </View>
+            <Text style={styles.moreTitle}>Posición {(configuringIdx ?? 0) + 1} — Elige una sección</Text>
+            <View style={styles.moreGrid}>
+              {availableScreens.map(screen => {
+                const isCurrent = slots[configuringIdx] === screen.name;
+                return (
+                  <TouchableOpacity key={screen.name} style={styles.moreItem} onPress={() => assignToSlot(screen.name)}>
+                    <View style={[styles.moreIconWrap, isCurrent && styles.moreIconWrapActive]}>
+                      {isCurrent && <View style={styles.moreGlow} />}
+                      <Ionicons name={isCurrent ? screen.active : screen.icon} size={26} color={isCurrent ? colors.primary : colors.textSecondary} />
+                      {isCurrent && (
+                        <View style={styles.checkBadge}>
+                          <Ionicons name="checkmark" size={10} color="#fff" />
+                        </View>
+                      )}
+                    </View>
+                    <Text style={[styles.moreItemLabel, isCurrent && styles.moreItemLabelActive]}>{screen.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
+      )}
     </>
   );
 }
+
+// ─── Estilos ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   bar: {
@@ -191,6 +245,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: spacing.sm,
     paddingBottom: spacing.xs,
+    // área amplia para el gesto
+    paddingHorizontal: spacing.xxl,
   },
   handleBar: {
     width: 36,
@@ -204,9 +260,21 @@ const styles = StyleSheet.create({
   tab: {
     flex: 1,
     alignItems: 'center',
+    paddingVertical: spacing.xs + 2,
+    gap: 2,
+  },
+  iconWrap: {
+    width: 48,
+    height: 36,
+    alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.sm,
-    gap: 3,
+  },
+  glow: {
+    position: 'absolute',
+    width: 48,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.primary + '25',
   },
   tabLabel: {
     fontSize: 11,
@@ -215,10 +283,11 @@ const styles = StyleSheet.create({
   },
   tabLabelActive: {
     color: colors.primary,
+    fontWeight: '700',
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   morePanel: {
     position: 'absolute',
@@ -226,18 +295,16 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: colors.surface,
-    borderTopLeftRadius: radius.xl + 4,
-    borderTopRightRadius: radius.xl + 4,
-    padding: spacing.lg,
-    paddingTop: spacing.md,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
   },
-  moreDragHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
-    alignSelf: 'center',
-    marginBottom: spacing.md,
+  panelHandleWrap: {
+    alignItems: 'center',
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+    paddingHorizontal: spacing.xxl,
   },
   moreTitle: {
     fontSize: font.md,
@@ -254,7 +321,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   moreItem: {
-    width: 80,
+    width: 72,
     alignItems: 'center',
     gap: spacing.xs,
   },
@@ -267,19 +334,27 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'visible',
   },
   moreIconWrapActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    borderColor: colors.primary + '44',
+  },
+  moreGlow: {
+    position: 'absolute',
+    width: 56,
+    height: 56,
+    borderRadius: radius.lg,
+    backgroundColor: colors.primary + '18',
   },
   moreItemLabel: {
-    fontSize: font.sm - 1,
+    fontSize: 11,
     fontWeight: '600',
     color: colors.textSecondary,
     textAlign: 'center',
   },
   moreItemLabelActive: {
     color: colors.primary,
+    fontWeight: '700',
   },
   moreTip: {
     fontSize: font.sm - 2,
@@ -293,20 +368,22 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: colors.surface,
-    borderTopLeftRadius: radius.xl + 4,
-    borderTopRightRadius: radius.xl + 4,
-    padding: spacing.lg,
-    paddingTop: spacing.md,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
   },
   checkBadge: {
     position: 'absolute',
-    top: -4,
-    right: -4,
+    top: -5,
+    right: -5,
     width: 18,
     height: 18,
     borderRadius: 9,
     backgroundColor: colors.success,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.surface,
   },
 });

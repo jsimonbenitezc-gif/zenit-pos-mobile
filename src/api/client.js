@@ -116,6 +116,16 @@ class ApiClient {
     return this.request('/stats/dashboard');
   }
 
+  // ─── Inventario (premium) ────────────────────────────────────────────────
+  getIngredients() {
+    return this.request('/inventory/ingredients');
+  }
+
+  // ─── Ofertas (premium) ───────────────────────────────────────────────────
+  getDiscounts() {
+    return this.request('/offers/discounts');
+  }
+
   // ─── Plan ────────────────────────────────────────────────────────────────
   getPlanStatus() {
     return this.request('/billing/status');

@@ -86,16 +86,15 @@ export default function NuevaVentaScreen() {
   const [textoNota, setTextoNota]         = useState('');
   const [enviando, setEnviando]           = useState(false);
 
-  // Swipe para cerrar carrito
+  // Swipe para cerrar carrito — PanResponder SOLO en el drag handle
   const cartPan = useRef(new Animated.Value(0)).current;
-  const cartPanResponder = useRef(PanResponder.create({
-    onStartShouldSetPanResponder: () => false,
-    onMoveShouldSetPanResponder: (_, g) => g.dy > 10 && Math.abs(g.dy) > Math.abs(g.dx),
+  const cartHandlePan = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
     onPanResponderMove: (_, g) => { if (g.dy > 0) cartPan.setValue(g.dy); },
     onPanResponderRelease: (_, g) => {
-      if (g.dy > 100 || g.vy > 1.2) {
-        setShowCarrito(false);
+      if (g.dy > 80 || g.vy > 0.8) {
         cartPan.setValue(0);
+        setShowCarrito(false);
       } else {
         Animated.spring(cartPan, { toValue: 0, useNativeDriver: true }).start();
       }
@@ -351,10 +350,9 @@ export default function NuevaVentaScreen() {
       >
         <Animated.View
           style={[{ flex: 1, backgroundColor: colors.background }, { transform: [{ translateY: cartPan }] }]}
-          {...cartPanResponder.panHandlers}
         >
-          {/* Drag handle */}
-          <View style={styles.dragHandleWrap}>
+          {/* Drag handle — swipe aquí para cerrar */}
+          <View style={styles.dragHandleWrap} {...cartHandlePan.panHandlers}>
             <View style={styles.dragHandle} />
           </View>
 

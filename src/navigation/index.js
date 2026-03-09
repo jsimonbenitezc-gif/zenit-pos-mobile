@@ -7,20 +7,28 @@ import { useAuth } from '../context/AuthContext';
 import { colors } from '../theme';
 import CustomTabBar, { ALL_SCREENS } from './CustomTabBar';
 
-import LoginScreen      from '../screens/auth/LoginScreen';
-import DashboardScreen  from '../screens/main/DashboardScreen';
-import NuevaVentaScreen from '../screens/main/NuevaVentaScreen';
-import PedidosScreen    from '../screens/main/PedidosScreen';
-import ProductosScreen  from '../screens/main/ProductosScreen';
-import ClientesScreen   from '../screens/main/ClientesScreen';
-import AjustesScreen    from '../screens/main/AjustesScreen';
+import LoginScreen       from '../screens/auth/LoginScreen';
+import DashboardScreen   from '../screens/main/DashboardScreen';
+import NuevaVentaScreen  from '../screens/main/NuevaVentaScreen';
+import PedidosScreen     from '../screens/main/PedidosScreen';
+import MesasScreen       from '../screens/main/MesasScreen';
+import ProductosScreen   from '../screens/main/ProductosScreen';
+import ClientesScreen    from '../screens/main/ClientesScreen';
+import TurnoScreen       from '../screens/main/TurnoScreen';
+import InventarioScreen  from '../screens/main/InventarioScreen';
+import OfertasScreen     from '../screens/main/OfertasScreen';
+import AjustesScreen     from '../screens/main/AjustesScreen';
 
 const SCREEN_MAP = {
   Dashboard:  DashboardScreen,
   NuevaVenta: NuevaVentaScreen,
   Pedidos:    PedidosScreen,
+  Mesas:      MesasScreen,
   Productos:  ProductosScreen,
   Clientes:   ClientesScreen,
+  Turno:      TurnoScreen,
+  Inventario: InventarioScreen,
+  Ofertas:    OfertasScreen,
   Ajustes:    AjustesScreen,
 };
 
