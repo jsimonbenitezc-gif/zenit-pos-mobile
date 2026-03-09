@@ -86,39 +86,20 @@ export default function NuevaVentaScreen() {
   const [textoNota, setTextoNota]         = useState('');
   const [enviando, setEnviando]           = useState(false);
 
-  // Swipe para cerrar carrito — funciona en el header completo (handle + título)
-  // Deslizar abajo = cerrar · Deslizar arriba = efecto elástico
+  // Swipe para cerrar carrito — área grande: handle + barra de título
+  // Deslizar abajo = cerrar · Deslizar arriba = leve efecto elástico
   const cartPan = useRef(new Animated.Value(0)).current;
-  const scrollYRef = useRef(0);
 
   const cartHeaderPan = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => false,
     onMoveShouldSetPanResponder: (_, g) =>
-      Math.abs(g.dy) > 6 && Math.abs(g.dy) > Math.abs(g.dx),
+      Math.abs(g.dy) > 5 && Math.abs(g.dy) > Math.abs(g.dx),
     onPanResponderMove: (_, g) => {
       if (g.dy > 0) {
-        cartPan.setValue(g.dy); // deslizar abajo: mueve el modal hacia abajo
+        cartPan.setValue(g.dy);
       } else {
-        cartPan.setValue(g.dy * 0.12); // deslizar arriba: leve efecto elástico
+        cartPan.setValue(g.dy * 0.12); // resistencia al subir
       }
-    },
-    onPanResponderRelease: (_, g) => {
-      if (g.dy > 70 || g.vy > 0.7) {
-        cartPan.setValue(0);
-        setShowCarrito(false);
-      } else {
-        Animated.spring(cartPan, { toValue: 0, useNativeDriver: true, tension: 120, friction: 8 }).start();
-      }
-    },
-  })).current;
-
-  // PanResponder adicional para el área del ScrollView (solo cuando scroll está al tope)
-  const cartScrollPan = useRef(PanResponder.create({
-    onStartShouldSetPanResponder: () => false,
-    onMoveShouldSetPanResponder: (_, g) =>
-      scrollYRef.current <= 1 && g.dy > 10 && g.dy > Math.abs(g.dx),
-    onPanResponderMove: (_, g) => {
-      if (g.dy > 0) cartPan.setValue(g.dy);
     },
     onPanResponderRelease: (_, g) => {
       if (g.dy > 70 || g.vy > 0.7) {
@@ -400,12 +381,7 @@ export default function NuevaVentaScreen() {
             </View>
           </View>
 
-          <ScrollView
-            contentContainerStyle={{ padding: spacing.lg }}
-            onScroll={e => { scrollYRef.current = e.nativeEvent.contentOffset.y; }}
-            scrollEventThrottle={16}
-            {...cartScrollPan.panHandlers}
-          >
+          <ScrollView contentContainerStyle={{ padding: spacing.lg }}>
             {/* Tipo de pedido */}
             <Text style={styles.sectionLabel}>Tipo de pedido</Text>
             <View style={styles.tipoPedidoRow}>

@@ -74,7 +74,7 @@ export default function MesasScreen() {
   const [orders, setOrders]       = useState([]);
   const [loading, setLoading]     = useState(true);
   const [refreshing, setRefresh]  = useState(false);
-  const [filtro, setFiltro]       = useState('activos'); // 'activos' | 'todos'
+  const [filtro, setFiltro]       = useState('todos'); // 'activos' | 'todos'
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefresh(true);
@@ -110,7 +110,7 @@ export default function MesasScreen() {
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <Text style={styles.title}>Mesas</Text>
-        <Text style={styles.count}>{filtrados.length} activas</Text>
+        <Text style={styles.count}>{filtrados.length} {filtro === 'activos' ? 'activas' : 'pedidos'}</Text>
       </View>
 
       {/* Filtro */}

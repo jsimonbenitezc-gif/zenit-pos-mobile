@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import {
-  View, Text, Pressable, StyleSheet, Animated,
+  View, Text, Pressable, TouchableOpacity, StyleSheet, Animated,
   PanResponder, Modal, TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,16 +12,16 @@ import { colors, spacing, radius, font } from '../theme';
 // ─── Catálogo completo de pantallas ───────────────────────────────────────────
 
 export const ALL_SCREENS = [
-  { name: 'NuevaVenta',  label: 'Venta',      icon: 'cart-outline',            active: 'cart',            ownerOnly: false },
-  { name: 'Pedidos',     label: 'Pedidos',    icon: 'receipt-outline',         active: 'receipt',         ownerOnly: false },
-  { name: 'Mesas',       label: 'Mesas',      icon: 'grid-outline',            active: 'grid',            ownerOnly: false },
-  { name: 'Productos',   label: 'Productos',  icon: 'cube-outline',            active: 'cube',            ownerOnly: false },
-  { name: 'Clientes',    label: 'Clientes',   icon: 'people-outline',          active: 'people',          ownerOnly: false },
-  { name: 'Turno',       label: 'Turno',      icon: 'time-outline',            active: 'time',            ownerOnly: false },
-  { name: 'Inventario',  label: 'Inventario', icon: 'layers-outline',          active: 'layers',          ownerOnly: true  },
-  { name: 'Ofertas',     label: 'Ofertas',    icon: 'pricetag-outline',        active: 'pricetag',        ownerOnly: true  },
-  { name: 'Dashboard',   label: 'Resumen',    icon: 'bar-chart-outline',       active: 'bar-chart',       ownerOnly: true  },
-  { name: 'Ajustes',     label: 'Ajustes',    icon: 'settings-outline',        active: 'settings',        ownerOnly: false },
+  { name: 'NuevaVenta',  label: 'Venta',      icon: 'cart-outline',      active: 'cart',       ownerOnly: false },
+  { name: 'Pedidos',     label: 'Pedidos',    icon: 'receipt-outline',   active: 'receipt',    ownerOnly: false },
+  { name: 'Mesas',       label: 'Mesas',      icon: 'grid-outline',      active: 'grid',       ownerOnly: false },
+  { name: 'Productos',   label: 'Productos',  icon: 'cube-outline',      active: 'cube',       ownerOnly: false },
+  { name: 'Clientes',    label: 'Clientes',   icon: 'people-outline',    active: 'people',     ownerOnly: false },
+  { name: 'Turno',       label: 'Turno',      icon: 'time-outline',      active: 'time',       ownerOnly: false },
+  { name: 'Inventario',  label: 'Inventario', icon: 'layers-outline',    active: 'layers',     ownerOnly: true  },
+  { name: 'Ofertas',     label: 'Ofertas',    icon: 'pricetag-outline',  active: 'pricetag',   ownerOnly: true  },
+  { name: 'Dashboard',   label: 'Resumen',    icon: 'bar-chart-outline', active: 'bar-chart',  ownerOnly: true  },
+  { name: 'Ajustes',     label: 'Ajustes',    icon: 'settings-outline',  active: 'settings',   ownerOnly: false },
 ];
 
 const DEFAULT_SLOTS = ['NuevaVenta', 'Pedidos', 'Mesas', 'Clientes', 'Ajustes'];
@@ -37,8 +37,7 @@ export default function CustomTabBar({ state, navigation }) {
   const [showMore, setShowMore]         = useState(false);
   const [configuringIdx, setConfiguring] = useState(null);
 
-  // Un solo Animated.Value controla la posición del panel:
-  // 0 = abierto, 500 = cerrado (fuera de pantalla abajo)
+  // panelY: 0 = abierto, 500 = cerrado (fuera de pantalla)
   const panelY = useRef(new Animated.Value(500)).current;
 
   const availableScreens = ALL_SCREENS.filter(s => !s.ownerOnly || isOwner);
@@ -67,7 +66,7 @@ export default function CustomTabBar({ state, navigation }) {
     Animated.spring(panelY, {
       toValue: 0,
       useNativeDriver: true,
-      tension: 80,
+      tension: 60,
       friction: 10,
     }).start();
   }
@@ -75,48 +74,19 @@ export default function CustomTabBar({ state, navigation }) {
   function closeMore() {
     Animated.timing(panelY, {
       toValue: 500,
-      duration: 250,
+      duration: 280,
       useNativeDriver: true,
     }).start(() => setShowMore(false));
   }
 
-  // ── PanResponder: handle inferior → swipe arriba abre el panel ──────────────
-  // Usa onMoveShouldSetPanResponder para no interferir con taps en los tabs.
-  // Durante el swipe, actualiza panelY en tiempo real (aunque el panel aún
-  // no sea visible). Al soltar, si el gesto fue suficiente → Modal + spring.
-
-  const handlePan = useRef(PanResponder.create({
-    onStartShouldSetPanResponder: () => false, // no capturar taps
-    onMoveShouldSetPanResponder: (_, g) =>
-      g.dy < -8 && Math.abs(g.dy) > Math.abs(g.dx), // solo swipe hacia arriba
-    onPanResponderGrant: () => {
-      panelY.setValue(500); // parte siempre desde abajo
-    },
-    onPanResponderMove: (_, g) => {
-      // g.dy es negativo al subir → 500 + g.dy disminuye
-      panelY.setValue(Math.max(0, 500 + g.dy));
-    },
-    onPanResponderRelease: (_, g) => {
-      const y = Math.max(0, 500 + g.dy);
-      if (y < 350 || g.vy < -0.5) {
-        // Suficiente swipe → mostrar panel y terminar de abrir con spring
-        setShowMore(true);
-        Animated.spring(panelY, { toValue: 0, useNativeDriver: true, tension: 80, friction: 10 }).start();
-      } else {
-        panelY.setValue(500); // no fue suficiente, resetear sin animación
-      }
-    },
-  })).current;
-
-  // ── PanResponder: panel completo → swipe abajo cierra el panel ──────────────
-  // Aplicado al panel entero; onMoveShouldSetPanResponder evita capturar taps.
+  // ── PanResponder: swipe abajo en el panel para cerrar ───────────────────────
+  // onMoveShouldSetPanResponder → solo captura arrastre, no taps (ítems del grid siguen funcionando)
 
   const panelPan = useRef(PanResponder.create({
-    onStartShouldSetPanResponder: () => false, // no capturar taps (permite tocar ítems del grid)
+    onStartShouldSetPanResponder: () => false,
     onMoveShouldSetPanResponder: (_, g) =>
-      g.dy > 8 && Math.abs(g.dy) > Math.abs(g.dx), // solo swipe hacia abajo
+      g.dy > 8 && Math.abs(g.dy) > Math.abs(g.dx),
     onPanResponderGrant: () => {
-      // Guardar posición actual como offset para continuar desde ahí
       panelY.setOffset(panelY._value);
       panelY.setValue(0);
     },
@@ -155,10 +125,16 @@ export default function CustomTabBar({ state, navigation }) {
     <>
       {/* ── Barra principal ── */}
       <View style={[styles.bar, { paddingBottom: insets.bottom || spacing.sm }]}>
-        {/* Handle deslizable — swipe arriba para abrir panel */}
-        <View style={styles.handleWrap} {...handlePan.panHandlers}>
+
+        {/* Handle — toca para abrir panel */}
+        <TouchableOpacity
+          style={styles.handleWrap}
+          onPress={openMore}
+          activeOpacity={0.6}
+          hitSlop={{ top: 6, bottom: 4, left: 60, right: 60 }}
+        >
           <View style={styles.handleBar} />
-        </View>
+        </TouchableOpacity>
 
         {/* 5 tabs */}
         <View style={styles.tabs}>
@@ -175,7 +151,7 @@ export default function CustomTabBar({ state, navigation }) {
                 delayLongPress={450}
               >
                 <View style={styles.iconWrap}>
-                  {/* Resplandor radial: dos círculos concéntricos → degradado centro→afuera */}
+                  {/* Resplandor radial: dos círculos concéntricos */}
                   {isActive && <View style={styles.glowOuter} />}
                   {isActive && <View style={styles.glowInner} />}
                   <Ionicons
@@ -196,11 +172,12 @@ export default function CustomTabBar({ state, navigation }) {
       {/* ── Panel "ver todo" ── */}
       {showMore && (
         <Modal visible transparent animationType="none" onRequestClose={closeMore}>
+          {/* Fondo oscuro — toca para cerrar */}
           <TouchableWithoutFeedback onPress={closeMore}>
             <View style={styles.overlay} />
           </TouchableWithoutFeedback>
 
-          {/* panelPan aplicado al panel entero para swipe-down en cualquier parte */}
+          {/* Panel con swipe-down para cerrar (funciona en todo el panel) */}
           <Animated.View
             style={[
               styles.morePanel,
@@ -209,13 +186,13 @@ export default function CustomTabBar({ state, navigation }) {
             ]}
             {...panelPan.panHandlers}
           >
-            {/* Handle visual (decorativo — el swipe funciona en todo el panel) */}
             <View style={styles.panelHandleWrap}>
               <View style={styles.handleBar} />
             </View>
 
             <Text style={styles.moreTitle}>Todas las secciones</Text>
             <Text style={styles.moreTip}>Desliza hacia abajo para cerrar · Mantén un ícono para cambiarlo</Text>
+
             <View style={styles.moreGrid}>
               {availableScreens.map(screen => {
                 const isActive = currentRoute === screen.name;
@@ -224,9 +201,15 @@ export default function CustomTabBar({ state, navigation }) {
                     <View style={[styles.moreIconWrap, isActive && styles.moreIconWrapActive]}>
                       {isActive && <View style={styles.moreGlowOuter} />}
                       {isActive && <View style={styles.moreGlowInner} />}
-                      <Ionicons name={isActive ? screen.active : screen.icon} size={26} color={isActive ? colors.primary : colors.textSecondary} />
+                      <Ionicons
+                        name={isActive ? screen.active : screen.icon}
+                        size={26}
+                        color={isActive ? colors.primary : colors.textSecondary}
+                      />
                     </View>
-                    <Text style={[styles.moreItemLabel, isActive && styles.moreItemLabelActive]}>{screen.label}</Text>
+                    <Text style={[styles.moreItemLabel, isActive && styles.moreItemLabelActive]}>
+                      {screen.label}
+                    </Text>
                   </Pressable>
                 );
               })}
@@ -235,7 +218,7 @@ export default function CustomTabBar({ state, navigation }) {
         </Modal>
       )}
 
-      {/* ── Modal configurar slot ── */}
+      {/* ── Modal configurar slot (mantener presionado) ── */}
       {configuringIdx !== null && (
         <Modal visible transparent animationType="fade" onRequestClose={() => setConfiguring(null)}>
           <TouchableWithoutFeedback onPress={() => setConfiguring(null)}>
@@ -254,14 +237,20 @@ export default function CustomTabBar({ state, navigation }) {
                     <View style={[styles.moreIconWrap, isCurrent && styles.moreIconWrapActive]}>
                       {isCurrent && <View style={styles.moreGlowOuter} />}
                       {isCurrent && <View style={styles.moreGlowInner} />}
-                      <Ionicons name={isCurrent ? screen.active : screen.icon} size={26} color={isCurrent ? colors.primary : colors.textSecondary} />
+                      <Ionicons
+                        name={isCurrent ? screen.active : screen.icon}
+                        size={26}
+                        color={isCurrent ? colors.primary : colors.textSecondary}
+                      />
                       {isCurrent && (
                         <View style={styles.checkBadge}>
                           <Ionicons name="checkmark" size={10} color="#fff" />
                         </View>
                       )}
                     </View>
-                    <Text style={[styles.moreItemLabel, isCurrent && styles.moreItemLabelActive]}>{screen.label}</Text>
+                    <Text style={[styles.moreItemLabel, isCurrent && styles.moreItemLabelActive]}>
+                      {screen.label}
+                    </Text>
                   </Pressable>
                 );
               })}
@@ -285,7 +274,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: spacing.sm + 2,
     paddingBottom: spacing.xs,
-    paddingHorizontal: spacing.xxl,
   },
   handleBar: {
     width: 36,
@@ -308,20 +296,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Resplandor: círculo exterior grande y muy tenue → interior más concentrado
   glowOuter: {
     position: 'absolute',
     width: 48,
     height: 38,
     borderRadius: 19,
-    backgroundColor: colors.primary + '14', // ~8% opacidad
+    backgroundColor: colors.primary + '14',
   },
   glowInner: {
     position: 'absolute',
     width: 30,
     height: 24,
     borderRadius: 12,
-    backgroundColor: colors.primary + '30', // ~19% opacidad
+    backgroundColor: colors.primary + '30',
   },
   tabLabel: {
     fontSize: 11,
@@ -351,7 +338,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: spacing.md,
     paddingBottom: spacing.sm,
-    paddingHorizontal: spacing.xxl,
   },
   moreTitle: {
     fontSize: font.md,
@@ -387,7 +373,6 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'visible',
   },
   moreIconWrapActive: {
     borderColor: colors.primary + '44',
