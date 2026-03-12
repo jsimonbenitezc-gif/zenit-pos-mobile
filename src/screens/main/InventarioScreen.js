@@ -208,7 +208,11 @@ export default function InventarioScreen() {
   useEffect(() => { load(); }, [load]);
 
   useFocusEffect(
-    useCallback(() => { load(true); }, [load])
+    useCallback(() => {
+      load(true);
+      const interval = setInterval(() => load(true), 15000);
+      return () => clearInterval(interval);
+    }, [load])
   );
 
   const abrirModal = (tipo) => {
