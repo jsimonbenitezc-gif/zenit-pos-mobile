@@ -83,7 +83,7 @@ function PrepRow({ item }) {
 }
 
 // ─── Receta row (expandible) ──────────────────────────────────────────────────
-function RecetaRow({ product, items, ingredients, preparations }) {
+function RecetaRow({ product, items, ingredients, preparations, onDelete }) {
   const [expanded, setExpanded] = useState(false);
   if (!product) return null;
 
@@ -94,6 +94,17 @@ function RecetaRow({ product, items, ingredients, preparations }) {
   const unit = (id, tipo) => {
     if (tipo === 'ingredient') return ingredients.find(i => i.id === id)?.unit ?? '';
     return preparations.find(p => p.id === id)?.unit ?? '';
+  };
+
+  const confirmarBorrar = () => {
+    Alert.alert(
+      'Borrar receta',
+      `¿Eliminar la receta de "${product.name}"? Puedes crearla de nuevo después.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Borrar', style: 'destructive', onPress: () => onDelete(product.id) },
+      ]
+    );
   };
 
   return (
@@ -108,6 +119,9 @@ function RecetaRow({ product, items, ingredients, preparations }) {
           <Text style={styles.rowName}>{product.name}</Text>
           <Text style={styles.rowUnit}>{items.length} {items.length === 1 ? 'componente' : 'componentes'}</Text>
         </View>
+        <TouchableOpacity onPress={confirmarBorrar} style={{ padding: 4, marginRight: spacing.xs }}>
+          <Ionicons name="trash-outline" size={16} color={colors.danger} />
+        </TouchableOpacity>
         <Ionicons name={expanded ? 'chevron-up-outline' : 'chevron-down-outline'} size={16} color={colors.textMuted} />
       </TouchableOpacity>
       {expanded && (
@@ -337,10 +351,20 @@ export default function InventarioScreen() {
       await load(true);
       setModalPrep(false);
       Alert.alert('✓ Preparación creada', nueva.name);
-    } catch {
-      Alert.alert('Error', 'No se pudo crear la preparación.');
+    } catch(e) {
+      Alert.alert('Error', e.message || 'No se pudo crear la preparación.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // ── Borrar receta ─────────────────────────────────────────────────────────
+  const borrarReceta = async (productId) => {
+    try {
+      await api.deleteProductRecipe(productId);
+      await load(true);
+    } catch(e) {
+      Alert.alert('Error', e.message || 'No se pudo borrar la receta.');
     }
   };
 
@@ -359,8 +383,8 @@ export default function InventarioScreen() {
       await load(true);
       setModalReceta(false);
       Alert.alert('✓ Receta guardada', recetaProd.name);
-    } catch {
-      Alert.alert('Error', 'No se pudo guardar la receta.');
+    } catch(e) {
+      Alert.alert('Error', e.message || 'No se pudo guardar la receta.');
     } finally {
       setSaving(false);
     }
@@ -484,7 +508,7 @@ export default function InventarioScreen() {
           contentContainerStyle={styles.listContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
           renderItem={({ item }) => (
-            <RecetaRow product={item.product} items={item.items} ingredients={ingredients} preparations={preparations} />
+            <RecetaRow product={item.product} items={item.items} ingredients={ingredients} preparations={preparations} onDelete={borrarReceta} />
           )}
           ListEmptyComponent={<Text style={styles.empty}>No hay recetas asignadas</Text>}
         />

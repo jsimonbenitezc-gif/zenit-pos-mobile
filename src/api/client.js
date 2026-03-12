@@ -145,6 +145,10 @@ class ApiClient {
     return this.request(`/inventory/products/${id}/recipe`, { method: 'POST', body: { items } });
   }
 
+  deleteProductRecipe(id) {
+    return this.request(`/inventory/products/${id}/recipe`, { method: 'DELETE' });
+  }
+
   getMovements(params = {}) {
     const q = new URLSearchParams(params).toString();
     return this.request(`/inventory/movements${q ? '?' + q : ''}`);
