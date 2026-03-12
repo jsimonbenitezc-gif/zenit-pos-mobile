@@ -129,8 +129,25 @@ class ApiClient {
     return this.request('/inventory/preparations');
   }
 
+  createPreparation(data) {
+    return this.request('/inventory/preparations', { method: 'POST', body: data });
+  }
+
+  savePreparationRecipe(id, items) {
+    return this.request(`/inventory/preparations/${id}/recipe`, { method: 'POST', body: { items } });
+  }
+
   getAllRecipes() {
     return this.request('/inventory/all-recipes');
+  }
+
+  saveProductRecipe(id, items) {
+    return this.request(`/inventory/products/${id}/recipe`, { method: 'POST', body: { items } });
+  }
+
+  getMovements(params = {}) {
+    const q = new URLSearchParams(params).toString();
+    return this.request(`/inventory/movements${q ? '?' + q : ''}`);
   }
 
   // ─── Ofertas (premium) ───────────────────────────────────────────────────
