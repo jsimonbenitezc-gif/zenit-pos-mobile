@@ -13,6 +13,17 @@ export function AuthProvider({ children }) {
     restoreSession();
   }, []);
 
+  // Refresca el usuario desde el servidor (para actualizar plan sin cerrar sesión)
+  async function refreshUser() {
+    try {
+      const me = await api.getMe();
+      if (me) setUser(me);
+      return me;
+    } catch {
+      return null;
+    }
+  }
+
   async function restoreSession() {
     try {
       const token = await SecureStore.getItemAsync('zenit_token');
@@ -54,7 +65,7 @@ export function AuthProvider({ children }) {
   const isOwner = user?.role === 'owner';
 
   return (
-    <AuthContext.Provider value={{ user, loading, isOwner, loginOwner, loginStaff, logout }}>
+    <AuthContext.Provider value={{ user, loading, isOwner, loginOwner, loginStaff, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,9 +1,10 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   RefreshControl, ActivityIndicator, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../api/client';
 import { colors, spacing, radius, font } from '../../theme';
 
@@ -22,7 +23,8 @@ const ESTADO_COLOR = {
   cancelado:  colors.danger,
 };
 
-const PAGO_LABEL = { efectivo: '💵 Efectivo', tarjeta: '💳 Tarjeta', transferencia: '📱 Transferencia' };
+const PAGO_LABEL = { efectivo: 'Efectivo', tarjeta: 'Tarjeta', transferencia: 'Transferencia' };
+const PAGO_ICON  = { efectivo: 'cash-outline', tarjeta: 'card-outline', transferencia: 'phone-portrait-outline' };
 
 function PedidoCard({ pedido, onCambiarEstado }) {
   const fecha = new Date(pedido.createdAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
@@ -33,7 +35,11 @@ function PedidoCard({ pedido, onCambiarEstado }) {
       <View style={styles.cardHeader}>
         <View>
           <Text style={styles.pedidoId}>#{pedido.id}</Text>
-          <Text style={styles.pedidoFecha}>{fecha} · {PAGO_LABEL[pedido.payment_method] || pedido.payment_method}</Text>
+          <View style={styles.pedidoFechaRow}>
+            <Text style={styles.pedidoFecha}>{fecha} · </Text>
+            <Ionicons name={PAGO_ICON[pedido.payment_method] || 'cash-outline'} size={12} color={colors.textMuted} />
+            <Text style={styles.pedidoFecha}> {PAGO_LABEL[pedido.payment_method] || pedido.payment_method}</Text>
+          </View>
         </View>
         <View>
           <View style={[styles.badge, { backgroundColor: color + '22' }]}>
@@ -43,8 +49,17 @@ function PedidoCard({ pedido, onCambiarEstado }) {
         </View>
       </View>
 
+      {pedido.table && (
+        <View style={styles.clienteRow}>
+          <Ionicons name="grid-outline" size={13} color={colors.primary} />
+          <Text style={[styles.cliente, { color: colors.primary }]}> {pedido.table.name}</Text>
+        </View>
+      )}
       {pedido.customer && (
-        <Text style={styles.cliente}>👤 {pedido.customer.name}</Text>
+        <View style={styles.clienteRow}>
+          <Ionicons name="person-outline" size={13} color={colors.textSecondary} />
+          <Text style={styles.cliente}> {pedido.customer.name}</Text>
+        </View>
       )}
 
       {pedido.items?.length > 0 && (
@@ -169,11 +184,13 @@ const styles = StyleSheet.create({
   card: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.border },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   pedidoId: { fontSize: font.md, fontWeight: '800', color: colors.textPrimary },
-  pedidoFecha: { fontSize: font.sm - 1, color: colors.textMuted, marginTop: 2 },
+  pedidoFechaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
+  pedidoFecha: { fontSize: font.sm - 1, color: colors.textMuted },
   pedidoTotal: { fontSize: font.lg, fontWeight: '800', color: colors.textPrimary, textAlign: 'right', marginTop: 4 },
   badge: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: radius.sm, alignSelf: 'flex-end' },
   badgeText: { fontSize: font.sm - 2, fontWeight: '700', textTransform: 'uppercase' },
-  cliente: { fontSize: font.sm, color: colors.textSecondary, marginTop: spacing.xs },
+  clienteRow: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.xs },
+  cliente: { fontSize: font.sm, color: colors.textSecondary },
   items: { marginTop: spacing.xs, paddingTop: spacing.xs, borderTopWidth: 1, borderTopColor: colors.border },
   itemText: { fontSize: font.sm - 1, color: colors.textSecondary },
   acciones: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },

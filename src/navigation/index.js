@@ -18,6 +18,7 @@ import TurnoScreen       from '../screens/main/TurnoScreen';
 import InventarioScreen  from '../screens/main/InventarioScreen';
 import OfertasScreen     from '../screens/main/OfertasScreen';
 import AjustesScreen     from '../screens/main/AjustesScreen';
+import KDSScreen         from '../screens/main/KDSScreen';
 
 const SCREEN_MAP = {
   Dashboard:  DashboardScreen,
@@ -70,7 +71,10 @@ export default function Navigation() {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {user ? (
-          <Stack.Screen name="Main" component={MainTabs} />
+          <>
+            <Stack.Screen name="Main" component={MainTabs} />
+            <Stack.Screen name="KDS"  component={KDSScreen} />
+          </>
         ) : (
           <Stack.Screen name="Login" component={LoginScreen} />
         )}

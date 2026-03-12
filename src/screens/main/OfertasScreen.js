@@ -48,7 +48,7 @@ function PremiumGate() {
 
 export default function OfertasScreen() {
   const { user } = useAuth();
-  const isPremium = user?.plan === 'premium' || user?.plan === 'trialing';
+  const isPremium = user?.plan === 'premium' || user?.plan === 'trial';
 
   const [discounts, setDiscounts] = useState([]);
   const [loading, setLoading]     = useState(true);

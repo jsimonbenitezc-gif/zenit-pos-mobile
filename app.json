@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "zenit-pos-mobile",
-    "slug": "zenit-pos-mobile",
+    "slug": "zenit-pos",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -20,13 +20,20 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+      },
+      "package": "com.zenitsoftware.zenitpos"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-secure-store"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "4ff73752-2212-4dc3-9a0a-7e17b603129c"
+      }
+    },
+    "owner": "zenit-software"
   }
 }

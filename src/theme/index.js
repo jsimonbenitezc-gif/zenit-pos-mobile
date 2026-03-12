@@ -4,7 +4,7 @@ export const colors = {
   success: '#10b981',
   warning: '#f59e0b',
   danger: '#ef4444',
-  background: '#f9fafb',
+  background: '#eef1f5',
   surface: '#ffffff',
   border: '#e5e7eb',
   textPrimary: '#111827',

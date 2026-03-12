@@ -21,7 +21,7 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
 
-    const config = { ...options, headers };
+    const config = { ...options, headers, cache: 'no-store' };
 
     if (options.body && typeof options.body === 'object') {
       config.body = JSON.stringify(options.body);
@@ -121,6 +121,18 @@ class ApiClient {
     return this.request('/inventory/ingredients');
   }
 
+  createMovement(data) {
+    return this.request('/inventory/movements', { method: 'POST', body: data });
+  }
+
+  getPreparations() {
+    return this.request('/inventory/preparations');
+  }
+
+  getAllRecipes() {
+    return this.request('/inventory/all-recipes');
+  }
+
   // ─── Ofertas (premium) ───────────────────────────────────────────────────
   getDiscounts() {
     return this.request('/offers/discounts');
@@ -141,6 +153,41 @@ class ApiClient {
 
   addItemsToOrder(orderId, items) {
     return this.request(`/orders/${orderId}/items`, { method: 'POST', body: { items } });
+  }
+
+  // ─── Ajustes ─────────────────────────────────────────────────────────────
+  getSettings() {
+    return this.request('/settings');
+  }
+
+  updateSettings(data) {
+    return this.request('/settings', { method: 'PUT', body: data });
+  }
+
+  updateCustomerLoyalty(id, data) {
+    return this.request(`/customers/${id}/loyalty`, { method: 'PATCH', body: data });
+  }
+
+  // ─── Contraseña ──────────────────────────────────────────────────────────
+  changePassword(currentPassword, newPassword) {
+    return this.request('/auth/change-password', { method: 'POST', body: { currentPassword, newPassword } });
+  }
+
+  // ─── Sucursales ──────────────────────────────────────────────────────────
+  getBranches() {
+    return this.request('/branches');
+  }
+
+  createBranch(data) {
+    return this.request('/branches', { method: 'POST', body: data });
+  }
+
+  updateBranch(id, data) {
+    return this.request(`/branches/${id}`, { method: 'PUT', body: data });
+  }
+
+  deleteBranch(id) {
+    return this.request(`/branches/${id}`, { method: 'DELETE' });
   }
 
   // ─── Plan ────────────────────────────────────────────────────────────────

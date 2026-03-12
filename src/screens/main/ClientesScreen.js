@@ -5,6 +5,7 @@ import {
   ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../api/client';
 import { colors, spacing, radius, font } from '../../theme';
 
@@ -93,7 +94,10 @@ export default function ClientesScreen() {
               <Text style={styles.rowPhone}>{item.phone}</Text>
             </View>
             {item.loyalty_points > 0 && (
-              <Text style={styles.puntos}>⭐ {item.loyalty_points}</Text>
+              <View style={styles.puntosRow}>
+                <Ionicons name="star" size={13} color={colors.warning} />
+                <Text style={styles.puntos}> {item.loyalty_points}</Text>
+              </View>
             )}
           </View>
         )}
@@ -139,6 +143,7 @@ const styles = StyleSheet.create({
   avatarText: { fontSize: font.lg, fontWeight: '800', color: colors.primary },
   rowName: { fontSize: font.sm, fontWeight: '700', color: colors.textPrimary },
   rowPhone: { fontSize: font.sm - 1, color: colors.textMuted },
+  puntosRow: { flexDirection: 'row', alignItems: 'center' },
   puntos: { fontSize: font.sm, color: colors.warning, fontWeight: '700' },
   empty: { textAlign: 'center', color: colors.textMuted, marginTop: spacing.xxl },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border },

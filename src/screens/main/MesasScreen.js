@@ -94,12 +94,44 @@ export default function MesasScreen() {
   const [metodoPago, setMetodoPago]          = useState('efectivo');
   const [cobrando, setCobrando]              = useState(false);
 
+  // Fidelidad en cobro de mesa
+  const [busqCliente, setBusqCliente]        = useState('');
+  const [sugerencias, setSugerencias]        = useState([]);
+  const [clienteSelec, setClienteSelec]      = useState(null);
+
+  async function buscarClientes(texto) {
+    if (texto.length < 2) { setSugerencias([]); return; }
+    try {
+      const todos = await api.getCustomers();
+      const q = texto.toLowerCase();
+      setSugerencias(
+        (todos || []).filter(c =>
+          c.name?.toLowerCase().includes(q) || c.phone?.includes(q)
+        ).slice(0, 5)
+      );
+    } catch { setSugerencias([]); }
+  }
+
+  function abrirCobrar() {
+    setBusqCliente('');
+    setSugerencias([]);
+    setClienteSelec(null);
+    setModalCobrar(true);
+  }
+
   // Modal: crear mesa
   const [modalCrearVisible, setModalCrear]   = useState(false);
   const [nuevaNombre, setNuevaNombre]        = useState('');
   const [nuevaZona, setNuevaZona]            = useState('');
   const [nuevaCapacidad, setNuevaCapacidad]  = useState('4');
   const [creando, setCreando]                = useState(false);
+
+  // Toast de confirmación
+  const [toast, setToast]                    = useState('');
+  function showToast(msg) {
+    setToast(msg);
+    setTimeout(() => setToast(''), 2500);
+  }
 
   // ── Cargar ──────────────────────────────────────────────────────────────────
 
@@ -117,6 +149,12 @@ export default function MesasScreen() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Auto-refresh cada 30 segundos
+  useEffect(() => {
+    const interval = setInterval(() => load(), 30000);
+    return () => clearInterval(interval);
+  }, [load]);
 
   // ── Tocar una mesa ──────────────────────────────────────────────────────────
 
@@ -209,6 +247,7 @@ export default function MesasScreen() {
         setModalAgregar(false);
       }
       load();
+      showToast('✓ Comanda enviada a cocina');
     } catch (e) {
       Alert.alert('Error', e.message);
     } finally {
@@ -223,6 +262,24 @@ export default function MesasScreen() {
     setCobrando(true);
     try {
       await api.updateOrderStatus(ordenActiva.id, 'completado');
+
+      // Otorgar puntos si hay cliente seleccionado con fidelidad activa
+      if (clienteSelec) {
+        try {
+          const settings = await api.getSettings();
+          const activo = settings?.puntos_activos === true || settings?.puntos_activos === 'true';
+          if (activo) {
+            const rate  = parseFloat(settings?.puntos_por_peso ?? 0.1);
+            const bonus = parseInt(settings?.puntos_bono_pedido ?? 0);
+            const pts   = Math.floor(parseFloat(ordenActiva.total || 0) * rate) + bonus;
+            if (pts > 0) {
+              await api.updateCustomerLoyalty(clienteSelec.id, { points_delta: pts });
+              showToast(`⭐ +${pts} puntos para ${clienteSelec.name}`);
+            }
+          }
+        } catch { /* los puntos no son críticos */ }
+      }
+
       setModalCobrar(false);
       setModalDetalle(false);
       setOrdenActiva(null);
@@ -390,7 +447,7 @@ export default function MesasScreen() {
               <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
               <Text style={styles.btnSecText}>Agregar</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.btnCobrar} onPress={() => setModalCobrar(true)}>
+            <TouchableOpacity style={styles.btnCobrar} onPress={abrirCobrar}>
               <Ionicons name="cash-outline" size={18} color="#fff" />
               <Text style={styles.btnCobrarText}>Cobrar ${totalOrden.toFixed(2)}</Text>
             </TouchableOpacity>
@@ -458,7 +515,7 @@ export default function MesasScreen() {
               >
                 {agregando
                   ? <ActivityIndicator color="#fff" />
-                  : <Text style={styles.btnCobrarText}>Agregar · ${totalCarrito.toFixed(2)}</Text>
+                  : <Text style={styles.btnCobrarText}>Enviar comanda · ${totalCarrito.toFixed(2)}</Text>
                 }
               </TouchableOpacity>
             </View>
@@ -476,9 +533,46 @@ export default function MesasScreen() {
               <Ionicons name="close" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
-          <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
+          <ScrollView contentContainerStyle={{ padding: spacing.xl }} keyboardShouldPersistTaps="handled">
             <Text style={styles.cobrarMesa}>{mesaSel?.name}</Text>
             <Text style={styles.cobrarTotal}>${totalOrden.toFixed(2)}</Text>
+
+            {/* Asignar cliente para puntos (opcional) */}
+            <Text style={[styles.fieldLabel, { marginTop: spacing.lg }]}>Cliente para puntos <Text style={{ color: colors.textMuted, fontWeight: '400' }}>(opcional)</Text></Text>
+            {clienteSelec ? (
+              <View style={styles.clienteSelecRow}>
+                <Ionicons name="person-circle-outline" size={20} color={colors.primary} />
+                <Text style={styles.clienteSelecNombre} numberOfLines={1}>{clienteSelec.name}</Text>
+                <TouchableOpacity onPress={() => { setClienteSelec(null); setBusqCliente(''); }}>
+                  <Ionicons name="close-circle" size={20} color={colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <>
+                <TextInput
+                  style={styles.input}
+                  value={busqCliente}
+                  onChangeText={t => { setBusqCliente(t); buscarClientes(t); }}
+                  placeholder="Buscar por nombre o teléfono..."
+                  placeholderTextColor={colors.textMuted}
+                />
+                {sugerencias.length > 0 && (
+                  <View style={styles.sugerenciasBox}>
+                    {sugerencias.map(c => (
+                      <TouchableOpacity
+                        key={c.id}
+                        style={styles.sugerenciaItem}
+                        onPress={() => { setClienteSelec(c); setBusqCliente(''); setSugerencias([]); }}
+                      >
+                        <Text style={styles.sugerenciaNombre}>{c.name}</Text>
+                        {c.phone ? <Text style={styles.sugerenciaTel}>{c.phone}</Text> : null}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </>
+            )}
+
             <Text style={[styles.fieldLabel, { marginTop: spacing.lg }]}>Método de pago</Text>
             {[
               { key: 'efectivo',      label: 'Efectivo',      icon: 'cash-outline'           },
@@ -504,6 +598,13 @@ export default function MesasScreen() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+      {/* Toast de confirmación */}
+      {toast ? (
+        <View style={styles.toast} pointerEvents="none">
+          <Text style={styles.toastText}>{toast}</Text>
+        </View>
+      ) : null}
 
       {/* ── Modal: Crear mesa (solo dueño) ── */}
       {isOwner && (
@@ -618,6 +719,13 @@ const styles = StyleSheet.create({
   qtyTxt:           { fontSize: font.md, fontWeight: '800', color: colors.textPrimary, minWidth: 18, textAlign: 'center' },
   agregarFooter:    { padding: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border },
 
+  clienteSelecRow:  { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.primary, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.md },
+  clienteSelecNombre: { flex: 1, fontSize: font.md, fontWeight: '600', color: colors.primary },
+  sugerenciasBox:   { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, marginTop: -spacing.xs, marginBottom: spacing.md, overflow: 'hidden' },
+  sugerenciaItem:   { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
+  sugerenciaNombre: { fontSize: font.md, fontWeight: '600', color: colors.textPrimary },
+  sugerenciaTel:    { fontSize: font.sm - 1, color: colors.textMuted, marginTop: 2 },
+
   cobrarMesa:       { fontSize: font.lg, fontWeight: '700', color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.xs },
   cobrarTotal:      { fontSize: 48, fontWeight: '800', color: colors.textPrimary, textAlign: 'center', marginBottom: spacing.md },
   metodoPagoBtn:    { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm, backgroundColor: colors.surface },
@@ -627,4 +735,19 @@ const styles = StyleSheet.create({
   btnPrimary:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: colors.primary, borderRadius: radius.md, padding: spacing.md + 2 },
   btnPrimaryText:   { color: '#fff', fontWeight: '700', fontSize: font.lg },
   btnDisabled:      { opacity: 0.6 },
+
+  toast: {
+    position: 'absolute',
+    bottom: 100,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.95)',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.xl,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  toastText: { color: '#fff', fontWeight: '700', fontSize: font.md },
 });

@@ -5,6 +5,7 @@ import {
   ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../api/client';
 import { colors, spacing, radius, font } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
@@ -21,7 +22,7 @@ function ProductRow({ product, onEdit }) {
       </View>
       <Text style={styles.rowPrice}>${parseFloat(product.price).toFixed(2)}</Text>
       <TouchableOpacity style={styles.editBtn} onPress={() => onEdit(product)}>
-        <Text style={{ fontSize: 16 }}>✏️</Text>
+        <Ionicons name="pencil-outline" size={16} color={colors.textMuted} />
       </TouchableOpacity>
     </View>
   );
@@ -35,10 +36,10 @@ function CatRow({ cat, onEdit, onDelete }) {
       <Text style={styles.rowEmoji}>{cat.emoji || '📁'}</Text>
       <Text style={[styles.rowName, { flex: 1 }]}>{cat.name}</Text>
       <TouchableOpacity style={styles.editBtn} onPress={() => onEdit(cat)}>
-        <Text style={{ fontSize: 16 }}>✏️</Text>
+        <Ionicons name="pencil-outline" size={16} color={colors.textMuted} />
       </TouchableOpacity>
       <TouchableOpacity style={[styles.editBtn, { marginLeft: 4 }]} onPress={() => onDelete(cat)}>
-        <Text style={{ fontSize: 16 }}>🗑️</Text>
+        <Ionicons name="trash-outline" size={16} color={colors.danger} />
       </TouchableOpacity>
     </View>
   );
