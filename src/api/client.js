@@ -3,6 +3,7 @@ const BASE_URL = 'https://zenit-pos-backend.onrender.com/api';
 class ApiClient {
   constructor() {
     this.token = null;
+    this.baseURL = BASE_URL;
   }
 
   setToken(token) {
@@ -129,8 +130,20 @@ class ApiClient {
     return this.request('/inventory/preparations');
   }
 
+  createIngredient(data) {
+    return this.request('/inventory/ingredients', { method: 'POST', body: data });
+  }
+
+  updateIngredient(id, data) {
+    return this.request(`/inventory/ingredients/${id}`, { method: 'PUT', body: data });
+  }
+
   createPreparation(data) {
     return this.request('/inventory/preparations', { method: 'POST', body: data });
+  }
+
+  updatePreparation(id, data) {
+    return this.request(`/inventory/preparations/${id}`, { method: 'PUT', body: data });
   }
 
   savePreparationRecipe(id, items) {
@@ -149,6 +162,11 @@ class ApiClient {
     return this.request(`/inventory/products/${id}/recipe`, { method: 'DELETE' });
   }
 
+  getInventoryEventsUrl() {
+    if (!this.token) return null;
+    return `${BASE_URL}/inventory/events?token=${this.token}`;
+  }
+
   getMovements(params = {}) {
     const q = new URLSearchParams(params).toString();
     return this.request(`/inventory/movements${q ? '?' + q : ''}`);
@@ -157,6 +175,10 @@ class ApiClient {
   // ─── Ofertas (premium) ───────────────────────────────────────────────────
   getDiscounts() {
     return this.request('/offers/discounts');
+  }
+
+  createDiscount(data) {
+    return this.request('/offers/discounts', { method: 'POST', body: data });
   }
 
   // ─── Mesas ───────────────────────────────────────────────────────────────

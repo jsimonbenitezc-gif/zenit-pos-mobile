@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View, Text, FlatList, StyleSheet, ActivityIndicator,
@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import EventSource from 'react-native-sse';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
@@ -20,9 +21,23 @@ const MOTIVOS = [
   { key: 'otro',      label: 'Otro' },
 ];
 
+const UNIT_EQUIV = {
+  kg: ['g'],
+  g: ['kg'],
+  l: ['ml'],
+  ml: ['l'],
+};
+
+function unidadesInsumo(ing) {
+  if (!ing?.unit) return [];
+  const base = ing.unit;
+  const extras = UNIT_EQUIV[base] || [];
+  return Array.from(new Set([base, ...extras]));
+}
+
 // ─── Insumo row ───────────────────────────────────────────────────────────────
-function IngredientRow({ item }) {
-  const stockBajo = item.stock !== null && item.min_stock !== null && item.stock <= item.min_stock;
+function IngredientRow({ item, onEdit }) {
+  const stockBajo = item.stock !== null && item.min_stock > 0 && item.stock < item.min_stock;
   return (
     <View style={styles.row}>
       <View style={{ flex: 1 }}>
@@ -40,12 +55,15 @@ function IngredientRow({ item }) {
           </View>
         )}
       </View>
+      <TouchableOpacity onPress={() => onEdit(item)} style={{ padding: 4, marginLeft: spacing.sm }}>
+        <Ionicons name="pencil-outline" size={16} color={colors.textMuted} />
+      </TouchableOpacity>
     </View>
   );
 }
 
 // ─── Preparación row (expandible) ────────────────────────────────────────────
-function PrepRow({ item }) {
+function PrepRow({ item, onEdit }) {
   const [expanded, setExpanded] = useState(false);
   return (
     <View style={[styles.row, { flexDirection: 'column', alignItems: 'stretch' }]}>
@@ -60,6 +78,9 @@ function PrepRow({ item }) {
             {item.unit || '—'}{item.yield_quantity ? `  ·  Rinde: ${item.yield_quantity}` : ''}
           </Text>
         </View>
+        <TouchableOpacity onPress={() => onEdit(item)} style={{ padding: 4, marginLeft: spacing.sm }}>
+          <Ionicons name="pencil-outline" size={16} color={colors.textMuted} />
+        </TouchableOpacity>
         <Ionicons
           name={expanded ? 'chevron-up-outline' : 'chevron-down-outline'}
           size={16} color={colors.textMuted} style={{ marginLeft: spacing.sm }}
@@ -71,7 +92,7 @@ function PrepRow({ item }) {
             <View key={ri.id} style={styles.recipeItem}>
               <Ionicons name="flask-outline" size={13} color={colors.textMuted} />
               <Text style={styles.recipeItemText}>{ri.ingredient?.name ?? `ID ${ri.ingredient_id}`}</Text>
-              <Text style={styles.recipeItemQty}>{ri.quantity} {ri.ingredient?.unit ?? ''}</Text>
+              <Text style={styles.recipeItemQty}>{ri.quantity} {ri.unit_recipe || ri.ingredient?.unit || ''}</Text>
             </View>
           )) : (
             <Text style={styles.sinDatos}>Sin ingredientes asignados</Text>
@@ -83,7 +104,7 @@ function PrepRow({ item }) {
 }
 
 // ─── Receta row (expandible) ──────────────────────────────────────────────────
-function RecetaRow({ product, items, ingredients, preparations, onDelete }) {
+function RecetaRow({ product, items, ingredients, preparations, onDelete, onEdit }) {
   const [expanded, setExpanded] = useState(false);
   if (!product) return null;
 
@@ -119,6 +140,9 @@ function RecetaRow({ product, items, ingredients, preparations, onDelete }) {
           <Text style={styles.rowName}>{product.name}</Text>
           <Text style={styles.rowUnit}>{items.length} {items.length === 1 ? 'componente' : 'componentes'}</Text>
         </View>
+        <TouchableOpacity onPress={() => onEdit(product, items)} style={{ padding: 4, marginRight: spacing.xs }}>
+          <Ionicons name="pencil-outline" size={16} color={colors.textMuted} />
+        </TouchableOpacity>
         <TouchableOpacity onPress={confirmarBorrar} style={{ padding: 4, marginRight: spacing.xs }}>
           <Ionicons name="trash-outline" size={16} color={colors.danger} />
         </TouchableOpacity>
@@ -250,6 +274,8 @@ export default function InventarioScreen() {
   const [busqueda, setBusqueda]         = useState('');
   const [loading, setLoading]           = useState(true);
   const [refreshing, setRefresh]        = useState(false);
+  const sseRef                          = useRef(null);
+  const sseRetryRef                     = useRef(null);
 
   // ── Modal movimiento ──
   const [modalMov, setModalMov]         = useState(false);
@@ -260,14 +286,23 @@ export default function InventarioScreen() {
   const [notasMov, setNotasMov]         = useState('');
   const [saving, setSaving]             = useState(false);
 
-  // ── Modal nueva preparación ──
+  // ── Modal insumo (crear / editar) ──
+  const [modalIng, setModalIng]         = useState(false);
+  const [ingEditando, setIngEditando]   = useState(null); // null = crear, objeto = editar
+  const [ingNombre, setIngNombre]       = useState('');
+  const [ingUnidad, setIngUnidad]       = useState('kg');
+  const [ingMinStock, setIngMinStock]   = useState('');
+  const [ingCosto, setIngCosto]         = useState('');
+
+  // ── Modal nueva/editar preparación ──
   const [modalPrep, setModalPrep]       = useState(false);
+  const [prepEditandoId, setPrepEditandoId] = useState(null); // null = nueva
   const [prepNombre, setPrepNombre]     = useState('');
   const [prepUnidad, setPrepUnidad]     = useState('porcion');
   const [prepRinde, setPrepRinde]       = useState('1');
-  const [prepItems, setPrepItems]       = useState([]); // [{ing, qty}]
+  const [prepItems, setPrepItems]       = useState([]); // [{ing, qty, unit}]
 
-  // ── Modal nueva receta ──
+  // ── Modal nueva/editar receta ──
   const [modalReceta, setModalReceta]   = useState(false);
   const [recetaProd, setRecetaProd]     = useState(null);
   const [recetaItems, setRecetaItems]   = useState([]); // [{ing, qty}]
@@ -304,6 +339,131 @@ export default function InventarioScreen() {
     }, [load])
   );
 
+  useFocusEffect(
+    useCallback(() => {
+      if (!isPremium) return;
+      const url = api.getInventoryEventsUrl?.();
+      if (!url) return;
+
+      const connect = () => {
+        if (sseRef.current) {
+          try { sseRef.current.close(); } catch {}
+          sseRef.current = null;
+        }
+        const es = new EventSource(url);
+        sseRef.current = es;
+        es.onmessage = () => load(true);
+        es.onerror = () => {
+          try { es.close(); } catch {}
+          sseRef.current = null;
+          if (sseRetryRef.current) clearTimeout(sseRetryRef.current);
+          sseRetryRef.current = setTimeout(connect, 10000);
+        };
+      };
+
+      connect();
+      return () => {
+        if (sseRetryRef.current) clearTimeout(sseRetryRef.current);
+        if (sseRef.current) {
+          try { sseRef.current.close(); } catch {}
+          sseRef.current = null;
+        }
+      };
+    }, [isPremium, load])
+  );
+
+  // ── Abrir editar insumo ───────────────────────────────────────────────────
+  const abrirEditarInsumo = (item) => {
+    setIngEditando(item);
+    setIngNombre(item.name);
+    setIngUnidad(item.unit || 'kg');
+    setIngMinStock(item.min_stock != null ? String(item.min_stock) : '');
+    setIngCosto(item.cost_per_unit != null ? String(item.cost_per_unit) : '');
+    setModalIng(true);
+  };
+
+  const abrirNuevoInsumo = () => {
+    setIngEditando(null);
+    setIngNombre('');
+    setIngUnidad('kg');
+    setIngMinStock('');
+    setIngCosto('');
+    setModalIng(true);
+  };
+
+  // ── Guardar insumo ────────────────────────────────────────────────────────
+  const guardarInsumo = async () => {
+    if (!ingNombre.trim()) { Alert.alert('Error', 'Escribe el nombre del insumo'); return; }
+    if (!ingUnidad.trim()) { Alert.alert('Error', 'Escribe la unidad'); return; }
+    setSaving(true);
+    try {
+      const data = {
+        name: ingNombre.trim(),
+        unit: ingUnidad.trim(),
+        min_stock: ingMinStock ? parseFloat(ingMinStock) : undefined,
+        cost_per_unit: ingCosto ? parseFloat(ingCosto) : undefined,
+      };
+      if (ingEditando) {
+        await api.updateIngredient(ingEditando.id, data);
+      } else {
+        await api.createIngredient(data);
+      }
+      await load(true);
+      setModalIng(false);
+      Alert.alert(ingEditando ? '✓ Insumo actualizado' : '✓ Insumo creado', ingNombre.trim());
+    } catch (e) {
+      Alert.alert('Error', e.message || 'No se pudo guardar el insumo.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── Abrir editar preparación ──────────────────────────────────────────────
+  const abrirEditarPreparacion = (item) => {
+    setPrepEditandoId(item.id);
+    setPrepNombre(item.name);
+    setPrepUnidad(item.unit || 'porcion');
+    setPrepRinde(item.yield_quantity != null ? String(item.yield_quantity) : '1');
+    setPrepItems(
+      (item.items || []).map(ri => ({
+        ing: ri.ingredient
+          ? { ...ri.ingredient, _tipo: 'ingredient', _label: ri.ingredient.name, _sub: ri.ingredient.unit }
+          : null,
+        qty: parseFloat(ri.quantity) || 0,
+        unit: ri.unit_recipe || ri.ingredient?.unit || null,
+      })).filter(i => i.ing)
+    );
+    setModalPrep(true);
+  };
+
+  const abrirNuevaPreparacion = () => {
+    setPrepEditandoId(null);
+    setPrepNombre('');
+    setPrepUnidad('porcion');
+    setPrepRinde('1');
+    setPrepItems([]);
+    setModalPrep(true);
+  };
+
+  // ── Abrir editar receta ───────────────────────────────────────────────────
+  const abrirEditarReceta = (product, items) => {
+    setRecetaProd(product);
+    setRecetaItems(
+      items.map(r => {
+        let ing = null;
+        if (r.item_type === 'ingredient') {
+          const found = ingredients.find(i => i.id === r.item_id);
+          if (found) ing = { ...found, _tipo: 'ingredient', _label: found.name, _sub: found.unit };
+        } else {
+          const found = preparations.find(p => p.id === r.item_id);
+          if (found) ing = { ...found, _tipo: 'preparation', _label: found.name, _sub: found.unit };
+        }
+        return { ing, qty: parseFloat(r.quantity) || 0 };
+      }).filter(i => i.ing)
+    );
+    setModalReceta(true);
+  };
+
   // ── Guardar movimiento ────────────────────────────────────────────────────
   const guardarMovimiento = async () => {
     if (!ingSelec) { Alert.alert('Error', 'Selecciona un insumo'); return; }
@@ -336,23 +496,35 @@ export default function InventarioScreen() {
     if (!prepNombre.trim()) { Alert.alert('Error', 'Escribe el nombre de la preparación'); return; }
     setSaving(true);
     try {
-      const nueva = await api.createPreparation({
-        name: prepNombre.trim(),
-        unit: prepUnidad.trim() || 'porcion',
-        yield_quantity: parseFloat(prepRinde) || 1,
-      });
+      let prepId;
+      if (prepEditandoId) {
+        await api.updatePreparation(prepEditandoId, {
+          name: prepNombre.trim(),
+          unit: prepUnidad.trim() || 'porcion',
+          yield_quantity: parseFloat(prepRinde) || 1,
+        });
+        prepId = prepEditandoId;
+      } else {
+        const nueva = await api.createPreparation({
+          name: prepNombre.trim(),
+          unit: prepUnidad.trim() || 'porcion',
+          yield_quantity: parseFloat(prepRinde) || 1,
+        });
+        prepId = nueva.id;
+      }
       const itemsValidos = prepItems.filter(it => it.ing && it.qty > 0);
       if (itemsValidos.length > 0) {
-        await api.savePreparationRecipe(nueva.id, itemsValidos.map(it => ({
+        await api.savePreparationRecipe(prepId, itemsValidos.map(it => ({
           ingredient_id: it.ing.id,
           quantity: it.qty,
+          unit_recipe: it.unit || it.ing?.unit || null,
         })));
       }
       await load(true);
       setModalPrep(false);
-      Alert.alert('✓ Preparación creada', nueva.name);
+      Alert.alert(prepEditandoId ? '✓ Preparación actualizada' : '✓ Preparación creada', prepNombre.trim());
     } catch(e) {
-      Alert.alert('Error', e.message || 'No se pudo crear la preparación.');
+      Alert.alert('Error', e.message || 'No se pudo guardar la preparación.');
     } finally {
       setSaving(false);
     }
@@ -411,8 +583,12 @@ export default function InventarioScreen() {
     recetasPorProd[r.product_id].push(r);
   }
   const recetasData = Object.entries(recetasPorProd)
-    .map(([pid, items]) => ({ product: products.find(p => p.id === parseInt(pid)), items }))
-    .filter(r => r.product && (!q || r.product.name.toLowerCase().includes(q)));
+    .map(([pid, items]) => {
+      const prod = products.find(p => p.id === parseInt(pid));
+      const product = prod || { id: parseInt(pid), name: `Producto #${pid}`, emoji: '📦' };
+      return { product, items };
+    })
+    .filter(r => !q || r.product.name.toLowerCase().includes(q));
 
   const TABS = [
     { key: 'insumos',       label: 'Insumos',    icon: 'layers-outline' },
@@ -428,6 +604,10 @@ export default function InventarioScreen() {
         <Text style={styles.pageTitle}>Inventario</Text>
         <View style={styles.headerActions}>
           {tab === 'insumos' && <>
+            <TouchableOpacity style={styles.btnAdd} onPress={abrirNuevoInsumo}>
+              <Ionicons name="add" size={16} color={colors.primary} />
+              <Text style={styles.btnAddText}>Nuevo</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.btnEntrada} onPress={() => { setTipoMov('entrada'); setIngSelec(null); setCantidad(''); setNotasMov(''); setMotivo('merma'); setModalMov(true); }}>
               <Ionicons name="add-circle-outline" size={15} color="#16a34a" />
               <Text style={styles.btnEntradaText}>Entrada</Text>
@@ -438,7 +618,7 @@ export default function InventarioScreen() {
             </TouchableOpacity>
           </>}
           {tab === 'preparaciones' && (
-            <TouchableOpacity style={styles.btnAdd} onPress={() => { setPrepNombre(''); setPrepUnidad('porcion'); setPrepRinde('1'); setPrepItems([]); setModalPrep(true); }}>
+            <TouchableOpacity style={styles.btnAdd} onPress={abrirNuevaPreparacion}>
               <Ionicons name="add" size={16} color={colors.primary} />
               <Text style={styles.btnAddText}>Nueva</Text>
             </TouchableOpacity>
@@ -491,7 +671,7 @@ export default function InventarioScreen() {
         <FlatList data={filtInsumos} keyExtractor={i => String(i.id)}
           contentContainerStyle={styles.listContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
-          renderItem={({ item }) => <IngredientRow item={item} />}
+          renderItem={({ item }) => <IngredientRow item={item} onEdit={abrirEditarInsumo} />}
           ListEmptyComponent={<Text style={styles.empty}>No hay insumos registrados</Text>}
         />
       )}
@@ -499,7 +679,7 @@ export default function InventarioScreen() {
         <FlatList data={filtPreps} keyExtractor={p => String(p.id)}
           contentContainerStyle={styles.listContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
-          renderItem={({ item }) => <PrepRow item={item} />}
+          renderItem={({ item }) => <PrepRow item={item} onEdit={abrirEditarPreparacion} />}
           ListEmptyComponent={<Text style={styles.empty}>No hay preparaciones registradas</Text>}
         />
       )}
@@ -508,7 +688,7 @@ export default function InventarioScreen() {
           contentContainerStyle={styles.listContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
           renderItem={({ item }) => (
-            <RecetaRow product={item.product} items={item.items} ingredients={ingredients} preparations={preparations} onDelete={borrarReceta} />
+            <RecetaRow product={item.product} items={item.items} ingredients={ingredients} preparations={preparations} onDelete={borrarReceta} onEdit={abrirEditarReceta} />
           )}
           ListEmptyComponent={<Text style={styles.empty}>No hay recetas asignadas</Text>}
         />
@@ -567,13 +747,86 @@ export default function InventarioScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
+      {/* ── Modal insumo (crear / editar) ── */}
+      <Modal visible={modalIng} animationType="slide" transparent>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <View style={styles.overlay}>
+            <View style={styles.modalBox}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{ingEditando ? 'Editar Insumo' : 'Nuevo Insumo'}</Text>
+                <TouchableOpacity onPress={() => setModalIng(false)} style={styles.closeBtn}>
+                  <Ionicons name="close" size={22} color={colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
+                <Text style={styles.label}>Nombre *</Text>
+                <TextInput
+                  style={styles.input}
+                  value={ingNombre}
+                  onChangeText={setIngNombre}
+                  placeholder="Ej: Sal, Harina, Aceite"
+                  placeholderTextColor={colors.textMuted}
+                />
+                <Text style={[styles.label, { marginTop: spacing.md }]}>Unidad *</Text>
+                <View style={styles.motivosRow}>
+                  {['kg', 'g', 'l', 'ml', 'porción', 'unidad', 'pieza', 'lata', 'caja'].map(u => (
+                    <TouchableOpacity
+                      key={u}
+                      style={[styles.motivoChip, ingUnidad === u && styles.motivoChipActivo]}
+                      onPress={() => setIngUnidad(u)}
+                    >
+                      <Text style={[styles.motivoText, ingUnidad === u && styles.motivoTextActivo]}>{u}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <TextInput
+                  style={[styles.input, { marginTop: spacing.sm }]}
+                  value={ingUnidad}
+                  onChangeText={setIngUnidad}
+                  placeholder="O escribe la unidad"
+                  placeholderTextColor={colors.textMuted}
+                />
+                <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.label}>Stock mínimo</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={ingMinStock}
+                      onChangeText={setIngMinStock}
+                      placeholder="0"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="decimal-pad"
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.label}>Costo por unidad</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={ingCosto}
+                      onChangeText={setIngCosto}
+                      placeholder="0.00"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="decimal-pad"
+                    />
+                  </View>
+                </View>
+                <TouchableOpacity style={[styles.btnGuardar, saving && { opacity: 0.6 }, { marginTop: spacing.lg }]} onPress={guardarInsumo} disabled={saving}>
+                  {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.btnGuardarText}>{ingEditando ? 'Actualizar Insumo' : 'Crear Insumo'}</Text>}
+                </TouchableOpacity>
+                <View style={{ height: spacing.xl }} />
+              </ScrollView>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       {/* ── Modal nueva preparación ── */}
       <Modal visible={modalPrep} animationType="slide" transparent>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
           <View style={styles.overlay}>
             <View style={styles.modalBox}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Nueva Preparación</Text>
+                <Text style={styles.modalTitle}>{prepEditandoId ? 'Editar Preparación' : 'Nueva Preparación'}</Text>
                 <TouchableOpacity onPress={() => setModalPrep(false)} style={styles.closeBtn}>
                   <Ionicons name="close" size={22} color={colors.textMuted} />
                 </TouchableOpacity>
@@ -597,7 +850,9 @@ export default function InventarioScreen() {
                   <View key={idx} style={styles.recetaLineaRow}>
                     <View style={{ flex: 1 }}>
                       <IngSelector ingredients={ingredients} preparations={[]} selected={it.ing} onSelect={ing => {
-                        const copy = [...prepItems]; copy[idx] = { ...copy[idx], ing }; setPrepItems(copy);
+                        const copy = [...prepItems];
+                        copy[idx] = { ...copy[idx], ing, unit: ing?.unit || copy[idx]?.unit || null };
+                        setPrepItems(copy);
                       }} />
                     </View>
                     <TextInput
@@ -608,18 +863,31 @@ export default function InventarioScreen() {
                       placeholderTextColor={colors.textMuted}
                       keyboardType="decimal-pad"
                     />
+                    {it.ing ? (
+                      <View style={{ flexDirection: 'column', marginLeft: spacing.xs }}>
+                        {unidadesInsumo(it.ing).map(u => (
+                          <TouchableOpacity
+                            key={u}
+                            onPress={() => { const copy = [...prepItems]; copy[idx] = { ...copy[idx], unit: u }; setPrepItems(copy); }}
+                            style={[styles.unitChip, it.unit === u && styles.unitChipActive]}
+                          >
+                            <Text style={[styles.unitChipText, it.unit === u && styles.unitChipTextActive]}>{u}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    ) : null}
                     <TouchableOpacity onPress={() => setPrepItems(prepItems.filter((_, i) => i !== idx))} style={{ padding: spacing.xs }}>
                       <Ionicons name="trash-outline" size={18} color={colors.danger} />
                     </TouchableOpacity>
                   </View>
                 ))}
-                <TouchableOpacity style={styles.btnAddLinea} onPress={() => setPrepItems([...prepItems, { ing: null, qty: 0 }])}>
+                <TouchableOpacity style={styles.btnAddLinea} onPress={() => setPrepItems([...prepItems, { ing: null, qty: 0, unit: null }])}>
                   <Ionicons name="add" size={16} color={colors.primary} />
                   <Text style={styles.btnAddLineaText}>Agregar ingrediente</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={[styles.btnGuardar, saving && { opacity: 0.6 }, { marginTop: spacing.lg }]} onPress={guardarPreparacion} disabled={saving}>
-                  {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.btnGuardarText}>Guardar Preparación</Text>}
+                  {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.btnGuardarText}>{prepEditandoId ? 'Actualizar Preparación' : 'Guardar Preparación'}</Text>}
                 </TouchableOpacity>
                 <View style={{ height: spacing.xl }} />
               </ScrollView>
@@ -634,7 +902,7 @@ export default function InventarioScreen() {
           <View style={styles.overlay}>
             <View style={styles.modalBox}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Nueva Receta</Text>
+                <Text style={styles.modalTitle}>{recetaProd && recetaItems.length > 0 ? 'Editar Receta' : 'Nueva Receta'}</Text>
                 <TouchableOpacity onPress={() => setModalReceta(false)} style={styles.closeBtn}>
                   <Ionicons name="close" size={22} color={colors.textMuted} />
                 </TouchableOpacity>
@@ -792,4 +1060,8 @@ const styles = StyleSheet.create({
   recetaLineaRow:      { flexDirection: 'row', alignItems: 'flex-start', marginBottom: spacing.sm, gap: spacing.xs },
   btnAddLinea:         { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, padding: spacing.sm, borderRadius: radius.md, borderWidth: 1, borderColor: colors.primary + '40', backgroundColor: colors.primary + '08', marginTop: spacing.xs },
   btnAddLineaText:     { fontSize: font.sm, color: colors.primary, fontWeight: '600' },
+  unitChip:            { paddingHorizontal: 6, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background, marginBottom: 4, alignItems: 'center' },
+  unitChipActive:      { backgroundColor: colors.primary, borderColor: colors.primary },
+  unitChipText:        { fontSize: font.sm - 2, color: colors.textSecondary, fontWeight: '700' },
+  unitChipTextActive:  { color: '#fff' },
 });
