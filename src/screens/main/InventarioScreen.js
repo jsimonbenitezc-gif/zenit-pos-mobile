@@ -35,9 +35,20 @@ function unidadesInsumo(ing) {
   return Array.from(new Set([base, ...extras]));
 }
 
+// Elimina ceros innecesarios de valores DECIMAL que vienen del backend como strings
+// Ej: "39.000" → "39", "0.600" → "0.6", "5.500" → "5.5"
+function fmt(val) {
+  if (val == null) return '—';
+  const n = parseFloat(val);
+  if (isNaN(n)) return String(val);
+  return String(n);
+}
+
 // ─── Insumo row ───────────────────────────────────────────────────────────────
 function IngredientRow({ item, onEdit }) {
-  const stockBajo = item.stock !== null && item.min_stock > 0 && item.stock < item.min_stock;
+  const stock = parseFloat(item.stock);
+  const minStock = parseFloat(item.min_stock);
+  const stockBajo = item.stock !== null && item.min_stock != null && minStock > 0 && stock < minStock;
   return (
     <View style={styles.row}>
       <View style={{ flex: 1 }}>
@@ -46,7 +57,7 @@ function IngredientRow({ item, onEdit }) {
       </View>
       <View style={styles.stockWrap}>
         <Text style={[styles.stock, stockBajo && { color: colors.danger }]}>
-          {item.stock ?? '—'}
+          {fmt(item.stock)}
         </Text>
         {stockBajo && (
           <View style={styles.alertBadge}>
@@ -75,7 +86,7 @@ function PrepRow({ item, onEdit }) {
         <View style={{ flex: 1 }}>
           <Text style={styles.rowName}>{item.name}</Text>
           <Text style={styles.rowUnit}>
-            {item.unit || '—'}{item.yield_quantity ? `  ·  Rinde: ${item.yield_quantity}` : ''}
+            {item.unit || '—'}{item.yield_quantity ? `  ·  Rinde: ${fmt(item.yield_quantity)}` : ''}
           </Text>
         </View>
         <TouchableOpacity onPress={() => onEdit(item)} style={{ padding: 4, marginLeft: spacing.sm }}>
@@ -92,7 +103,7 @@ function PrepRow({ item, onEdit }) {
             <View key={ri.id} style={styles.recipeItem}>
               <Ionicons name="flask-outline" size={13} color={colors.textMuted} />
               <Text style={styles.recipeItemText}>{ri.ingredient?.name ?? `ID ${ri.ingredient_id}`}</Text>
-              <Text style={styles.recipeItemQty}>{ri.quantity} {ri.unit_recipe || ri.ingredient?.unit || ''}</Text>
+              <Text style={styles.recipeItemQty}>{fmt(ri.quantity)} {ri.unit_recipe || ri.ingredient?.unit || ''}</Text>
             </View>
           )) : (
             <Text style={styles.sinDatos}>Sin ingredientes asignados</Text>
@@ -157,7 +168,7 @@ function RecetaRow({ product, items, ingredients, preparations, onDelete, onEdit
                 size={13} color={colors.textMuted}
               />
               <Text style={styles.recipeItemText}>{nombre(r.item_id, r.item_type)}</Text>
-              <Text style={styles.recipeItemQty}>{r.quantity} {unit(r.item_id, r.item_type)}</Text>
+              <Text style={styles.recipeItemQty}>{fmt(r.quantity)} {unit(r.item_id, r.item_type)}</Text>
             </View>
           ))}
         </View>
@@ -186,7 +197,7 @@ function MovRow({ item }) {
         <Text style={[styles.rowUnit, { marginTop: 2 }]}>{fecha}</Text>
       </View>
       <Text style={[styles.stock, { color: esEntrada ? '#16a34a' : '#dc2626', fontSize: font.md }]}>
-        {esEntrada ? '+' : '−'}{item.quantity} {item.ingredient?.unit ?? ''}
+        {esEntrada ? '+' : '−'}{fmt(item.quantity)} {item.ingredient?.unit ?? ''}
       </Text>
     </View>
   );
@@ -572,7 +583,7 @@ export default function InventarioScreen() {
   if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color={colors.primary} /></View>;
 
   const q = busqueda.toLowerCase();
-  const stockBajo = ingredients.filter(i => i.stock !== null && i.min_stock !== null && i.stock <= i.min_stock);
+  const stockBajo = ingredients.filter(i => i.stock !== null && i.min_stock !== null && parseFloat(i.min_stock) > 0 && parseFloat(i.stock) <= parseFloat(i.min_stock));
   const filtInsumos = ingredients.filter(i => !q || i.name.toLowerCase().includes(q));
   const filtPreps   = preparations.filter(p => !q || p.name.toLowerCase().includes(q));
   const filtMovs    = movements.filter(m => !q || m.ingredient?.name?.toLowerCase().includes(q));
