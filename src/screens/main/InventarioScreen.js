@@ -469,7 +469,7 @@ export default function InventarioScreen() {
           const found = preparations.find(p => p.id === r.item_id);
           if (found) ing = { ...found, _tipo: 'preparation', _label: found.name, _sub: found.unit };
         }
-        return { ing, qty: parseFloat(r.quantity) || 0 };
+        return { ing, qty: parseFloat(r.quantity) || 0, unit: r.unit_recipe || null };
       }).filter(i => i.ing)
     );
     setModalReceta(true);
@@ -562,6 +562,7 @@ export default function InventarioScreen() {
         item_type: it.ing._tipo,
         item_id: it.ing.id,
         quantity: it.qty,
+        unit_recipe: it.unit || null,
       })));
       await load(true);
       setModalReceta(false);
@@ -937,7 +938,9 @@ export default function InventarioScreen() {
                   <View key={idx} style={styles.recetaLineaRow}>
                     <View style={{ flex: 1 }}>
                       <IngSelector ingredients={ingredients} preparations={preparations} selected={it.ing} includePreps onSelect={ing => {
-                        const copy = [...recetaItems]; copy[idx] = { ...copy[idx], ing }; setRecetaItems(copy);
+                        const copy = [...recetaItems];
+                        copy[idx] = { ...copy[idx], ing, unit: ing?._tipo === 'ingredient' ? (ing.unit || null) : null };
+                        setRecetaItems(copy);
                       }} />
                     </View>
                     <TextInput
@@ -948,12 +951,25 @@ export default function InventarioScreen() {
                       placeholderTextColor={colors.textMuted}
                       keyboardType="decimal-pad"
                     />
+                    {it.ing?._tipo === 'ingredient' && (
+                      <View style={{ flexDirection: 'column', marginLeft: spacing.xs }}>
+                        {unidadesInsumo(it.ing).map(u => (
+                          <TouchableOpacity
+                            key={u}
+                            onPress={() => { const copy = [...recetaItems]; copy[idx] = { ...copy[idx], unit: u }; setRecetaItems(copy); }}
+                            style={[styles.unitChip, it.unit === u && styles.unitChipActive]}
+                          >
+                            <Text style={[styles.unitChipText, it.unit === u && styles.unitChipTextActive]}>{u}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
                     <TouchableOpacity onPress={() => setRecetaItems(recetaItems.filter((_, i) => i !== idx))} style={{ padding: spacing.xs }}>
                       <Ionicons name="trash-outline" size={18} color={colors.danger} />
                     </TouchableOpacity>
                   </View>
                 ))}
-                <TouchableOpacity style={styles.btnAddLinea} onPress={() => setRecetaItems([...recetaItems, { ing: null, qty: 0 }])}>
+                <TouchableOpacity style={styles.btnAddLinea} onPress={() => setRecetaItems([...recetaItems, { ing: null, qty: 0, unit: null }])}>
                   <Ionicons name="add" size={16} color={colors.primary} />
                   <Text style={styles.btnAddLineaText}>Agregar componente</Text>
                 </TouchableOpacity>
