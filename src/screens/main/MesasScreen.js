@@ -153,13 +153,28 @@ export default function MesasScreen() {
     }
   }, []);
 
-  // Cargar al entrar a la pantalla y refrescar al volver
+  // Cargar al entrar a la pantalla, SSE en tiempo real + intervalo de respaldo
   useFocusEffect(
     useCallback(() => {
       load();
       SecureStore.getItemAsync('mostrar_stock').then(val => setMostrarStock(val === 'true'));
-      const interval = setInterval(() => load(), 10000);
-      return () => clearInterval(interval);
+
+      // SSE: actualización en tiempo real cuando cambia un pedido
+      const url = api.getOrdersEventsUrl();
+      let es = null;
+      if (url) {
+        es = new EventSource(url);
+        es.addEventListener('message', () => load());
+        es.addEventListener('error', () => {}); // silenciar errores de red
+      }
+
+      // Intervalo de respaldo por si el SSE falla o no está disponible
+      const interval = setInterval(() => load(), 30000);
+
+      return () => {
+        es?.close();
+        clearInterval(interval);
+      };
     }, [load])
   );
 
@@ -491,7 +506,7 @@ export default function MesasScreen() {
                 const stock = item.stock ?? null;
                 let stockEl = null;
                 if (mostrarStock && stock !== null) {
-                  if (stock === 0) {
+                  if (stock <= 0) {
                     stockEl = <Text style={{ fontSize: 10, color: '#ef4444', fontWeight: '600', marginTop: 2 }}>Sin stock</Text>;
                   } else if (stock <= 3) {
                     stockEl = <Text style={{ fontSize: 10, color: '#f59e0b', fontWeight: '600', marginTop: 2 }}>⚠ {stock} disp.</Text>;
@@ -500,7 +515,7 @@ export default function MesasScreen() {
                   }
                 }
                 return (
-                  <View style={[styles.pCard, mostrarStock && stock === 0 && { opacity: 0.5 }]}>
+                  <View style={[styles.pCard, mostrarStock && stock <= 0 && { opacity: 0.5 }]}>
                     <Text style={styles.pEmoji}>{item.emoji || '🛍️'}</Text>
                     <Text style={styles.pName} numberOfLines={2}>{item.name}</Text>
                     <Text style={styles.pPrice}>{formatMoney(parseFloat(item.price), currency)}</Text>

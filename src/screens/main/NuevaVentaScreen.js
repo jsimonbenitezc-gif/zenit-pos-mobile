@@ -29,7 +29,7 @@ function ProductCard({ product, onPress, currency, mostrarStock }) {
   const stock = product.stock ?? null;
   let stockEl = null;
   if (mostrarStock && stock !== null) {
-    if (stock === 0) {
+    if (stock <= 0) {
       stockEl = <Text style={{ fontSize: 10, color: '#ef4444', fontWeight: '600', marginTop: 2 }}>Sin stock</Text>;
     } else if (stock <= 3) {
       stockEl = <Text style={{ fontSize: 10, color: '#f59e0b', fontWeight: '600', marginTop: 2 }}>⚠ {stock} disponibles</Text>;
@@ -38,7 +38,7 @@ function ProductCard({ product, onPress, currency, mostrarStock }) {
     }
   }
   return (
-    <TouchableOpacity style={[styles.productCard, mostrarStock && stock === 0 && { opacity: 0.5 }]} onPress={() => onPress(product)}>
+    <TouchableOpacity style={[styles.productCard, mostrarStock && stock <= 0 && { opacity: 0.5 }]} onPress={() => onPress(product)}>
       <Text style={styles.productEmoji}>{product.emoji || '🛍️'}</Text>
       <Text style={styles.productName} numberOfLines={2}>{product.name}</Text>
       <Text style={styles.productPrice}>{formatMoney(parseFloat(product.price), currency)}</Text>

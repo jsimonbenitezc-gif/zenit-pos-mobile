@@ -112,14 +112,20 @@ class ApiClient {
     return this.request('/customers', { method: 'POST', body: data });
   }
 
+  updateCustomer(id, data) {
+    return this.request(`/customers/${id}`, { method: 'PUT', body: data });
+  }
+
   // ─── Estadísticas ────────────────────────────────────────────────────────
-  getDashboard() {
-    return this.request('/stats/dashboard');
+  getDashboard(branchId) {
+    const q = branchId ? `?branch_id=${branchId}` : '';
+    return this.request(`/stats/dashboard${q}`);
   }
 
   // ─── Inventario (premium) ────────────────────────────────────────────────
-  getIngredients() {
-    return this.request('/inventory/ingredients');
+  getIngredients(branchId) {
+    const q = branchId ? `?branch_id=${branchId}` : '';
+    return this.request(`/inventory/ingredients${q}`);
   }
 
   createMovement(data) {
@@ -167,6 +173,16 @@ class ApiClient {
     return `${BASE_URL}/inventory/events?token=${this.token}`;
   }
 
+  getOrdersEventsUrl() {
+    if (!this.token) return null;
+    return `${BASE_URL}/orders/events?token=${this.token}`;
+  }
+
+  getSettingsEventsUrl() {
+    if (!this.token) return null;
+    return `${BASE_URL}/settings/events?token=${this.token}`;
+  }
+
   getMovements(params = {}) {
     const q = new URLSearchParams(params).toString();
     return this.request(`/inventory/movements${q ? '?' + q : ''}`);
@@ -179,6 +195,14 @@ class ApiClient {
 
   createDiscount(data) {
     return this.request('/offers/discounts', { method: 'POST', body: data });
+  }
+
+  updateDiscount(id, data) {
+    return this.request(`/offers/discounts/${id}`, { method: 'PUT', body: data });
+  }
+
+  deleteDiscount(id) {
+    return this.request(`/offers/discounts/${id}`, { method: 'DELETE' });
   }
 
   // ─── Mesas ───────────────────────────────────────────────────────────────
@@ -211,6 +235,23 @@ class ApiClient {
     return this.request(`/customers/${id}/loyalty`, { method: 'PATCH', body: data });
   }
 
+  // ─── Facturación ─────────────────────────────────────────────────────────
+  createCheckout() {
+    return this.request('/billing/create-checkout', { method: 'POST' });
+  }
+
+  startTrial() {
+    return this.request('/billing/start-trial', { method: 'POST' });
+  }
+
+  syncPlan() {
+    return this.request('/billing/sync');
+  }
+
+  getBillingPortal() {
+    return this.request('/billing/portal', { method: 'POST' });
+  }
+
   // ─── Contraseña ──────────────────────────────────────────────────────────
   changePassword(currentPassword, newPassword) {
     return this.request('/auth/change-password', { method: 'POST', body: { currentPassword, newPassword } });
@@ -233,6 +274,40 @@ class ApiClient {
     return this.request(`/branches/${id}`, { method: 'DELETE' });
   }
 
+  // ─── Turnos ──────────────────────────────────────────────────────────────
+  getTurnoActivo(branchId) {
+    const q = branchId ? `?branch_id=${branchId}` : '';
+    return this.request(`/turnos/activo${q}`);
+  }
+
+  abrirTurno(cajeroNombre, rol, fondoInicial, branchId) {
+    return this.request('/turnos', {
+      method: 'POST',
+      body: { cajero_nombre: cajeroNombre, rol, fondo_inicial: fondoInicial, branch_id: branchId || null }
+    });
+  }
+
+  cerrarTurno(id, efectivoContado, notas) {
+    return this.request(`/turnos/${id}/cerrar`, {
+      method: 'PUT',
+      body: { efectivo_contado: efectivoContado, notas: notas || null }
+    });
+  }
+
+  getTurnoTotales(turnoId) {
+    return this.request(`/turnos/${turnoId}/totales`);
+  }
+
+  getHistorialTurnos(branchId) {
+    const q = branchId ? `?branch_id=${branchId}` : '';
+    return this.request(`/turnos/historial${q}`);
+  }
+
+  getTurnoEventsUrl() {
+    if (!this.token) return null;
+    return `${this.baseURL}/turnos/events?token=${this.token}`;
+  }
+
   // ─── Plan ────────────────────────────────────────────────────────────────
   getPlanStatus() {
     return this.request('/billing/status');
@@ -249,6 +324,48 @@ class ApiClient {
 
   deleteStaff(id) {
     return this.request(`/staff/${id}`, { method: 'DELETE' });
+  }
+
+  // ─── Auditoría / PIN de empleado ─────────────────────────────────────────
+  // El PIN se verifica localmente; solo se envía el nombre del cajero al backend.
+  cancelOrderWithPin(orderId, employeeName) {
+    return this.request(`/orders/${orderId}/status`, {
+      method: 'PUT',
+      body: { status: 'cancelado', employee_name: employeeName }
+    });
+  }
+
+  updateCustomerWithPin(id, data, employeeName) {
+    return this.request(`/customers/${id}`, {
+      method: 'PUT',
+      body: { ...data, employee_name: employeeName }
+    });
+  }
+
+  createMovementWithPin(data, employeeName) {
+    return this.request('/inventory/movements', {
+      method: 'POST',
+      body: { ...data, employee_name: employeeName }
+    });
+  }
+
+  getAuditLogs(params = {}) {
+    const q = new URLSearchParams(params).toString();
+    return this.request(`/audit${q ? '?' + q : ''}`);
+  }
+
+  getAuditEventsUrl() {
+    if (!this.token) return null;
+    return `${BASE_URL}/audit/events?token=${this.token}`;
+  }
+
+  // ─── Push Notifications ──────────────────────────────────────────────────
+  registerPushToken(token) {
+    return this.request('/push/token', { method: 'POST', body: { token } });
+  }
+
+  unregisterPushToken(token) {
+    return this.request('/push/token', { method: 'DELETE', body: { token } });
   }
 }
 
