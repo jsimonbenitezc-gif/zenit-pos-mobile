@@ -67,13 +67,14 @@ function MesaCard({ mesa, onPress, currency }) {
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 
 export default function MesasScreen() {
-  const { isOwner, settings } = useAuth();
+  const { isOwner, settings, sucursalId } = useAuth();
   const currency = settings?.currency_symbol || '$';
 
   const [mesas, setMesas]         = useState([]);
   const [loading, setLoading]     = useState(true);
   const [refreshing, setRefresh]  = useState(false);
   const [mostrarStock, setMostrarStock] = useState(false);
+  const [stockMap, setStockMap]         = useState(null);
 
   // Selección activa
   const [mesaSel, setMesaSel]         = useState(null);
@@ -157,7 +158,13 @@ export default function MesasScreen() {
   useFocusEffect(
     useCallback(() => {
       load();
-      SecureStore.getItemAsync('mostrar_stock').then(val => setMostrarStock(val === 'true'));
+      SecureStore.getItemAsync('mostrar_stock').then(val => {
+        const show = val === 'true';
+        setMostrarStock(show);
+        if (show) {
+          api.getProductsStock(sucursalId).then(map => setStockMap(map)).catch(() => {});
+        }
+      });
 
       // SSE: actualización en tiempo real cuando cambia un pedido
       const url = api.getOrdersEventsUrl();
@@ -503,10 +510,11 @@ export default function MesasScreen() {
               ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
               renderItem={({ item }) => {
                 const qty = carritoAgregar[item.id]?.qty || 0;
-                const stock = item.stock ?? null;
+                const recipeStock = stockMap ? stockMap[item.id] : undefined;
+                const stock = recipeStock !== undefined ? recipeStock : (item.stock ?? null);
                 let stockEl = null;
                 if (mostrarStock && stock !== null) {
-                  if (stock <= 0) {
+                  if (stock === 0) {
                     stockEl = <Text style={{ fontSize: 10, color: '#ef4444', fontWeight: '600', marginTop: 2 }}>Sin stock</Text>;
                   } else if (stock <= 3) {
                     stockEl = <Text style={{ fontSize: 10, color: '#f59e0b', fontWeight: '600', marginTop: 2 }}>⚠ {stock} disp.</Text>;
@@ -515,7 +523,7 @@ export default function MesasScreen() {
                   }
                 }
                 return (
-                  <View style={[styles.pCard, mostrarStock && stock <= 0 && { opacity: 0.5 }]}>
+                  <View style={[styles.pCard, mostrarStock && stock === 0 && { opacity: 0.5 }]}>
                     <Text style={styles.pEmoji}>{item.emoji || '🛍️'}</Text>
                     <Text style={styles.pName} numberOfLines={2}>{item.name}</Text>
                     <Text style={styles.pPrice}>{formatMoney(parseFloat(item.price), currency)}</Text>

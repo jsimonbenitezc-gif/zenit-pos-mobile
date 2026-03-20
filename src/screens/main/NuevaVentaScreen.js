@@ -25,11 +25,13 @@ const TIPO_PEDIDO = [
 
 // ─── Tarjeta de producto ──────────────────────────────────────────────────────
 
-function ProductCard({ product, onPress, currency, mostrarStock }) {
-  const stock = product.stock ?? null;
+function ProductCard({ product, onPress, currency, mostrarStock, stockMap }) {
+  // Usar stock basado en ingredientes si está disponible, si no usar product.stock
+  const recipeStock = stockMap ? stockMap[product.id] : undefined;
+  const stock = recipeStock !== undefined ? recipeStock : (product.stock ?? null);
   let stockEl = null;
   if (mostrarStock && stock !== null) {
-    if (stock <= 0) {
+    if (stock === 0) {
       stockEl = <Text style={{ fontSize: 10, color: '#ef4444', fontWeight: '600', marginTop: 2 }}>Sin stock</Text>;
     } else if (stock <= 3) {
       stockEl = <Text style={{ fontSize: 10, color: '#f59e0b', fontWeight: '600', marginTop: 2 }}>⚠ {stock} disponibles</Text>;
@@ -38,7 +40,7 @@ function ProductCard({ product, onPress, currency, mostrarStock }) {
     }
   }
   return (
-    <TouchableOpacity style={[styles.productCard, mostrarStock && stock <= 0 && { opacity: 0.5 }]} onPress={() => onPress(product)}>
+    <TouchableOpacity style={[styles.productCard, mostrarStock && stock === 0 && { opacity: 0.5 }]} onPress={() => onPress(product)}>
       <Text style={styles.productEmoji}>{product.emoji || '🛍️'}</Text>
       <Text style={styles.productName} numberOfLines={2}>{product.name}</Text>
       <Text style={styles.productPrice}>{formatMoney(parseFloat(product.price), currency)}</Text>
@@ -133,6 +135,7 @@ export default function NuevaVentaScreen() {
 
   // Ajuste visual: mostrar stock disponible
   const [mostrarStock, setMostrarStock]   = useState(false);
+  const [stockMap, setStockMap]           = useState(null); // { productId: qty | null }
 
   // ── Swipe para cerrar carrito ─────────────────────────────────────────────
   const cartPan       = useRef(new Animated.Value(0)).current;
@@ -233,8 +236,14 @@ export default function NuevaVentaScreen() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    SecureStore.getItemAsync('mostrar_stock').then(val => setMostrarStock(val === 'true'));
-  }, []);
+    SecureStore.getItemAsync('mostrar_stock').then(val => {
+      const show = val === 'true';
+      setMostrarStock(show);
+      if (show) {
+        api.getProductsStock(sucursalId).then(map => setStockMap(map)).catch(() => {});
+      }
+    });
+  }, [sucursalId]);
 
   // Auto-rellenar campos de domicilio cuando cambia el tipo o el cliente
   useEffect(() => {
@@ -616,7 +625,7 @@ export default function NuevaVentaScreen() {
         contentContainerStyle={styles.grid}
         columnWrapperStyle={{ gap: spacing.sm }}
         ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
-        renderItem={({ item }) => <ProductCard product={item} onPress={agregarAlCarrito} currency={currency} mostrarStock={mostrarStock} />}
+        renderItem={({ item }) => <ProductCard product={item} onPress={agregarAlCarrito} currency={currency} mostrarStock={mostrarStock} stockMap={stockMap} />}
         ListEmptyComponent={<Text style={styles.empty}>No hay productos en esta categoría</Text>}
         onScrollBeginDrag={() => setShowSug(false)}
       />

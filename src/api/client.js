@@ -178,6 +178,11 @@ class ApiClient {
     return `${BASE_URL}/orders/events?token=${this.token}`;
   }
 
+  getProductsStock(branchId) {
+    const q = branchId ? `?branch_id=${branchId}` : '';
+    return this.request(`/inventory/products-stock${q}`);
+  }
+
   getSettingsEventsUrl() {
     if (!this.token) return null;
     return `${BASE_URL}/settings/events?token=${this.token}`;
