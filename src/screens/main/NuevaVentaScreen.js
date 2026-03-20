@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, Pressable,
   TextInput, Alert, ActivityIndicator, Modal, ScrollView,
@@ -259,6 +260,15 @@ export default function NuevaVentaScreen() {
     return () => { if (es) { try { es.close(); } catch {} } };
   }, [sucursalId]);
 
+  // Refrescar stock cada vez que la pantalla gana foco (ej. volver de otra tab)
+  useFocusEffect(
+    useCallback(() => {
+      if (mostrarStock) {
+        api.getProductsStock(sucursalId).then(map => setStockMap(map)).catch(() => {});
+      }
+    }, [mostrarStock, sucursalId])
+  );
+
   // Auto-rellenar campos de domicilio cuando cambia el tipo o el cliente
   useEffect(() => {
     if (tipoPedido === 'domicilio' && clienteSeleccionado) {
@@ -515,6 +525,11 @@ export default function NuevaVentaScreen() {
       setEfectivoRecibido('');
       setDomNombre('');
       setDomDireccion('');
+
+      // Refrescar stock inmediatamente (sin esperar SSE)
+      if (mostrarStock) {
+        api.getProductsStock(sucursalId).then(map => setStockMap(map)).catch(() => {});
+      }
 
       Alert.alert('Venta registrada', `Total: ${formatMoney(totalFinal, currency)}`);
     } catch (e) {

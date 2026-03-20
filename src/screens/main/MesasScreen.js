@@ -278,6 +278,7 @@ export default function MesasScreen() {
           order_type: 'comer',
           table_id: mesaSel?.id,
           guests: parseInt(comensales) || mesaSel?.capacity || 1,
+          branch_id: sucursalId || null,
         });
         setOrdenActiva(order);
         setModalAgregar(false);
@@ -289,6 +290,10 @@ export default function MesasScreen() {
         setModalAgregar(false);
       }
       load();
+      // Refrescar stock inmediatamente (sin esperar SSE)
+      if (mostrarStock) {
+        api.getProductsStock(sucursalId).then(map => setStockMap(map)).catch(() => {});
+      }
       showToast('✓ Comanda enviada a cocina');
     } catch (e) {
       Alert.alert('Error', e.message);
