@@ -8,6 +8,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import EventSource from 'react-native-sse';
+import * as Crypto from 'expo-crypto';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
@@ -168,7 +169,7 @@ function RecetaRow({ product, items, ingredients, preparations, onDelete, onEdit
                 size={13} color={colors.textMuted}
               />
               <Text style={styles.recipeItemText}>{nombre(r.item_id, r.item_type)}</Text>
-              <Text style={styles.recipeItemQty}>{fmt(r.quantity)} {unit(r.item_id, r.item_type)}</Text>
+              <Text style={styles.recipeItemQty}>{fmt(r.quantity)} {r.unit_recipe || unit(r.item_id, r.item_type)}</Text>
             </View>
           ))}
         </View>
@@ -273,7 +274,7 @@ function IngSelector({ ingredients, preparations, selected, onSelect, includePre
 
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 export default function InventarioScreen() {
-  const { user } = useAuth();
+  const { user, sucursalId, nombreActivo, rolActivo, permisosRolesEfectivos } = useAuth();
   const isPremium = user?.plan === 'premium' || user?.plan === 'trial';
 
   const [tab, setTab]                   = useState('insumos');
@@ -296,6 +297,13 @@ export default function InventarioScreen() {
   const [motivo, setMotivo]             = useState('merma');
   const [notasMov, setNotasMov]         = useState('');
   const [saving, setSaving]             = useState(false);
+
+  // ── Modal PIN para ajuste de inventario ──
+  const [pinAjusteModal, setPinAjusteModal] = useState(false);
+  const [pinAjusteValue, setPinAjusteValue] = useState('');
+  const [pinAjusteError, setPinAjusteError] = useState('');
+  const [pinAjusteLoading, setPinAjusteLoading] = useState(false);
+  const pinAjusteRef = useRef(null);
 
   // ── Modal insumo (crear / editar) ──
   const [modalIng, setModalIng]         = useState(false);
@@ -323,7 +331,7 @@ export default function InventarioScreen() {
     if (isRefresh) setRefresh(true);
     try {
       const [ings, preps, recipes, prods, movs] = await Promise.allSettled([
-        api.getIngredients(),
+        api.getIngredients(sucursalId),
         api.getPreparations(),
         api.getAllRecipes(),
         api.getProducts(),
@@ -338,7 +346,7 @@ export default function InventarioScreen() {
       setLoading(false);
       setRefresh(false);
     }
-  }, [isPremium]);
+  }, [isPremium, sucursalId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -388,8 +396,8 @@ export default function InventarioScreen() {
     setIngEditando(item);
     setIngNombre(item.name);
     setIngUnidad(item.unit || 'kg');
-    setIngMinStock(item.min_stock != null ? String(item.min_stock) : '');
-    setIngCosto(item.cost_per_unit != null ? String(item.cost_per_unit) : '');
+    setIngMinStock(item.min_stock != null ? fmt(item.min_stock) : '');
+    setIngCosto(item.cost_per_unit != null ? fmt(item.cost_per_unit) : '');
     setModalIng(true);
   };
 
@@ -434,13 +442,14 @@ export default function InventarioScreen() {
     setPrepEditandoId(item.id);
     setPrepNombre(item.name);
     setPrepUnidad(item.unit || 'porcion');
-    setPrepRinde(item.yield_quantity != null ? String(item.yield_quantity) : '1');
+    setPrepRinde(item.yield_quantity != null ? fmt(item.yield_quantity) : '1');
     setPrepItems(
       (item.items || []).map(ri => ({
         ing: ri.ingredient
           ? { ...ri.ingredient, _tipo: 'ingredient', _label: ri.ingredient.name, _sub: ri.ingredient.unit }
           : null,
         qty: parseFloat(ri.quantity) || 0,
+        qtyStr: ri.quantity != null ? fmt(ri.quantity) : '',
         unit: ri.unit_recipe || ri.ingredient?.unit || null,
       })).filter(i => i.ing)
     );
@@ -469,36 +478,79 @@ export default function InventarioScreen() {
           const found = preparations.find(p => p.id === r.item_id);
           if (found) ing = { ...found, _tipo: 'preparation', _label: found.name, _sub: found.unit };
         }
-        return { ing, qty: parseFloat(r.quantity) || 0, unit: r.unit_recipe || null };
+        return { ing, qty: parseFloat(r.quantity) || 0, qtyStr: r.quantity != null ? fmt(r.quantity) : '', unit: r.unit_recipe || null };
       }).filter(i => i.ing)
     );
     setModalReceta(true);
   };
 
   // ── Guardar movimiento ────────────────────────────────────────────────────
-  const guardarMovimiento = async () => {
+  const guardarMovimiento = () => {
     if (!ingSelec) { Alert.alert('Error', 'Selecciona un insumo'); return; }
     const qty = parseFloat(cantidad);
     if (!qty || qty <= 0) { Alert.alert('Error', 'Escribe una cantidad válida'); return; }
+
+    // Los ajustes manuales requieren PIN
+    if (tipoMov === 'ajuste') {
+      setPinAjusteValue('');
+      setPinAjusteError('');
+      setPinAjusteModal(true);
+      return;
+    }
+
+    _ejecutarMovimiento(qty);
+  };
+
+  const _ejecutarMovimiento = async (qty, employeeName) => {
     setSaving(true);
     try {
-      await api.createMovement({
+      const movData = {
         ingredient_id: ingSelec.id,
         type: tipoMov,
         quantity: qty,
         reason: tipoMov === 'salida' ? motivo : undefined,
         notes: notasMov.trim() || undefined,
-      });
+        branch_id: sucursalId || undefined,
+      };
+      if (employeeName !== undefined) {
+        await api.createMovementWithPin(movData, employeeName);
+      } else {
+        await api.createMovement(movData);
+      }
       await load(true);
       setModalMov(false);
       Alert.alert(
-        tipoMov === 'entrada' ? '✓ Entrada registrada' : '✓ Salida registrada',
+        tipoMov === 'entrada' ? '✓ Entrada registrada' : tipoMov === 'ajuste' ? '✓ Ajuste registrado' : '✓ Salida registrada',
         `${tipoMov === 'entrada' ? '+' : '−'}${qty} ${ingSelec.unit ?? ''} de ${ingSelec.name}`
       );
     } catch {
       Alert.alert('Error', 'No se pudo registrar el movimiento. Verifica tu conexión.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const confirmarAjusteConPin = async () => {
+    if (!pinAjusteValue) { setPinAjusteError('Ingresa tu PIN'); return; }
+    setPinAjusteLoading(true);
+    setPinAjusteError('');
+    try {
+      const perfilActual = permisosRolesEfectivos?.[rolActivo];
+      if (perfilActual?.pin_set && perfilActual?.pin) {
+        const hash = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, pinAjusteValue);
+        if (hash !== perfilActual.pin) {
+          setPinAjusteError('PIN incorrecto');
+          setPinAjusteLoading(false);
+          return;
+        }
+      }
+      const qty = parseFloat(cantidad);
+      setPinAjusteModal(false);
+      await _ejecutarMovimiento(qty, nombreActivo || '');
+    } catch (e) {
+      setPinAjusteError(e.message || 'Error al verificar PIN');
+    } finally {
+      setPinAjusteLoading(false);
     }
   };
 
@@ -869,8 +921,8 @@ export default function InventarioScreen() {
                     </View>
                     <TextInput
                       style={[styles.input, { width: 70, marginLeft: spacing.xs }]}
-                      value={String(it.qty || '')}
-                      onChangeText={v => { const copy = [...prepItems]; copy[idx] = { ...copy[idx], qty: parseFloat(v) || 0 }; setPrepItems(copy); }}
+                      value={it.qtyStr ?? ''}
+                      onChangeText={v => { const copy = [...prepItems]; copy[idx] = { ...copy[idx], qtyStr: v, qty: parseFloat(v) || 0 }; setPrepItems(copy); }}
                       placeholder="Cant."
                       placeholderTextColor={colors.textMuted}
                       keyboardType="decimal-pad"
@@ -893,7 +945,7 @@ export default function InventarioScreen() {
                     </TouchableOpacity>
                   </View>
                 ))}
-                <TouchableOpacity style={styles.btnAddLinea} onPress={() => setPrepItems([...prepItems, { ing: null, qty: 0, unit: null }])}>
+                <TouchableOpacity style={styles.btnAddLinea} onPress={() => setPrepItems([...prepItems, { ing: null, qty: 0, qtyStr: '', unit: null }])}>
                   <Ionicons name="add" size={16} color={colors.primary} />
                   <Text style={styles.btnAddLineaText}>Agregar ingrediente</Text>
                 </TouchableOpacity>
@@ -930,7 +982,10 @@ export default function InventarioScreen() {
                     </TouchableOpacity>
                   </View>
                 ) : (
-                  <ProductSelector products={products} onSelect={setRecetaProd} />
+                  <ProductSelector
+                    products={products.filter(p => !recetasPorProd[p.id] || recetaProd?.id === p.id)}
+                    onSelect={setRecetaProd}
+                  />
                 )}
 
                 <Text style={[styles.label, { marginTop: spacing.md }]}>Ingredientes / Preparaciones</Text>
@@ -945,8 +1000,8 @@ export default function InventarioScreen() {
                     </View>
                     <TextInput
                       style={[styles.input, { width: 70, marginLeft: spacing.xs }]}
-                      value={String(it.qty || '')}
-                      onChangeText={v => { const copy = [...recetaItems]; copy[idx] = { ...copy[idx], qty: parseFloat(v) || 0 }; setRecetaItems(copy); }}
+                      value={it.qtyStr ?? ''}
+                      onChangeText={v => { const copy = [...recetaItems]; copy[idx] = { ...copy[idx], qtyStr: v, qty: parseFloat(v) || 0 }; setRecetaItems(copy); }}
                       placeholder="Cant."
                       placeholderTextColor={colors.textMuted}
                       keyboardType="decimal-pad"
@@ -969,7 +1024,7 @@ export default function InventarioScreen() {
                     </TouchableOpacity>
                   </View>
                 ))}
-                <TouchableOpacity style={styles.btnAddLinea} onPress={() => setRecetaItems([...recetaItems, { ing: null, qty: 0, unit: null }])}>
+                <TouchableOpacity style={styles.btnAddLinea} onPress={() => setRecetaItems([...recetaItems, { ing: null, qty: 0, qtyStr: '', unit: null }])}>
                   <Ionicons name="add" size={16} color={colors.primary} />
                   <Text style={styles.btnAddLineaText}>Agregar componente</Text>
                 </TouchableOpacity>
@@ -979,6 +1034,54 @@ export default function InventarioScreen() {
                 </TouchableOpacity>
                 <View style={{ height: spacing.xl }} />
               </ScrollView>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── Modal PIN para ajuste de inventario ── */}
+      <Modal
+        visible={pinAjusteModal}
+        transparent
+        animationType="fade"
+        onShow={() => setTimeout(() => pinAjusteRef.current?.focus(), 100)}
+        onRequestClose={() => setPinAjusteModal(false)}
+      >
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.pinOverlay}>
+          <View style={styles.pinBox}>
+            <Text style={styles.pinTitle}>Autorización requerida</Text>
+            <Text style={styles.pinMsg}>Ajuste manual de inventario.{'\n'}Esta acción quedará registrada.{'\n'}Ingresa tu PIN para confirmar.</Text>
+            <TextInput
+              ref={pinAjusteRef}
+              style={[styles.pinInput, pinAjusteError ? { borderColor: colors.danger } : null]}
+              placeholder="PIN"
+              placeholderTextColor={colors.textMuted}
+              secureTextEntry
+              keyboardType="number-pad"
+              maxLength={20}
+              value={pinAjusteValue}
+              onChangeText={v => { setPinAjusteValue(v); setPinAjusteError(''); }}
+              onSubmitEditing={confirmarAjusteConPin}
+            />
+            {pinAjusteError ? <Text style={styles.pinErrorText}>{pinAjusteError}</Text> : null}
+            <View style={styles.pinActions}>
+              <TouchableOpacity
+                style={[styles.pinBtn, styles.pinBtnCancel]}
+                onPress={() => setPinAjusteModal(false)}
+                disabled={pinAjusteLoading}
+              >
+                <Text style={styles.pinBtnCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.pinBtn, styles.pinBtnConfirm, pinAjusteLoading && { opacity: 0.6 }]}
+                onPress={confirmarAjusteConPin}
+                disabled={pinAjusteLoading}
+              >
+                {pinAjusteLoading
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <Text style={styles.pinBtnConfirmText}>Confirmar</Text>
+                }
+              </TouchableOpacity>
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -1091,4 +1194,18 @@ const styles = StyleSheet.create({
   unitChipActive:      { backgroundColor: colors.primary, borderColor: colors.primary },
   unitChipText:        { fontSize: font.sm - 2, color: colors.textSecondary, fontWeight: '700' },
   unitChipTextActive:  { color: '#fff' },
+
+  // Modal PIN
+  pinOverlay:          { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: spacing.xl },
+  pinBox:              { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.xl, width: '100%', maxWidth: 340 },
+  pinTitle:            { fontSize: font.lg, fontWeight: '800', color: colors.textPrimary, marginBottom: spacing.xs },
+  pinMsg:              { fontSize: font.sm, color: colors.textSecondary, marginBottom: spacing.lg, lineHeight: 20 },
+  pinInput:            { borderWidth: 1.5, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.md, color: colors.textPrimary, backgroundColor: colors.background, textAlign: 'center', letterSpacing: 6, marginBottom: spacing.xs },
+  pinErrorText:        { fontSize: font.sm, color: colors.danger, marginBottom: spacing.sm },
+  pinActions:          { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
+  pinBtn:              { flex: 1, borderRadius: radius.md, padding: spacing.md, alignItems: 'center' },
+  pinBtnCancel:        { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  pinBtnCancelText:    { color: colors.textSecondary, fontWeight: '600' },
+  pinBtnConfirm:       { backgroundColor: colors.primary },
+  pinBtnConfirmText:   { color: '#fff', fontWeight: '700' },
 });

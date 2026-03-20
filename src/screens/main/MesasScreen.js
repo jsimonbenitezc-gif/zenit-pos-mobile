@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   ActivityIndicator, RefreshControl, Alert, TextInput,
@@ -6,9 +6,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as SecureStore from 'expo-secure-store';
+import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
+import { formatMoney } from '../../utils/money';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -24,7 +27,7 @@ function tiempoTranscurrido(isoDate) {
 
 // ─── Tarjeta de Mesa ──────────────────────────────────────────────────────────
 
-function MesaCard({ mesa, onPress }) {
+function MesaCard({ mesa, onPress, currency }) {
   const ocupada = !!mesa.open_order;
   const order   = mesa.open_order;
   const total   = order ? parseFloat(order.total || 0) : 0;
@@ -43,7 +46,7 @@ function MesaCard({ mesa, onPress }) {
 
       {ocupada ? (
         <>
-          <Text style={styles.cardTotal}>${total.toFixed(2)}</Text>
+          <Text style={styles.cardTotal}>{formatMoney(total, currency)}</Text>
           <Text style={styles.cardMeta}>{items} {items === 1 ? 'producto' : 'productos'}</Text>
           <Text style={styles.cardTiempo}>{tiempoTranscurrido(order.createdAt)}</Text>
         </>
@@ -64,11 +67,13 @@ function MesaCard({ mesa, onPress }) {
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 
 export default function MesasScreen() {
-  const { isOwner } = useAuth();
+  const { isOwner, settings } = useAuth();
+  const currency = settings?.currency_symbol || '$';
 
   const [mesas, setMesas]         = useState([]);
   const [loading, setLoading]     = useState(true);
   const [refreshing, setRefresh]  = useState(false);
+  const [mostrarStock, setMostrarStock] = useState(false);
 
   // Selección activa
   const [mesaSel, setMesaSel]         = useState(null);
@@ -148,13 +153,15 @@ export default function MesasScreen() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
-
-  // Auto-refresh cada 30 segundos
-  useEffect(() => {
-    const interval = setInterval(() => load(), 30000);
-    return () => clearInterval(interval);
-  }, [load]);
+  // Cargar al entrar a la pantalla y refrescar al volver
+  useFocusEffect(
+    useCallback(() => {
+      load();
+      SecureStore.getItemAsync('mostrar_stock').then(val => setMostrarStock(val === 'true'));
+      const interval = setInterval(() => load(), 10000);
+      return () => clearInterval(interval);
+    }, [load])
+  );
 
   // ── Tocar una mesa ──────────────────────────────────────────────────────────
 
@@ -369,7 +376,7 @@ export default function MesasScreen() {
           columnWrapperStyle={{ gap: spacing.sm }}
           ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
-          renderItem={({ item }) => <MesaCard mesa={item} onPress={tocarMesa} />}
+          renderItem={({ item }) => <MesaCard mesa={item} onPress={tocarMesa} currency={currency} />}
         />
       )}
 
@@ -430,7 +437,7 @@ export default function MesasScreen() {
                   {item.notes ? <Text style={styles.itemNota}>📝 {item.notes}</Text> : null}
                 </View>
                 <Text style={styles.itemQty}>×{item.quantity}</Text>
-                <Text style={styles.itemPrice}>${parseFloat(item.subtotal || 0).toFixed(2)}</Text>
+                <Text style={styles.itemPrice}>{formatMoney(parseFloat(item.subtotal || 0), currency)}</Text>
               </View>
             ))}
             {(!ordenActiva?.items || ordenActiva.items.length === 0) && (
@@ -438,7 +445,7 @@ export default function MesasScreen() {
             )}
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>${totalOrden.toFixed(2)}</Text>
+              <Text style={styles.totalValue}>{formatMoney(totalOrden, currency)}</Text>
             </View>
           </ScrollView>
 
@@ -449,7 +456,7 @@ export default function MesasScreen() {
             </TouchableOpacity>
             <TouchableOpacity style={styles.btnCobrar} onPress={abrirCobrar}>
               <Ionicons name="cash-outline" size={18} color="#fff" />
-              <Text style={styles.btnCobrarText}>Cobrar ${totalOrden.toFixed(2)}</Text>
+              <Text style={styles.btnCobrarText}>Cobrar {formatMoney(totalOrden, currency)}</Text>
             </TouchableOpacity>
           </View>
         </SafeAreaView>
@@ -481,11 +488,23 @@ export default function MesasScreen() {
               ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
               renderItem={({ item }) => {
                 const qty = carritoAgregar[item.id]?.qty || 0;
+                const stock = item.stock ?? null;
+                let stockEl = null;
+                if (mostrarStock && stock !== null) {
+                  if (stock === 0) {
+                    stockEl = <Text style={{ fontSize: 10, color: '#ef4444', fontWeight: '600', marginTop: 2 }}>Sin stock</Text>;
+                  } else if (stock <= 3) {
+                    stockEl = <Text style={{ fontSize: 10, color: '#f59e0b', fontWeight: '600', marginTop: 2 }}>⚠ {stock} disp.</Text>;
+                  } else {
+                    stockEl = <Text style={{ fontSize: 10, color: '#10b981', marginTop: 2 }}>{stock} disp.</Text>;
+                  }
+                }
                 return (
-                  <View style={styles.pCard}>
+                  <View style={[styles.pCard, mostrarStock && stock === 0 && { opacity: 0.5 }]}>
                     <Text style={styles.pEmoji}>{item.emoji || '🛍️'}</Text>
                     <Text style={styles.pName} numberOfLines={2}>{item.name}</Text>
-                    <Text style={styles.pPrice}>${parseFloat(item.price).toFixed(2)}</Text>
+                    <Text style={styles.pPrice}>{formatMoney(parseFloat(item.price), currency)}</Text>
+                    {stockEl}
                     {qty === 0 ? (
                       <TouchableOpacity style={styles.btnPlusSm} onPress={() => incrementar(item)}>
                         <Ionicons name="add" size={18} color="#fff" />
@@ -515,7 +534,7 @@ export default function MesasScreen() {
               >
                 {agregando
                   ? <ActivityIndicator color="#fff" />
-                  : <Text style={styles.btnCobrarText}>Enviar comanda · ${totalCarrito.toFixed(2)}</Text>
+                  : <Text style={styles.btnCobrarText}>Enviar comanda · {formatMoney(totalCarrito, currency)}</Text>
                 }
               </TouchableOpacity>
             </View>
@@ -535,7 +554,7 @@ export default function MesasScreen() {
           </View>
           <ScrollView contentContainerStyle={{ padding: spacing.xl }} keyboardShouldPersistTaps="handled">
             <Text style={styles.cobrarMesa}>{mesaSel?.name}</Text>
-            <Text style={styles.cobrarTotal}>${totalOrden.toFixed(2)}</Text>
+            <Text style={styles.cobrarTotal}>{formatMoney(totalOrden, currency)}</Text>
 
             {/* Asignar cliente para puntos (opcional) */}
             <Text style={[styles.fieldLabel, { marginTop: spacing.lg }]}>Cliente para puntos <Text style={{ color: colors.textMuted, fontWeight: '400' }}>(opcional)</Text></Text>
