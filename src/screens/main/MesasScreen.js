@@ -511,7 +511,8 @@ export default function MesasScreen() {
               renderItem={({ item }) => {
                 const qty = carritoAgregar[item.id]?.qty || 0;
                 const recipeStock = stockMap ? stockMap[item.id] : undefined;
-                const stock = recipeStock !== undefined ? recipeStock : (item.stock ?? null);
+                const rawStock = recipeStock !== undefined ? recipeStock : (item.stock ?? null);
+                const stock = rawStock !== null ? Math.max(0, rawStock) : null;
                 let stockEl = null;
                 if (mostrarStock && stock !== null) {
                   if (stock === 0) {

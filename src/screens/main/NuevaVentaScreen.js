@@ -28,7 +28,8 @@ const TIPO_PEDIDO = [
 function ProductCard({ product, onPress, currency, mostrarStock, stockMap }) {
   // Usar stock basado en ingredientes si está disponible, si no usar product.stock
   const recipeStock = stockMap ? stockMap[product.id] : undefined;
-  const stock = recipeStock !== undefined ? recipeStock : (product.stock ?? null);
+  const rawStock = recipeStock !== undefined ? recipeStock : (product.stock ?? null);
+  const stock = rawStock !== null ? Math.max(0, rawStock) : null;
   let stockEl = null;
   if (mostrarStock && stock !== null) {
     if (stock === 0) {
