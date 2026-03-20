@@ -169,18 +169,30 @@ export default function MesasScreen() {
 
       // SSE: actualización en tiempo real cuando cambia un pedido
       const url = api.getOrdersEventsUrl();
-      let es = null;
+      let esOrders = null;
       if (url) {
-        es = new EventSource(url);
-        es.addEventListener('message', () => load());
-        es.addEventListener('error', () => {}); // silenciar errores de red
+        esOrders = new EventSource(url);
+        esOrders.addEventListener('message', () => load());
+        esOrders.addEventListener('error', () => {});
+      }
+
+      // SSE: actualización en tiempo real cuando cambian los insumos (stock)
+      const invUrl = api.getInventoryEventsUrl?.();
+      let esInv = null;
+      if (invUrl) {
+        esInv = new EventSource(invUrl);
+        esInv.addEventListener('message', () => {
+          api.getProductsStock(sucursalId).then(map => setStockMap(map)).catch(() => {});
+        });
+        esInv.addEventListener('error', () => {});
       }
 
       // Intervalo de respaldo por si el SSE falla o no está disponible
       const interval = setInterval(() => load(), 30000);
 
       return () => {
-        es?.close();
+        esOrders?.close();
+        esInv?.close();
         clearInterval(interval);
       };
     }, [load])

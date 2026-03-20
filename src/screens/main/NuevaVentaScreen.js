@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
+import EventSource from 'react-native-sse';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
@@ -237,13 +238,25 @@ export default function NuevaVentaScreen() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
+    let es = null;
     SecureStore.getItemAsync('mostrar_stock').then(val => {
       const show = val === 'true';
       setMostrarStock(show);
       if (show) {
+        // Carga inicial de stock
         api.getProductsStock(sucursalId).then(map => setStockMap(map)).catch(() => {});
+        // SSE: refrescar stock en tiempo real cuando cambian los insumos
+        const url = api.getInventoryEventsUrl?.();
+        if (url) {
+          es = new EventSource(url);
+          es.addEventListener('message', () => {
+            api.getProductsStock(sucursalId).then(map => setStockMap(map)).catch(() => {});
+          });
+          es.addEventListener('error', () => {});
+        }
       }
     });
+    return () => { if (es) { try { es.close(); } catch {} } };
   }, [sucursalId]);
 
   // Auto-rellenar campos de domicilio cuando cambia el tipo o el cliente
