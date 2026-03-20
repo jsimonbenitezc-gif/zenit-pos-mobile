@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, Pressable,
   TextInput, Alert, ActivityIndicator, Modal, ScrollView,
@@ -6,10 +6,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as Crypto from 'expo-crypto';
+import * as SecureStore from 'expo-secure-store';
 import { api } from '../../api/client';
+import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
+import { formatMoney } from '../../utils/money';
 
-// â”€â”€â”€ Quick tags para notas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Quick tags para notas ────────────────────────────────────────────────────
 
 const QUICK_TAGS = ['Sin', 'Con', 'Extra', 'Poco', 'Mucho', 'Aparte'];
 
@@ -19,30 +23,42 @@ const TIPO_PEDIDO = [
   { key: 'domicilio',label: 'Domicilio',  icon: 'bicycle-outline'     },
 ];
 
-// â”€â”€â”€ Tarjeta de producto â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Tarjeta de producto ──────────────────────────────────────────────────────
 
-function ProductCard({ product, onPress }) {
+function ProductCard({ product, onPress, currency, mostrarStock }) {
+  const stock = product.stock ?? null;
+  let stockEl = null;
+  if (mostrarStock && stock !== null) {
+    if (stock === 0) {
+      stockEl = <Text style={{ fontSize: 10, color: '#ef4444', fontWeight: '600', marginTop: 2 }}>Sin stock</Text>;
+    } else if (stock <= 3) {
+      stockEl = <Text style={{ fontSize: 10, color: '#f59e0b', fontWeight: '600', marginTop: 2 }}>⚠ {stock} disponibles</Text>;
+    } else {
+      stockEl = <Text style={{ fontSize: 10, color: '#10b981', marginTop: 2 }}>{stock} disponibles</Text>;
+    }
+  }
   return (
-    <TouchableOpacity style={styles.productCard} onPress={() => onPress(product)}>
-      <Text style={styles.productEmoji}>{product.emoji || 'ðŸ›ï¸'}</Text>
+    <TouchableOpacity style={[styles.productCard, mostrarStock && stock === 0 && { opacity: 0.5 }]} onPress={() => onPress(product)}>
+      <Text style={styles.productEmoji}>{product.emoji || '🛍️'}</Text>
       <Text style={styles.productName} numberOfLines={2}>{product.name}</Text>
-      <Text style={styles.productPrice}>${parseFloat(product.price).toFixed(2)}</Text>
+      <Text style={styles.productPrice}>{formatMoney(parseFloat(product.price), currency)}</Text>
+      {stockEl}
     </TouchableOpacity>
   );
 }
 
-// â”€â”€â”€ Fila del carrito â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Fila del carrito ─────────────────────────────────────────────────────────
 
-function CartItem({ item, onDelete, onEditNota }) {
+function CartItem({ item, onDelete, onEditNota, currency }) {
   return (
     <View style={styles.cartItem}>
-      <Text style={styles.cartEmoji}>{item.emoji || 'ðŸ›ï¸'}</Text>
+      <Text style={styles.cartEmoji}>{item.emoji || '🛍️'}</Text>
       <View style={{ flex: 1 }}>
         <Text style={styles.cartName} numberOfLines={1}>{item.nombre}</Text>
         {item.nota ? (
-          <Text style={styles.cartNota} numberOfLines={1}>ðŸ“ {item.nota}</Text>
+          <Text style={styles.cartNota} numberOfLines={1}>📝 {item.nota}</Text>
         ) : null}
-        <Text style={styles.cartPrice}>${item.precio.toFixed(2)}</Text>
+        <Text style={styles.cartPrice}>{formatMoney(item.precio, currency)}</Text>
       </View>
       <TouchableOpacity style={styles.iconBtn} onPress={() => onEditNota(item)}>
         <Ionicons
@@ -58,9 +74,13 @@ function CartItem({ item, onDelete, onEditNota }) {
   );
 }
 
-// â”€â”€â”€ Pantalla principal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Pantalla principal ───────────────────────────────────────────────────────
 
 export default function NuevaVentaScreen() {
+  const { settings, user, refreshSettings, sucursalId, nombreActivo, rolActivo, permisosRolesEfectivos } = useAuth();
+  const currency = settings?.currency_symbol || '$';
+  const isPremium = user?.plan === 'premium' || user?.plan === 'trial';
+
   const [categories, setCategories] = useState([]);
   const [catActiva, setCatActiva]   = useState(null);
   const [productos, setProductos]   = useState([]);
@@ -78,6 +98,7 @@ export default function NuevaVentaScreen() {
   const [showCarrito, setShowCarrito]           = useState(false);
   const [cobrandoModal, setCobrandoModal]       = useState(false);
   const [notaModal, setNotaModal]               = useState(null);
+  const [showDescuentoModal, setShowDescuentoModal] = useState(false);
 
   // Datos del pedido
   const [tipoPedido, setTipoPedido]       = useState('comer');
@@ -86,12 +107,38 @@ export default function NuevaVentaScreen() {
   const [textoNota, setTextoNota]         = useState('');
   const [enviando, setEnviando]           = useState(false);
 
-  // Swipe para cerrar carrito - área grande: handle + barra de título
-  // Deslizar abajo = cerrar · Deslizar arriba = leve efecto elástico
-  const cartPan = useRef(new Animated.Value(0)).current;
-  const cartPanRef = useRef(0);
+  // Efectivo
+  const [efectivoRecibido, setEfectivoRecibido] = useState('');
+
+  // Domicilio
+  const [domNombre, setDomNombre]         = useState('');
+  const [domDireccion, setDomDireccion]   = useState('');
+
+  // Descuentos
+  const [descuento, setDescuento]         = useState(0);
+  const [descuentoNombre, setDescuentoNombre] = useState('');
+  const [descuentos, setDescuentos]       = useState([]);
+  const [cargandoDesc, setCargandoDesc]   = useState(false);
+
+  // Modal PIN para descuentos con requires_pin
+  const [pinDescModal, setPinDescModal]   = useState(false);
+  const [pinDescValue, setPinDescValue]   = useState('');
+  const [pinDescError, setPinDescError]   = useState('');
+  const [pinDescLoading, setPinDescLoading] = useState(false);
+  const [descPendiente, setDescPendiente] = useState(null); // el descuento esperando PIN
+  const pinDescRef = useRef(null);
+
+  // Puntos de fidelidad
+  const [puntosUsados, setPuntosUsados]   = useState(false);
+
+  // Ajuste visual: mostrar stock disponible
+  const [mostrarStock, setMostrarStock]   = useState(false);
+
+  // ── Swipe para cerrar carrito ─────────────────────────────────────────────
+  const cartPan       = useRef(new Animated.Value(0)).current;
+  const cartPanRef    = useRef(0);
   const cartScrollYRef = useRef(0);
-  const cartClosedRef = useRef(520);
+  const cartClosedRef  = useRef(520);
 
   const cartOverlayOpacity = cartPan.interpolate({
     inputRange: [0, 520],
@@ -163,6 +210,8 @@ export default function NuevaVentaScreen() {
     },
   })).current;
 
+  // ── Carga inicial ─────────────────────────────────────────────────────────
+
   const load = useCallback(async () => {
     try {
       const [grouped, clts] = await Promise.all([
@@ -171,7 +220,7 @@ export default function NuevaVentaScreen() {
       ]);
       const cats = grouped.map(g => ({ id: g.id, name: g.name, emoji: g.emoji }));
       const all  = grouped.flatMap(g => (g.products || []).map(p => ({ ...p, category_id: g.id })));
-      setCategories([{ id: null, name: 'Todos', emoji: 'ðŸ”' }, ...cats]);
+      setCategories([{ id: null, name: 'Todos', emoji: '🔍' }, ...cats]);
       setProductos(all);
       setClientes(clts);
     } catch {
@@ -183,7 +232,19 @@ export default function NuevaVentaScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  // â”€â”€ Búsqueda de cliente inline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  useEffect(() => {
+    SecureStore.getItemAsync('mostrar_stock').then(val => setMostrarStock(val === 'true'));
+  }, []);
+
+  // Auto-rellenar campos de domicilio cuando cambia el tipo o el cliente
+  useEffect(() => {
+    if (tipoPedido === 'domicilio' && clienteSeleccionado) {
+      setDomNombre(prev => prev || clienteSeleccionado.name || '');
+      setDomDireccion(prev => prev || clienteSeleccionado.address || '');
+    }
+  }, [tipoPedido, clienteSeleccionado]);
+
+  // ── Búsqueda de cliente inline ────────────────────────────────────────────
 
   const sugerencias = clientes.filter(c => {
     if (!busqNombre && !busqTelefono) return false;
@@ -197,6 +258,7 @@ export default function NuevaVentaScreen() {
     setBusqNombre(c.name || '');
     setBusqTelefono(c.phone || '');
     setShowSug(false);
+    setPuntosUsados(false);
   }
 
   function limpiarCliente() {
@@ -204,9 +266,10 @@ export default function NuevaVentaScreen() {
     setBusqNombre('');
     setBusqTelefono('');
     setShowSug(false);
+    setPuntosUsados(false);
   }
 
-  // â”€â”€ Carrito â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Carrito ───────────────────────────────────────────────────────────────
 
   const productosFiltrados = productos.filter(p => {
     const enCat = catActiva === null || p.category_id === catActiva;
@@ -220,7 +283,7 @@ export default function NuevaVentaScreen() {
       uid,
       product_id: producto.id,
       nombre: producto.name,
-      emoji: producto.emoji || 'ðŸ›ï¸',
+      emoji: producto.emoji || '🛍️',
       precio: parseFloat(producto.price),
       nota: '',
     }]);
@@ -237,7 +300,7 @@ export default function NuevaVentaScreen() {
     ]);
   }
 
-  // â”€â”€ Notas individuales â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Notas individuales ────────────────────────────────────────────────────
 
   function abrirNota(item) {
     setTextoNota(item.nota || '');
@@ -254,15 +317,146 @@ export default function NuevaVentaScreen() {
     setNotaModal(null);
   }
 
-  // â”€â”€ Totales â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Totales y cálculos ────────────────────────────────────────────────────
 
-  const total = carrito.reduce((s, i) => s + i.precio, 0);
-  const totalItems = carrito.length;
+  const subtotal    = carrito.reduce((s, i) => s + i.precio, 0);
+  const totalItems  = carrito.length;
 
-  // â”€â”€ Cobrar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Fidelidad
+  const loyaltyEnabled     = settings?.puntos_activos === true || settings?.puntos_activos === 'true';
+  const clienteEnFidelidad = !!clienteSeleccionado?.in_loyalty;
+  const puntosDisponibles  = clienteSeleccionado?.loyalty_points || 0;
+  const valorPunto         = parseFloat(settings?.puntos_valor || '0.10');
+  const ratePorPeso        = parseFloat(settings?.puntos_por_peso || '0.1');
+  const bonoPorPedido      = parseInt(settings?.puntos_bono_pedido || '0', 10);
+  const valorPuntosDisp    = parseFloat((puntosDisponibles * valorPunto).toFixed(2));
+
+  // El descuento en pesos que generan los puntos (capped al total después del descuento regular)
+  const descuentoPuntos = puntosUsados
+    ? Math.min(valorPuntosDisp, Math.max(0, subtotal - descuento))
+    : 0;
+
+  const totalFinal = Math.max(0, subtotal - descuento - descuentoPuntos);
+
+  // Puntos que ganaría con esta compra (solo si no está usando puntos)
+  const puntosAGanar = (!puntosUsados && loyaltyEnabled && clienteEnFidelidad)
+    ? Math.floor(totalFinal * ratePorPeso) + bonoPorPedido
+    : 0;
+
+  // Efectivo
+  const recibido = parseFloat(efectivoRecibido.replace(/[^\d.]/g, '')) || 0;
+  const cambio   = recibido - totalFinal;
+
+  const puedeConfirmar = metodoPago !== 'efectivo' || recibido >= totalFinal;
+
+  // ── Descuentos ────────────────────────────────────────────────────────────
+
+  async function abrirDescuentos() {
+    setShowDescuentoModal(true);
+    setCargandoDesc(true);
+    try {
+      const data = await api.getDiscounts();
+      setDescuentos((data || []).filter(d => d.active));
+    } catch {
+      setDescuentos([]);
+    } finally {
+      setCargandoDesc(false);
+    }
+  }
+
+  function aplicarDescuento(d) {
+    if (d.requires_pin) {
+      // Este descuento requiere PIN — guardar pendiente y mostrar modal
+      setDescPendiente(d);
+      setPinDescValue('');
+      setPinDescError('');
+      setShowDescuentoModal(false);
+      setPinDescModal(true);
+      return;
+    }
+    _aplicarDescuentoFinal(d);
+  }
+
+  function _aplicarDescuentoFinal(d) {
+    const monto = d.type === 'percentage'
+      ? parseFloat((subtotal * parseFloat(d.value) / 100).toFixed(2))
+      : parseFloat(d.value);
+    setDescuento(Math.min(monto, subtotal));
+    setDescuentoNombre(d.name);
+    setShowDescuentoModal(false);
+  }
+
+  async function confirmarDescuentoConPin() {
+    if (!pinDescValue) { setPinDescError('Ingresa tu PIN'); return; }
+    setPinDescLoading(true);
+    setPinDescError('');
+    try {
+      const perfilActual = permisosRolesEfectivos?.[rolActivo];
+      if (perfilActual?.pin_set && perfilActual?.pin) {
+        const hash = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, pinDescValue);
+        if (hash !== perfilActual.pin) {
+          setPinDescError('PIN incorrecto');
+          setPinDescLoading(false);
+          return;
+        }
+      }
+      // PIN válido: aplicar descuento y registrar en auditoría
+      const d = descPendiente;
+      _aplicarDescuentoFinal(d);
+      setPinDescModal(false);
+      setDescPendiente(null);
+      const monto = d.type === 'percentage'
+        ? parseFloat((subtotal * parseFloat(d.value) / 100).toFixed(2))
+        : parseFloat(d.value);
+      api.request('/audit', {
+        method: 'POST',
+        body: {
+          employee_name: nombreActivo || '',
+          action_type: 'apply_discount',
+          target_description: `Descuento: "${d.name}"`,
+          after_data: { discount_name: d.name, amount: Math.min(monto, subtotal) },
+        }
+      }).catch(() => {});
+    } catch (e) {
+      setPinDescError(e.message || 'Error al verificar PIN');
+    } finally {
+      setPinDescLoading(false);
+    }
+  }
+
+  function quitarDescuento() {
+    setDescuento(0);
+    setDescuentoNombre('');
+  }
+
+  // ── Puntos de fidelidad ───────────────────────────────────────────────────
+
+  function togglePuntos() {
+    setPuntosUsados(prev => !prev);
+  }
+
+  // ── Cobrar ────────────────────────────────────────────────────────────────
 
   async function cobrar() {
     if (carrito.length === 0) return;
+    if (metodoPago === 'efectivo' && recibido < totalFinal) {
+      Alert.alert('Efectivo insuficiente', 'El monto recibido es menor al total a cobrar.');
+      return;
+    }
+    if (tipoPedido === 'domicilio' && !domDireccion.trim()) {
+      const continuar = await new Promise(resolve =>
+        Alert.alert(
+          'Sin dirección',
+          'No se registró una dirección para este pedido. ¿Continuar de todas formas?',
+          [
+            { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Sí, continuar', onPress: () => resolve(true) },
+          ],
+          { cancelable: false }
+        )
+      );
+      if (!continuar) return;
+    }
     setEnviando(true);
     try {
       await api.createOrder({
@@ -270,12 +464,36 @@ export default function NuevaVentaScreen() {
         payment_method: metodoPago,
         order_type: tipoPedido,
         customer_id: clienteSeleccionado?.id || null,
+        delivery_address: tipoPedido === 'domicilio' ? (domDireccion || null) : null,
+        customer_temp_info: tipoPedido === 'domicilio' && domNombre
+          ? JSON.stringify({ name: domNombre })
+          : null,
+        branch_id: sucursalId || null,
+        discount_amount: (descuento + descuentoPuntos) || 0,
       });
+
+      // Actualizar puntos de fidelidad
+      if (clienteSeleccionado?.id && clienteEnFidelidad && loyaltyEnabled) {
+        if (puntosUsados && puntosDisponibles > 0) {
+          api.updateCustomerLoyalty(clienteSeleccionado.id, { points_delta: -puntosDisponibles }).catch(() => {});
+        } else if (puntosAGanar > 0) {
+          api.updateCustomerLoyalty(clienteSeleccionado.id, { points_delta: puntosAGanar }).catch(() => {});
+        }
+      }
+
+      // Limpiar todo
       setCarrito([]);
       limpiarCliente();
       setShowCarrito(false);
       setCobrandoModal(false);
-      Alert.alert('Venta registrada', `Total: $${total.toFixed(2)}`);
+      setDescuento(0);
+      setDescuentoNombre('');
+      setPuntosUsados(false);
+      setEfectivoRecibido('');
+      setDomNombre('');
+      setDomDireccion('');
+
+      Alert.alert('Venta registrada', `Total: ${formatMoney(totalFinal, currency)}`);
     } catch (e) {
       Alert.alert('Error al registrar', e.message);
     } finally {
@@ -297,7 +515,7 @@ export default function NuevaVentaScreen() {
         {carrito.length > 0 && (
           <TouchableOpacity style={styles.carritoBtn} onPress={openCartPanel}>
             <Ionicons name="cart" size={16} color="#fff" />
-            <Text style={styles.carritoBtnText}> {totalItems}  ·  ${total.toFixed(2)}</Text>
+            <Text style={styles.carritoBtnText}> {totalItems}  ·  {formatMoney(subtotal, currency)}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -398,12 +616,12 @@ export default function NuevaVentaScreen() {
         contentContainerStyle={styles.grid}
         columnWrapperStyle={{ gap: spacing.sm }}
         ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
-        renderItem={({ item }) => <ProductCard product={item} onPress={agregarAlCarrito} />}
+        renderItem={({ item }) => <ProductCard product={item} onPress={agregarAlCarrito} currency={currency} mostrarStock={mostrarStock} />}
         ListEmptyComponent={<Text style={styles.empty}>No hay productos en esta categoría</Text>}
         onScrollBeginDrag={() => setShowSug(false)}
       />
 
-      {/* Panel carrito (sin Modal, para swipe estable) */}
+      {/* Panel carrito */}
       {showCarrito && (
         <View style={styles.cartLayer} pointerEvents="box-none">
           <Pressable style={styles.cartOverlayPressable} onPress={() => closeCartPanel()}>
@@ -417,7 +635,6 @@ export default function NuevaVentaScreen() {
             }}
             {...cartHeaderPan.panHandlers}
           >
-            {/* Header deslizable - swipe en cualquier parte del panel */}
             <View>
               <View style={styles.dragHandleWrap}>
                 <View style={styles.dragHandle} />
@@ -470,7 +687,7 @@ export default function NuevaVentaScreen() {
                 Productos ({totalItems})
               </Text>
               {carrito.map(item => (
-                <CartItem key={item.uid} item={item} onDelete={eliminarDelCarrito} onEditNota={abrirNota} />
+                <CartItem key={item.uid} item={item} onDelete={eliminarDelCarrito} onEditNota={abrirNota} currency={currency} />
               ))}
 
               {carrito.length === 0 && (
@@ -485,9 +702,9 @@ export default function NuevaVentaScreen() {
               <View style={styles.carritoFooter}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md }}>
                   <Text style={styles.totalLabel}>{tipoActivo?.label}  ·  {totalItems} {totalItems === 1 ? 'producto' : 'productos'}</Text>
-                  <Text style={styles.totalValue}>${total.toFixed(2)}</Text>
+                  <Text style={styles.totalValue}>{formatMoney(subtotal, currency)}</Text>
                 </View>
-                <TouchableOpacity style={styles.btnCobrar} onPress={() => closeCartPanel(() => setCobrandoModal(true))}>
+                <TouchableOpacity style={styles.btnCobrar} onPress={() => closeCartPanel(() => { setCobrandoModal(true); refreshSettings(); })}>
                   <Text style={styles.btnCobrarText}>Cobrar</Text>
                 </TouchableOpacity>
               </View>
@@ -496,7 +713,7 @@ export default function NuevaVentaScreen() {
         </View>
       )}
 
-      {/* â”€â”€ Modal notas por producto â”€â”€ */}
+      {/* ── Modal notas por producto ── */}
       <Modal
         visible={notaModal !== null}
         animationType="slide"
@@ -550,7 +767,7 @@ export default function NuevaVentaScreen() {
         </SafeAreaView>
       </Modal>
 
-      {/* â”€â”€ Modal de cobro â”€â”€ */}
+      {/* ── Modal de cobro ── */}
       <Modal
         visible={cobrandoModal}
         animationType="slide"
@@ -565,52 +782,316 @@ export default function NuevaVentaScreen() {
               <Ionicons name="close" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
-          <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
-            {clienteSeleccionado && (
-              <View style={styles.resumenCliente}>
-                <Ionicons name="person" size={16} color={colors.textSecondary} />
-                <Text style={[styles.resumenClienteText, { marginLeft: spacing.xs }]}>{clienteSeleccionado.name}</Text>
-              </View>
-            )}
 
-            <Text style={styles.totalLabel}>Total a cobrar</Text>
-            <Text style={[styles.totalValue, { fontSize: 40, marginBottom: spacing.xs }]}>${total.toFixed(2)}</Text>
-            <View style={[styles.resumenCliente, { marginBottom: spacing.xl }]}>
-              <Ionicons name={tipoActivo?.icon} size={14} color={colors.textSecondary} />
-              <Text style={[styles.resumenClienteText, { marginLeft: spacing.xs }]}>
-                {tipoActivo?.label}  ·  {totalItems} {totalItems === 1 ? 'producto' : 'productos'}
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
+
+              {/* Cliente */}
+              {clienteSeleccionado && (
+                <View style={styles.resumenCliente}>
+                  <Ionicons name="person" size={16} color={colors.textSecondary} />
+                  <Text style={[styles.resumenClienteText, { marginLeft: spacing.xs }]}>{clienteSeleccionado.name}</Text>
+                </View>
+              )}
+
+              {/* Resumen de total */}
+              <Text style={styles.totalLabel}>Total a cobrar</Text>
+              {descuento > 0 || descuentoPuntos > 0 ? (
+                <View style={styles.totalDesglose}>
+                  <View style={styles.totalDesgloseRow}>
+                    <Text style={styles.totalDesgloseLabel}>Subtotal</Text>
+                    <Text style={styles.totalDesgloseValor}>{formatMoney(subtotal, currency)}</Text>
+                  </View>
+                  {descuento > 0 && (
+                    <View style={styles.totalDesgloseRow}>
+                      <Text style={[styles.totalDesgloseLabel, { color: colors.success }]}>
+                        Desc. {descuentoNombre}
+                      </Text>
+                      <Text style={[styles.totalDesgloseValor, { color: colors.success }]}>
+                        -{formatMoney(descuento, currency)}
+                      </Text>
+                    </View>
+                  )}
+                  {descuentoPuntos > 0 && (
+                    <View style={styles.totalDesgloseRow}>
+                      <Text style={[styles.totalDesgloseLabel, { color: '#7c3aed' }]}>
+                        ⭐ Puntos canjeados
+                      </Text>
+                      <Text style={[styles.totalDesgloseValor, { color: '#7c3aed' }]}>
+                        -{formatMoney(descuentoPuntos, currency)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              ) : null}
+              <Text style={[styles.totalValue, { fontSize: 40, marginBottom: spacing.xs }]}>
+                {formatMoney(totalFinal, currency)}
               </Text>
-            </View>
+              <View style={[styles.resumenCliente, { marginBottom: spacing.xl }]}>
+                <Ionicons name={tipoActivo?.icon} size={14} color={colors.textSecondary} />
+                <Text style={[styles.resumenClienteText, { marginLeft: spacing.xs }]}>
+                  {tipoActivo?.label}  ·  {totalItems} {totalItems === 1 ? 'producto' : 'productos'}
+                </Text>
+              </View>
 
-            <Text style={styles.sectionLabel}>Método de pago</Text>
-            {[
-              { key: 'efectivo',       label: 'Efectivo',       icon: 'cash-outline'           },
-              { key: 'tarjeta',        label: 'Tarjeta',        icon: 'card-outline'           },
-              { key: 'transferencia',  label: 'Transferencia',  icon: 'phone-portrait-outline' },
-            ].map(m => (
+              {/* Método de pago */}
+              <Text style={styles.sectionLabel}>Método de pago</Text>
+              {[
+                { key: 'efectivo',      label: 'Efectivo',      icon: 'cash-outline'           },
+                { key: 'tarjeta',       label: 'Tarjeta',       icon: 'card-outline'           },
+                { key: 'transferencia', label: 'Transferencia', icon: 'phone-portrait-outline' },
+              ].map(m => (
+                <TouchableOpacity
+                  key={m.key}
+                  style={[styles.metodoPagoBtn, metodoPago === m.key && styles.metodoPagoBtnActive]}
+                  onPress={() => setMetodoPago(m.key)}
+                >
+                  <Ionicons name={m.icon} size={20} color={metodoPago === m.key ? '#fff' : colors.textSecondary} />
+                  <Text style={[styles.metodoPagoText, metodoPago === m.key && { color: '#fff' }]}>{m.label}</Text>
+                </TouchableOpacity>
+              ))}
+
+              {/* Calculadora de cambio (solo efectivo) */}
+              {metodoPago === 'efectivo' && (
+                <View style={styles.efectivoBox}>
+                  <Text style={styles.sectionLabel}>Efectivo recibido</Text>
+                  <TextInput
+                    style={styles.efectivoInput}
+                    value={efectivoRecibido}
+                    onChangeText={setEfectivoRecibido}
+                    placeholder={`0.00`}
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="decimal-pad"
+                  />
+                  {recibido > 0 && (
+                    <View style={styles.cambioRow}>
+                      <Text style={styles.cambioLabel}>Cambio a entregar</Text>
+                      <Text style={[styles.cambioValor, { color: cambio >= 0 ? colors.success : colors.danger }]}>
+                        {formatMoney(Math.max(0, cambio), currency)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {/* Datos de entrega (solo domicilio) */}
+              {tipoPedido === 'domicilio' && (
+                <View style={styles.domicilioBox}>
+                  <Text style={styles.sectionLabel}>Datos de entrega</Text>
+                  <TextInput
+                    style={[styles.domicilioInput, { marginBottom: spacing.sm }]}
+                    value={domNombre}
+                    onChangeText={setDomNombre}
+                    placeholder="Nombre del destinatario"
+                    placeholderTextColor={colors.textMuted}
+                  />
+                  <TextInput
+                    style={styles.domicilioInput}
+                    value={domDireccion}
+                    onChangeText={setDomDireccion}
+                    placeholder="Dirección de entrega"
+                    placeholderTextColor={colors.textMuted}
+                    multiline
+                  />
+                </View>
+              )}
+
+              {/* Descuento (solo premium) */}
+              {isPremium && (
+                <View style={styles.descuentoSection}>
+                  <Text style={styles.sectionLabel}>Descuento</Text>
+                  {descuento > 0 ? (
+                    <View style={styles.descuentoAplicado}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.descuentoAplicadoNombre}>{descuentoNombre}</Text>
+                        <Text style={styles.descuentoAplicadoMonto}>-{formatMoney(descuento, currency)}</Text>
+                      </View>
+                      <TouchableOpacity onPress={quitarDescuento} style={styles.btnQuitarDesc}>
+                        <Ionicons name="close-circle" size={20} color={colors.danger} />
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <TouchableOpacity style={styles.btnAplicarDesc} onPress={abrirDescuentos}>
+                      <Ionicons name="pricetag-outline" size={16} color={colors.primary} />
+                      <Text style={styles.btnAplicarDescText}>Aplicar descuento</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+
+              {/* Puntos de fidelidad */}
+              {loyaltyEnabled && clienteEnFidelidad && (
+                <View style={styles.puntosBox}>
+                  <View style={styles.puntosHeader}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.puntosBalance}>
+                        ⭐ {puntosDisponibles} puntos disponibles
+                      </Text>
+                      {puntosDisponibles > 0 && (
+                        <Text style={styles.puntosValor}>
+                          Vale {formatMoney(valorPuntosDisp, currency)}
+                        </Text>
+                      )}
+                      {!puntosUsados && puntosAGanar > 0 && (
+                        <Text style={styles.puntosGanar}>
+                          +{puntosAGanar} puntos con esta compra
+                        </Text>
+                      )}
+                      {puntosUsados && (
+                        <Text style={styles.puntosGanar}>
+                          No acumulas puntos al canjearlos
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                  {puntosDisponibles > 0 && (
+                    <TouchableOpacity
+                      style={[styles.btnPuntos, puntosUsados && styles.btnPuntosActivo]}
+                      onPress={togglePuntos}
+                    >
+                      <Ionicons
+                        name={puntosUsados ? 'checkmark-circle' : 'star-outline'}
+                        size={16}
+                        color={puntosUsados ? '#fff' : '#7c3aed'}
+                      />
+                      <Text style={[styles.btnPuntosText, puntosUsados && { color: '#fff' }]}>
+                        {puntosUsados ? `Puntos aplicados (-${formatMoney(descuentoPuntos, currency)})` : 'Usar puntos como descuento'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+
+              {/* Botón confirmar */}
               <TouchableOpacity
-                key={m.key}
-                style={[styles.metodoPagoBtn, metodoPago === m.key && styles.metodoPagoBtnActive]}
-                onPress={() => setMetodoPago(m.key)}
+                style={[
+                  styles.btnCobrar,
+                  { marginTop: spacing.xl },
+                  (enviando || !puedeConfirmar) && { opacity: 0.5 },
+                ]}
+                onPress={cobrar}
+                disabled={enviando || !puedeConfirmar}
               >
-                <Ionicons name={m.icon} size={20} color={metodoPago === m.key ? '#fff' : colors.textSecondary} />
-                <Text style={[styles.metodoPagoText, metodoPago === m.key && { color: '#fff' }]}>{m.label}</Text>
+                {enviando
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={styles.btnCobrarText}>Confirmar venta</Text>
+                }
               </TouchableOpacity>
-            ))}
 
-            <TouchableOpacity
-              style={[styles.btnCobrar, { marginTop: spacing.xl }, enviando && { opacity: 0.7 }]}
-              onPress={cobrar}
-              disabled={enviando}
-            >
-              {enviando
-                ? <ActivityIndicator color="#fff" />
-                : <Text style={styles.btnCobrarText}>Confirmar venta</Text>
-              }
+              {metodoPago === 'efectivo' && !puedeConfirmar && (
+                <Text style={styles.advertenciaEfectivo}>
+                  Ingresa el efectivo recibido para continuar
+                </Text>
+              )}
+
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* ── Modal de selección de descuentos ── */}
+      <Modal
+        visible={showDescuentoModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowDescuentoModal(false)}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+          <View style={styles.dragHandleWrap}><View style={styles.dragHandle} /></View>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Aplicar descuento</Text>
+            <TouchableOpacity onPress={() => setShowDescuentoModal(false)}>
+              <Ionicons name="close" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={{ padding: spacing.lg }}>
+            {cargandoDesc ? (
+              <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: spacing.xl }} />
+            ) : descuentos.length === 0 ? (
+              <View style={styles.emptyCart}>
+                <Ionicons name="pricetag-outline" size={40} color={colors.textMuted} />
+                <Text style={styles.emptyCartText}>No hay descuentos activos</Text>
+                <Text style={{ color: colors.textMuted, fontSize: font.sm, textAlign: 'center', marginTop: spacing.xs }}>
+                  Crea descuentos desde la sección Ofertas
+                </Text>
+              </View>
+            ) : (
+              descuentos.map(d => {
+                const monto = d.type === 'percentage'
+                  ? parseFloat((subtotal * parseFloat(d.value) / 100).toFixed(2))
+                  : parseFloat(d.value);
+                const etiqueta = d.type === 'percentage'
+                  ? `${parseFloat(d.value)}%`
+                  : formatMoney(parseFloat(d.value), currency);
+                return (
+                  <TouchableOpacity
+                    key={d.id}
+                    style={styles.descuentoItem}
+                    onPress={() => aplicarDescuento(d)}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.descuentoItemNombre}>{d.name}</Text>
+                      <Text style={styles.descuentoItemEtiqueta}>{etiqueta} de descuento</Text>
+                    </View>
+                    <Text style={styles.descuentoItemMonto}>-{formatMoney(monto, currency)}</Text>
+                  </TouchableOpacity>
+                );
+              })
+            )}
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+      {/* Modal PIN para descuento con requires_pin */}
+      <Modal
+        visible={pinDescModal}
+        transparent
+        animationType="fade"
+        onShow={() => setTimeout(() => pinDescRef.current?.focus(), 100)}
+        onRequestClose={() => { setPinDescModal(false); setDescPendiente(null); }}
+      >
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.pinOverlay}>
+          <View style={styles.pinBox}>
+            <Text style={styles.pinTitle}>Autorización requerida</Text>
+            <Text style={styles.pinMsg}>
+              {`Aplicar descuento "${descPendiente?.name}" requiere autorización.\nIngresa tu PIN para confirmar.`}
+            </Text>
+            <TextInput
+              ref={pinDescRef}
+              style={[styles.pinInput, pinDescError ? { borderColor: colors.danger } : null]}
+              placeholder="PIN"
+              placeholderTextColor={colors.textMuted}
+              secureTextEntry
+              keyboardType="number-pad"
+              maxLength={20}
+              value={pinDescValue}
+              onChangeText={v => { setPinDescValue(v); setPinDescError(''); }}
+              onSubmitEditing={confirmarDescuentoConPin}
+            />
+            {pinDescError ? <Text style={styles.pinErrorText}>{pinDescError}</Text> : null}
+            <View style={styles.pinActions}>
+              <TouchableOpacity
+                style={[styles.pinBtn, styles.pinBtnCancel]}
+                onPress={() => { setPinDescModal(false); setDescPendiente(null); }}
+                disabled={pinDescLoading}
+              >
+                <Text style={styles.pinBtnCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.pinBtn, styles.pinBtnConfirm, pinDescLoading && { opacity: 0.6 }]}
+                onPress={confirmarDescuentoConPin}
+                disabled={pinDescLoading}
+              >
+                {pinDescLoading
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <Text style={styles.pinBtnConfirmText}>Confirmar</Text>
+                }
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -683,11 +1164,63 @@ const styles = StyleSheet.create({
   metodoPagoBtn:  { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm, backgroundColor: colors.surface },
   metodoPagoBtnActive:{ backgroundColor: colors.primary, borderColor: colors.primary },
   metodoPagoText: { fontSize: font.md, fontWeight: '600', color: colors.textPrimary },
+
+  // Desglose de total con descuentos
+  totalDesglose:      { backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.sm },
+  totalDesgloseRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.xs },
+  totalDesgloseLabel: { fontSize: font.sm, color: colors.textSecondary, fontWeight: '600' },
+  totalDesgloseValor: { fontSize: font.sm, color: colors.textSecondary, fontWeight: '700' },
+
+  // Efectivo
+  efectivoBox:    { backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginTop: spacing.lg, marginBottom: spacing.sm },
+  efectivoInput:  { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.xl, fontWeight: '700', color: colors.textPrimary, textAlign: 'center', marginBottom: spacing.sm, backgroundColor: colors.background },
+  cambioRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border },
+  cambioLabel:    { fontSize: font.sm, fontWeight: '600', color: colors.textSecondary },
+  cambioValor:    { fontSize: font.lg, fontWeight: '800' },
+
+  // Domicilio
+  domicilioBox:   { backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginTop: spacing.lg, marginBottom: spacing.sm },
+  domicilioInput: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.md, color: colors.textPrimary, backgroundColor: colors.background },
+
+  // Descuento
+  descuentoSection:   { marginTop: spacing.lg, marginBottom: spacing.sm },
+  btnAplicarDesc:     { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderWidth: 1, borderColor: colors.primary + '66', borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.primary + '0d' },
+  btnAplicarDescText: { fontSize: font.md, fontWeight: '600', color: colors.primary },
+  descuentoAplicado:  { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.success + '15', borderRadius: radius.md, borderWidth: 1, borderColor: colors.success + '44', padding: spacing.md },
+  descuentoAplicadoNombre: { fontSize: font.sm, fontWeight: '700', color: colors.success },
+  descuentoAplicadoMonto:  { fontSize: font.md, fontWeight: '800', color: colors.success },
+  btnQuitarDesc:      { padding: spacing.xs },
+
+  // Puntos de fidelidad
+  puntosBox:      { backgroundColor: '#f5f3ff', borderRadius: radius.md, borderWidth: 1, borderColor: '#ddd6fe', padding: spacing.md, marginTop: spacing.lg, marginBottom: spacing.sm },
+  puntosHeader:   { marginBottom: spacing.sm },
+  puntosBalance:  { fontSize: font.md, fontWeight: '700', color: '#6d28d9' },
+  puntosValor:    { fontSize: font.sm, color: '#7c3aed', marginTop: 2 },
+  puntosGanar:    { fontSize: font.sm - 1, color: '#8b5cf6', marginTop: 2 },
+  btnPuntos:      { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderWidth: 2, borderColor: '#7c3aed', borderRadius: radius.md, padding: spacing.sm + 2, backgroundColor: '#fff', justifyContent: 'center' },
+  btnPuntosActivo:{ backgroundColor: '#7c3aed', borderColor: '#6d28d9' },
+  btnPuntosText:  { fontSize: font.sm, fontWeight: '700', color: '#7c3aed' },
+
+  // Lista de descuentos en modal
+  descuentoItem:      { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.sm },
+  descuentoItemNombre:{ fontSize: font.md, fontWeight: '700', color: colors.textPrimary },
+  descuentoItemEtiqueta: { fontSize: font.sm, color: colors.textMuted, marginTop: 2 },
+  descuentoItemMonto: { fontSize: font.lg, fontWeight: '800', color: colors.success },
+
+  // Advertencia efectivo
+  advertenciaEfectivo: { textAlign: 'center', color: colors.textMuted, fontSize: font.sm, marginTop: spacing.sm },
+
+  // Modal PIN
+  pinOverlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: spacing.xl },
+  pinBox:      { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.xl, width: '100%', maxWidth: 340 },
+  pinTitle:    { fontSize: font.lg, fontWeight: '800', color: colors.textPrimary, marginBottom: spacing.xs },
+  pinMsg:      { fontSize: font.sm, color: colors.textSecondary, marginBottom: spacing.lg, lineHeight: 20 },
+  pinInput:    { borderWidth: 1.5, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.md, color: colors.textPrimary, backgroundColor: colors.background, textAlign: 'center', letterSpacing: 6, marginBottom: spacing.xs },
+  pinErrorText:{ fontSize: font.sm, color: colors.danger, marginBottom: spacing.sm },
+  pinActions:  { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
+  pinBtn:      { flex: 1, borderRadius: radius.md, padding: spacing.md, alignItems: 'center' },
+  pinBtnCancel:{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  pinBtnCancelText: { color: colors.textSecondary, fontWeight: '600' },
+  pinBtnConfirm:{ backgroundColor: colors.primary },
+  pinBtnConfirmText: { color: '#fff', fontWeight: '700' },
 });
-
-
-
-
-
-
-
