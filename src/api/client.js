@@ -1,4 +1,5 @@
 const BASE_URL = 'https://zenit-pos-backend.onrender.com/api';
+const REQUEST_TIMEOUT_MS = 30000; // 30 segundos
 
 class ApiClient {
   constructor() {
@@ -22,20 +23,32 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
 
-    const config = { ...options, headers, cache: 'no-store' };
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+    const config = { ...options, headers, cache: 'no-store', signal: controller.signal };
 
     if (options.body && typeof options.body === 'object') {
       config.body = JSON.stringify(options.body);
     }
 
-    const response = await fetch(url, config);
+    try {
+      const response = await fetch(url, config);
 
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(err.error || `Error ${response.status}`);
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || `Error ${response.status}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        throw new Error('El servidor no respondió a tiempo. Verifica tu conexión a internet e intenta de nuevo.');
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeout);
     }
-
-    return response.json();
   }
 
   // ─── Auth ────────────────────────────────────────────────────────────────
@@ -234,6 +247,14 @@ class ApiClient {
 
   updateSettings(data) {
     return this.request('/settings', { method: 'PUT', body: data });
+  }
+
+  verifyProfilePin(role, pin) {
+    return this.request('/settings/verify-pin', { method: 'POST', body: { role, pin } });
+  }
+
+  hashProfilePin(pin) {
+    return this.request('/settings/hash-pin', { method: 'POST', body: { pin } });
   }
 
   updateCustomerLoyalty(id, data) {
