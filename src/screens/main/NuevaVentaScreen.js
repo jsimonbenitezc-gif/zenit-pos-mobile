@@ -492,7 +492,7 @@ export default function NuevaVentaScreen() {
     }
     setEnviando(true);
     try {
-      await api.createOrder({
+      const orderBody = {
         items: carrito.map(i => ({ product_id: i.product_id, quantity: 1, notes: i.nota || undefined })),
         payment_method: metodoPago,
         order_type: tipoPedido,
@@ -503,16 +503,18 @@ export default function NuevaVentaScreen() {
           : null,
         branch_id: sucursalId || null,
         discount_amount: (descuento + descuentoPuntos) || 0,
-      });
+      };
 
-      // Actualizar puntos de fidelidad
+      // Puntos de fidelidad: se envían al backend para que se procesen en la misma transacción
       if (clienteSeleccionado?.id && clienteEnFidelidad && loyaltyEnabled) {
         if (puntosUsados && puntosDisponibles > 0) {
-          api.updateCustomerLoyalty(clienteSeleccionado.id, { points_delta: -puntosDisponibles }).catch(() => {});
+          orderBody.loyalty_points_used = puntosDisponibles;
         } else if (puntosAGanar > 0) {
-          api.updateCustomerLoyalty(clienteSeleccionado.id, { points_delta: puntosAGanar }).catch(() => {});
+          orderBody.loyalty_points_earned = puntosAGanar;
         }
       }
+
+      await api.createOrder(orderBody);
 
       // Limpiar todo
       setCarrito([]);
