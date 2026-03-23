@@ -11,6 +11,7 @@ import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
 import { createSSE } from '../../utils/sse';
+import { friendlyError } from '../../utils/errors';
 
 const MOTIVOS = [
   { key: 'merma',     label: 'Merma' },
@@ -403,7 +404,7 @@ export default function InventarioScreen() {
       setModalIng(false);
       Alert.alert(ingEditando ? '✓ Insumo actualizado' : '✓ Insumo creado', ingNombre.trim());
     } catch (e) {
-      Alert.alert('Error', e.message || 'No se pudo guardar el insumo.');
+      Alert.alert('Error', friendlyError(e) || 'No se pudo guardar el insumo.');
     } finally {
       setSaving(false);
     }
@@ -565,7 +566,7 @@ export default function InventarioScreen() {
       setModalPrep(false);
       Alert.alert(prepEditandoId ? '✓ Preparación actualizada' : '✓ Preparación creada', prepNombre.trim());
     } catch(e) {
-      Alert.alert('Error', e.message || 'No se pudo guardar la preparación.');
+      Alert.alert('Error', friendlyError(e) || 'No se pudo guardar la preparación.');
     } finally {
       setSaving(false);
     }
@@ -577,7 +578,7 @@ export default function InventarioScreen() {
       await api.deleteProductRecipe(productId);
       await load(true);
     } catch(e) {
-      Alert.alert('Error', e.message || 'No se pudo borrar la receta.');
+      Alert.alert('Error', friendlyError(e) || 'No se pudo borrar la receta.');
     }
   };
 
@@ -598,7 +599,7 @@ export default function InventarioScreen() {
       setModalReceta(false);
       Alert.alert('✓ Receta guardada', recetaProd.name);
     } catch(e) {
-      Alert.alert('Error', e.message || 'No se pudo guardar la receta.');
+      Alert.alert('Error', friendlyError(e) || 'No se pudo guardar la receta.');
     } finally {
       setSaving(false);
     }

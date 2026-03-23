@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api/client';
 import { colors, spacing, radius, font } from '../../theme';
+import { friendlyError } from '../../utils/errors';
 import { createSSE } from '../../utils/sse';
 import {
   isPrinterAvailable,
@@ -281,7 +282,7 @@ export default function AjustesScreen({ navigation }) {
       }
       Alert.alert('Guardado', 'Información del negocio actualizada.');
     } catch (e) {
-      Alert.alert('Error', e.message);
+      Alert.alert('Error', friendlyError(e));
     } finally {
       setSavingNegocio(false);
     }
@@ -356,7 +357,7 @@ export default function AjustesScreen({ navigation }) {
       await api.updateSettings({ logo_base64: b64 });
       setLogoBase64(b64);
     } catch (e) {
-      Alert.alert('Error', 'No se pudo guardar el logo: ' + e.message);
+      Alert.alert('Error', 'No se pudo guardar el logo: ' + friendlyError(e));
     } finally {
       setSavingLogo(false);
     }
@@ -390,7 +391,7 @@ export default function AjustesScreen({ navigation }) {
           await api.updateSettings({ logo_base64: '' });
           setLogoBase64('');
         } catch (e) {
-          Alert.alert('Error', e.message);
+          Alert.alert('Error', friendlyError(e));
         } finally {
           setSavingLogo(false);
         }
@@ -459,7 +460,7 @@ export default function AjustesScreen({ navigation }) {
       await refreshSettings();
       Alert.alert('Guardado', 'Configuración de puntos actualizada.');
     } catch (e) {
-      Alert.alert('Error', e.message);
+      Alert.alert('Error', friendlyError(e));
     } finally {
       setSavingPuntos(false);
     }
@@ -491,7 +492,7 @@ export default function AjustesScreen({ navigation }) {
       const devices = await getPairedDevices();
       setScannedDevices(devices);
     } catch (e) {
-      Alert.alert('Error al buscar', e.message);
+      Alert.alert('Error al buscar', friendlyError(e));
     } finally {
       setScanning(false);
     }
@@ -510,7 +511,7 @@ export default function AjustesScreen({ navigation }) {
       setModalPrinter(false);
       Alert.alert('Conectado', `Impresora "${device.name}" configurada.`);
     } catch (e) {
-      Alert.alert('Error al conectar', e.message);
+      Alert.alert('Error al conectar', friendlyError(e));
     } finally {
       setConnecting('');
     }
@@ -529,7 +530,7 @@ export default function AjustesScreen({ navigation }) {
     try {
       await printTest(printerAddress, nombre || 'Mi Negocio', moneda);
     } catch (e) {
-      Alert.alert('Error al imprimir', e.message);
+      Alert.alert('Error al imprimir', friendlyError(e));
     } finally {
       setTestingPrint(false);
     }
@@ -563,7 +564,7 @@ export default function AjustesScreen({ navigation }) {
       setModalPassword(false);
       Alert.alert('Listo', 'Contraseña actualizada correctamente.');
     } catch (e) {
-      Alert.alert('Error', e.message);
+      Alert.alert('Error', friendlyError(e));
     } finally {
       setSavingPass(false);
     }

@@ -8,11 +8,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../api/client';
 import { colors, spacing, radius, font } from '../../theme';
+import { formatMoney } from '../../utils/money';
+import { friendlyError } from '../../utils/errors';
 import { useAuth } from '../../context/AuthContext';
 
 // ─── Fila de producto ─────────────────────────────────────────────────────────
 
-function ProductRow({ product, onEdit }) {
+function ProductRow({ product, onEdit, currency }) {
   return (
     <View style={styles.row}>
       <Text style={styles.rowEmoji}>{product.emoji || '🛍️'}</Text>
@@ -20,7 +22,7 @@ function ProductRow({ product, onEdit }) {
         <Text style={styles.rowName}>{product.name}</Text>
         <Text style={styles.rowCat}>{product.category?.name || 'Sin categoría'}</Text>
       </View>
-      <Text style={styles.rowPrice}>${parseFloat(product.price).toFixed(2)}</Text>
+      <Text style={styles.rowPrice}>{formatMoney(parseFloat(product.price), currency)}</Text>
       <TouchableOpacity style={styles.editBtn} onPress={() => onEdit(product)}>
         <Ionicons name="pencil-outline" size={16} color={colors.textMuted} />
       </TouchableOpacity>
@@ -48,7 +50,8 @@ function CatRow({ cat, onEdit, onDelete }) {
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 
 export default function ProductosScreen() {
-  const { isOwner } = useAuth();
+  const { settings, isOwner } = useAuth();
+  const currency = settings?.currency_symbol || '$';
 
   // Vista activa: 'productos' | 'categorias'
   const [vista, setVista] = useState('productos');
@@ -57,6 +60,7 @@ export default function ProductosScreen() {
   const [productos, setProductos]   = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [busqueda, setBusqueda]     = useState('');
+  const [catFiltro, setCatFiltro]   = useState(null);   // null = todas
   const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -131,7 +135,7 @@ export default function ProductosScreen() {
       }
       setModalProd(false);
     } catch (e) {
-      Alert.alert('Error', e.message);
+      Alert.alert('Error', friendlyError(e));
     } finally {
       setGuardando(false);
     }
@@ -144,7 +148,7 @@ export default function ProductosScreen() {
         try {
           await api.deleteProduct(p.id);
           setProductos(prev => prev.filter(x => x.id !== p.id));
-        } catch (e) { Alert.alert('Error', e.message); }
+        } catch (e) { Alert.alert('Error', friendlyError(e)); }
       }},
     ]);
   }
@@ -181,7 +185,7 @@ export default function ProductosScreen() {
       }
       setModalCat(false);
     } catch (e) {
-      Alert.alert('Error', e.message);
+      Alert.alert('Error', friendlyError(e));
     } finally {
       setGuardCat(false);
     }
@@ -194,12 +198,16 @@ export default function ProductosScreen() {
         try {
           await api.deleteCategory(c.id);
           setCategorias(prev => prev.filter(x => x.id !== c.id));
-        } catch (e) { Alert.alert('Error', e.message); }
+        } catch (e) { Alert.alert('Error', friendlyError(e)); }
       }},
     ]);
   }
 
-  const filtradosProd = productos.filter(p => !busqueda || p.name.toLowerCase().includes(busqueda.toLowerCase()));
+  const filtradosProd = productos.filter(p => {
+    const enBusqueda = !busqueda || p.name.toLowerCase().includes(busqueda.toLowerCase());
+    const enCat = catFiltro === null || p.category_id === catFiltro;
+    return enBusqueda && enCat;
+  });
 
   if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color={colors.primary} /></View>;
 
@@ -246,12 +254,39 @@ export default function ProductosScreen() {
               placeholderTextColor={colors.textMuted}
             />
           </View>
+          {/* Filtro por categoría */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.catScroll}
+            contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.xs }}
+          >
+            <TouchableOpacity
+              style={[styles.catChip, catFiltro === null && styles.catChipActive]}
+              onPress={() => setCatFiltro(null)}
+            >
+              <Text style={[styles.catChipText, catFiltro === null && styles.catChipTextActive]}>
+                Todas
+              </Text>
+            </TouchableOpacity>
+            {categorias.map(c => (
+              <TouchableOpacity
+                key={c.id}
+                style={[styles.catChip, catFiltro === c.id && styles.catChipActive]}
+                onPress={() => setCatFiltro(catFiltro === c.id ? null : c.id)}
+              >
+                <Text style={[styles.catChipText, catFiltro === c.id && styles.catChipTextActive]}>
+                  {c.emoji ? `${c.emoji} ` : ''}{c.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
           <FlatList
             data={filtradosProd}
             keyExtractor={p => String(p.id)}
             contentContainerStyle={{ padding: spacing.lg, paddingTop: 0 }}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
-            renderItem={({ item }) => <ProductRow product={item} onEdit={abrirEditarProd} />}
+            renderItem={({ item }) => <ProductRow product={item} onEdit={abrirEditarProd} currency={currency} />}
             ListEmptyComponent={<Text style={styles.empty}>No hay productos</Text>}
           />
         </>
@@ -376,8 +411,13 @@ const styles = StyleSheet.create({
   tabActive: { backgroundColor: colors.primary },
   tabText: { fontSize: font.sm, fontWeight: '700', color: colors.textMuted },
   tabTextActive: { color: '#fff' },
-  searchWrap: { paddingHorizontal: spacing.lg, marginBottom: spacing.sm },
-  search: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.md, color: colors.textPrimary },
+  searchWrap:      { paddingHorizontal: spacing.lg, marginBottom: spacing.sm },
+  search:          { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.md, color: colors.textPrimary },
+  catScroll:       { flexGrow: 0, marginBottom: spacing.sm },
+  catChip:         { paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2, borderRadius: radius.xl, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  catChipActive:   { backgroundColor: colors.primary, borderColor: colors.primary },
+  catChipText:     { fontSize: font.sm - 1, fontWeight: '600', color: colors.textSecondary },
+  catChipTextActive: { color: '#fff' },
   row: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm, borderWidth: 1, borderColor: colors.border },
   rowEmoji: { fontSize: 24, marginRight: spacing.sm },
   rowName: { fontSize: font.sm, fontWeight: '700', color: colors.textPrimary },

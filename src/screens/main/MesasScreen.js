@@ -13,6 +13,7 @@ import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
 import { formatMoney } from '../../utils/money';
 import { createSSE } from '../../utils/sse';
+import { friendlyError } from '../../utils/errors';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -284,7 +285,7 @@ export default function MesasScreen() {
       }
       showToast('✓ Comanda enviada a cocina');
     } catch (e) {
-      Alert.alert('Error', e.message);
+      Alert.alert('Error', friendlyError(e));
     } finally {
       setAgregando(false);
     }
@@ -321,7 +322,7 @@ export default function MesasScreen() {
       setMesaSel(null);
       load();
     } catch (e) {
-      Alert.alert('Error', e.message);
+      Alert.alert('Error', friendlyError(e));
     } finally {
       setCobrando(false);
     }
@@ -342,7 +343,7 @@ export default function MesasScreen() {
       setNuevaNombre(''); setNuevaZona(''); setNuevaCapacidad('4');
       load();
     } catch (e) {
-      Alert.alert('Error', e.message);
+      Alert.alert('Error', friendlyError(e));
     } finally {
       setCreando(false);
     }

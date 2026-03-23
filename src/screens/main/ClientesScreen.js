@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
+import { friendlyError } from '../../utils/errors';
 
 const AVATAR_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316'];
 
@@ -79,7 +80,7 @@ export default function ClientesScreen() {
       setModalNuevo(false);
       setNombre(''); setTelefono(''); setDireccion('');
     } catch (e) {
-      Alert.alert('Error', e.message);
+      Alert.alert('Error', friendlyError(e));
     } finally {
       setGuardando(false);
     }
@@ -153,7 +154,7 @@ export default function ClientesScreen() {
         prev.map(c => c.id === cliente.id ? { ...c, in_loyalty: nuevo } : c)
       );
     } catch (e) {
-      Alert.alert('Error', e.message);
+      Alert.alert('Error', friendlyError(e));
     } finally {
       setToggling(prev => { const s = new Set(prev); s.delete(cliente.id); return s; });
     }

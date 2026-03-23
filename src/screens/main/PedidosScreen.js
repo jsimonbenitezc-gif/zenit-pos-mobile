@@ -9,6 +9,7 @@ import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
 import { formatMoney } from '../../utils/money';
+import { friendlyError } from '../../utils/errors';
 
 const ESTADOS = [
   { key: null,         label: 'Todos' },
@@ -147,7 +148,7 @@ export default function PedidosScreen() {
       await api.updateOrderStatus(id, status);
       setPedidos(prev => prev.map(p => p.id === id ? { ...p, status } : p));
     } catch (e) {
-      Alert.alert('Error', e.message);
+      Alert.alert('Error', friendlyError(e));
     }
   }
 

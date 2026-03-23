@@ -13,6 +13,7 @@ import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
 import { createSSE } from '../../utils/sse';
 import { formatMoney } from '../../utils/money';
+import { friendlyError } from '../../utils/errors';
 
 // ─── Quick tags para notas ────────────────────────────────────────────────────
 
@@ -533,7 +534,7 @@ export default function NuevaVentaScreen() {
 
       Alert.alert('Venta registrada', `Total: ${formatMoney(totalFinal, currency)}`);
     } catch (e) {
-      Alert.alert('Error al registrar', e.message);
+      Alert.alert('Error al registrar', friendlyError(e));
     } finally {
       setEnviando(false);
     }

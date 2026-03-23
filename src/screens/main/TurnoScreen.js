@@ -5,10 +5,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as SecureStore from 'expo-secure-store';
+import { useAuth } from '../../context/AuthContext';
+import { api } from '../../api/client';
 import { colors, spacing, radius, font } from '../../theme';
-
-const TURNO_KEY = 'zenit_turno_activo';
+import { formatMoney } from '../../utils/money';
+import { friendlyError } from '../../utils/errors';
 
 function InfoRow({ label, value, valueColor }) {
   return (
@@ -20,8 +21,12 @@ function InfoRow({ label, value, valueColor }) {
 }
 
 export default function TurnoScreen() {
-  const [turno, setTurno]           = useState(null); // null = no hay turno activo
+  const { settings, user, sucursalId, nombreActivo, rolActivo } = useAuth();
+  const currency = settings?.currency_symbol || '$';
+  const [turno, setTurno]           = useState(null);
+  const [totales, setTotales]       = useState(null);
   const [loading, setLoading]       = useState(true);
+  const [saving, setSaving]         = useState(false);
   const [modalApertura, setModal]   = useState(false);
   const [modalCierre, setModalCierre] = useState(false);
 
@@ -30,46 +35,75 @@ export default function TurnoScreen() {
 
   // Cierre
   const [efectivoCierre, setEfectivo] = useState('');
+  const [notasCierre, setNotas]       = useState('');
+
+  const cargarTurno = useCallback(async () => {
+    try {
+      const t = await api.getTurnoActivo(sucursalId);
+      setTurno(t || null);
+      if (t) {
+        const tots = await api.getTurnoTotales(t.id).catch(() => null);
+        setTotales(tots);
+      } else {
+        setTotales(null);
+      }
+    } catch {
+      setTurno(null);
+      setTotales(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [sucursalId]);
 
   useEffect(() => {
-    SecureStore.getItemAsync(TURNO_KEY).then(saved => {
-      if (saved) {
-        try { setTurno(JSON.parse(saved)); } catch {}
-      }
-      setLoading(false);
-    });
-  }, []);
+    cargarTurno();
+  }, [cargarTurno]);
 
   async function abrirTurno() {
     const fondo = parseFloat(fondoInicial) || 0;
-    const nuevoTurno = {
-      inicio: new Date().toISOString(),
-      fondoInicial: fondo,
-    };
-    await SecureStore.setItemAsync(TURNO_KEY, JSON.stringify(nuevoTurno));
-    setTurno(nuevoTurno);
-    setModal(false);
-    setFondo('');
+    setSaving(true);
+    try {
+      const cajeroNombre = nombreActivo || user?.name || 'Cajero';
+      const nuevo = await api.abrirTurno(cajeroNombre, rolActivo || null, fondo, sucursalId);
+      setTurno(nuevo);
+      setTotales({ total_pedidos: 0, total_ventas: 0, total_efectivo: 0, total_tarjeta: 0, total_transferencia: 0 });
+      setModal(false);
+      setFondo('');
+    } catch (e) {
+      Alert.alert('Error', friendlyError(e) || 'No se pudo abrir el turno');
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function cerrarTurno() {
     const efectivo = parseFloat(efectivoCierre) || 0;
-    const fondo    = turno?.fondoInicial || 0;
-    const diferencia = efectivo - fondo;
+    const fondo    = parseFloat(turno?.fondo_inicial) || 0;
+    const efectivoVentas = totales?.total_efectivo || 0;
+    const diferencia = efectivo - fondo - efectivoVentas;
 
     Alert.alert(
       'Confirmar cierre de turno',
-      `Efectivo contado: $${efectivo.toFixed(2)}\nFondo inicial: $${fondo.toFixed(2)}\nDiferencia: ${diferencia >= 0 ? '+' : ''}$${diferencia.toFixed(2)}`,
+      `Efectivo contado: ${formatMoney(efectivo, currency)}\nFondo inicial: ${formatMoney(fondo, currency)}\nDiferencia: ${diferencia >= 0 ? '+' : ''}${formatMoney(Math.abs(diferencia), currency)}`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Cerrar turno',
           style: 'destructive',
           onPress: async () => {
-            await SecureStore.deleteItemAsync(TURNO_KEY);
-            setTurno(null);
-            setModalCierre(false);
-            setEfectivo('');
+            setSaving(true);
+            try {
+              await api.cerrarTurno(turno.id, efectivo, notasCierre || null);
+              setTurno(null);
+              setTotales(null);
+              setModalCierre(false);
+              setEfectivo('');
+              setNotas('');
+            } catch (e) {
+              Alert.alert('Error', friendlyError(e) || 'No se pudo cerrar el turno');
+            } finally {
+              setSaving(false);
+            }
           },
         },
       ]
@@ -105,10 +139,31 @@ export default function TurnoScreen() {
                 <View style={styles.activeDot} />
                 <Text style={styles.turnoTitle}>Turno activo</Text>
               </View>
-              <InfoRow label="Inicio"        value={formatDate(turno.inicio)} />
-              <InfoRow label="Duración"      value={duracion(turno.inicio)} />
-              <InfoRow label="Fondo inicial" value={`$${(turno.fondoInicial || 0).toFixed(2)}`} />
+              <InfoRow label="Cajero"        value={turno.cajero_nombre} />
+              <InfoRow label="Inicio"        value={formatDate(turno.apertura)} />
+              <InfoRow label="Duración"      value={duracion(turno.apertura)} />
+              <InfoRow label="Fondo inicial" value={formatMoney(parseFloat(turno.fondo_inicial || 0), currency)} />
             </View>
+
+            {totales && (
+              <View style={styles.totalesCard}>
+                <Text style={styles.totalesTitle}>Ventas del turno</Text>
+                <InfoRow label="Pedidos"      value={totales.total_pedidos || 0} />
+                <InfoRow label="Total"        value={formatMoney(totales.total_ventas || 0, currency)} />
+                <InfoRow label="Efectivo"     value={formatMoney(totales.total_efectivo || 0, currency)} />
+                {(totales.total_tarjeta || 0) > 0 && (
+                  <InfoRow label="Tarjeta"    value={formatMoney(totales.total_tarjeta, currency)} />
+                )}
+                {(totales.total_transferencia || 0) > 0 && (
+                  <InfoRow label="Transferencia" value={formatMoney(totales.total_transferencia, currency)} />
+                )}
+              </View>
+            )}
+
+            <TouchableOpacity style={styles.btnRefrescar} onPress={cargarTurno}>
+              <Ionicons name="refresh-outline" size={18} color={colors.primary} />
+              <Text style={styles.btnRefrescarText}>Actualizar totales</Text>
+            </TouchableOpacity>
 
             <TouchableOpacity style={styles.btnCerrar} onPress={() => setModalCierre(true)}>
               <Ionicons name="lock-closed-outline" size={20} color="#fff" />
@@ -149,14 +204,20 @@ export default function TurnoScreen() {
                 style={styles.input}
                 value={fondoInicial}
                 onChangeText={setFondo}
-                placeholder="$0.00"
+                placeholder={`${currency}0.00`}
                 keyboardType="decimal-pad"
                 placeholderTextColor={colors.textMuted}
                 autoFocus
               />
               <Text style={styles.hint}>El monto de efectivo con el que inicias el turno</Text>
-              <TouchableOpacity style={[styles.btnAbrir, { marginTop: spacing.xl }]} onPress={abrirTurno}>
-                <Ionicons name="lock-open-outline" size={20} color="#fff" />
+              <TouchableOpacity
+                style={[styles.btnAbrir, { marginTop: spacing.xl, opacity: saving ? 0.6 : 1 }]}
+                onPress={abrirTurno}
+                disabled={saving}
+              >
+                {saving
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <Ionicons name="lock-open-outline" size={20} color="#fff" />}
                 <Text style={styles.btnAbrirText}>Confirmar apertura</Text>
               </TouchableOpacity>
             </ScrollView>
@@ -176,15 +237,16 @@ export default function TurnoScreen() {
               </TouchableOpacity>
             </View>
             <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
-              <InfoRow label="Fondo inicial" value={`$${(turno?.fondoInicial || 0).toFixed(2)}`} />
-              <InfoRow label="Duración" value={duracion(turno?.inicio)} />
+              <InfoRow label="Fondo inicial"    value={formatMoney(parseFloat(turno?.fondo_inicial || 0), currency)} />
+              <InfoRow label="Ventas efectivo"  value={formatMoney(totales?.total_efectivo || 0, currency)} />
+              <InfoRow label="Duración"         value={duracion(turno?.apertura)} />
 
               <Text style={[styles.label, { marginTop: spacing.lg }]}>Efectivo contado en caja</Text>
               <TextInput
                 style={styles.input}
                 value={efectivoCierre}
                 onChangeText={setEfectivo}
-                placeholder="$0.00"
+                placeholder={`${currency}0.00`}
                 keyboardType="decimal-pad"
                 placeholderTextColor={colors.textMuted}
                 autoFocus
@@ -195,15 +257,38 @@ export default function TurnoScreen() {
                   <Text style={styles.diferenciaLabel}>Diferencia</Text>
                   <Text style={[
                     styles.diferenciaValue,
-                    { color: (parseFloat(efectivoCierre) - (turno?.fondoInicial || 0)) >= 0 ? colors.success : colors.danger }
+                    {
+                      color: ((parseFloat(efectivoCierre) || 0) - parseFloat(turno?.fondo_inicial || 0) - (totales?.total_efectivo || 0)) >= 0
+                        ? colors.success
+                        : colors.danger
+                    }
                   ]}>
-                    {(parseFloat(efectivoCierre) - (turno?.fondoInicial || 0)) >= 0 ? '+' : ''}${((parseFloat(efectivoCierre) || 0) - (turno?.fondoInicial || 0)).toFixed(2)}
+                    {(() => {
+                      const dif = (parseFloat(efectivoCierre) || 0) - parseFloat(turno?.fondo_inicial || 0) - (totales?.total_efectivo || 0);
+                      return `${dif >= 0 ? '+' : ''}${formatMoney(Math.abs(dif), currency)}`;
+                    })()}
                   </Text>
                 </View>
               )}
 
-              <TouchableOpacity style={[styles.btnCerrar, { marginTop: spacing.xl }]} onPress={cerrarTurno}>
-                <Ionicons name="lock-closed-outline" size={20} color="#fff" />
+              <Text style={[styles.label, { marginTop: spacing.lg }]}>Notas (opcional)</Text>
+              <TextInput
+                style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+                value={notasCierre}
+                onChangeText={setNotas}
+                placeholder="Observaciones del turno..."
+                placeholderTextColor={colors.textMuted}
+                multiline
+              />
+
+              <TouchableOpacity
+                style={[styles.btnCerrar, { marginTop: spacing.xl, opacity: saving ? 0.6 : 1 }]}
+                onPress={cerrarTurno}
+                disabled={saving}
+              >
+                {saving
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <Ionicons name="lock-closed-outline" size={20} color="#fff" />}
                 <Text style={styles.btnCerrarText}>Confirmar cierre</Text>
               </TouchableOpacity>
             </ScrollView>
@@ -218,10 +303,12 @@ const styles = StyleSheet.create({
   safe:             { flex: 1, backgroundColor: colors.background },
   centered:         { flex: 1, justifyContent: 'center', alignItems: 'center' },
   title:            { fontSize: font.xl, fontWeight: '800', color: colors.textPrimary, marginBottom: spacing.lg },
-  turnoCard:        { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.lg },
+  turnoCard:        { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.md },
   turnoHeader:      { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md },
   activeDot:        { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.success },
   turnoTitle:       { fontSize: font.lg, fontWeight: '800', color: colors.textPrimary },
+  totalesCard:      { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.md },
+  totalesTitle:     { fontSize: font.md, fontWeight: '700', color: colors.textSecondary, marginBottom: spacing.sm },
   infoRow:          { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
   infoLabel:        { fontSize: font.sm, color: colors.textMuted, fontWeight: '600' },
   infoValue:        { fontSize: font.sm, color: colors.textPrimary, fontWeight: '700' },
@@ -232,6 +319,8 @@ const styles = StyleSheet.create({
   btnAbrirText:     { color: '#fff', fontSize: font.lg, fontWeight: '700' },
   btnCerrar:        { backgroundColor: colors.danger, borderRadius: radius.md, padding: spacing.md + 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
   btnCerrarText:    { color: '#fff', fontSize: font.lg, fontWeight: '700' },
+  btnRefrescar:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, paddingVertical: spacing.sm, marginBottom: spacing.sm },
+  btnRefrescarText: { color: colors.primary, fontSize: font.sm, fontWeight: '600' },
   dragHandleWrap:   { alignItems: 'center', paddingTop: spacing.sm, paddingBottom: spacing.xs },
   dragHandle:       { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border },
   modalHeader:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingBottom: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },

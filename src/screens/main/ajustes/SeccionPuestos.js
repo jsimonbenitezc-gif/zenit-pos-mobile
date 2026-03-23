@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../../api/client';
 import { colors, spacing, font } from '../../../theme';
 import { PERMISOS_LABELS } from './shared';
+import { friendlyError } from '../../../utils/errors';
 
 export function SeccionPuestos({
   permisosRoles,
@@ -53,7 +54,7 @@ export function SeccionPuestos({
       await api.updateSettings({ permisos_roles: _buildFullPermisos(permisosRoles) });
       Alert.alert('Guardado', 'Permisos de puestos actualizados.');
     } catch (e) {
-      Alert.alert('Error', e.message);
+      Alert.alert('Error', friendlyError(e));
     } finally {
       setSavingPuestos(false);
     }
