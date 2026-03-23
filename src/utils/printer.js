@@ -31,19 +31,39 @@ export async function getPairedDevices() {
   return (devices || []).map(d => ({ name: d.name || 'Desconocido', address: d.address || d.id }));
 }
 
+// ─── Conexión persistente ────────────────────────────────────────────────────
+let _activeDevice = null;
+let _activeAddress = null;
+
+/** Obtiene una conexión reutilizable, reconectando si es necesario */
+async function getConnection(address) {
+  if (_activeDevice && _activeAddress === address) {
+    try {
+      const connected = await _activeDevice.isConnected();
+      if (connected) return _activeDevice;
+    } catch { /* reconectar */ }
+  }
+  _activeDevice = await BT.connectToDevice(address);
+  _activeAddress = address;
+  return _activeDevice;
+}
+
 /** Conecta a una impresora por dirección MAC. Devuelve el objeto de conexión. */
 export async function connectPrinter(address) {
   if (!BT) throw new Error('UNAVAILABLE');
-  const connected = await BT.connectToDevice(address);
-  return connected;
+  return getConnection(address);
 }
 
-/** Desconecta todos los dispositivos activos */
+/** Desconecta el dispositivo activo */
 export async function disconnectPrinter(address) {
   if (!BT) return;
   try {
     await BT.disconnectFromDevice(address);
   } catch { /* ignorar */ }
+  if (_activeAddress === address) {
+    _activeDevice = null;
+    _activeAddress = null;
+  }
 }
 
 // ─── Generador ESC/POS ────────────────────────────────────────────────────────
@@ -56,6 +76,7 @@ const LF  = 0x0A;
 
 const CMD = {
   RESET:        [ESC, 0x40],                   // inicializar impresora
+  CODEPAGE_858: [ESC, 0x74, 0x13],             // página de código CP858 (soporta acentos y ñ)
   ALIGN_LEFT:   [ESC, 0x61, 0x00],             // alinear izquierda
   ALIGN_CENTER: [ESC, 0x61, 0x01],             // alinear centro
   ALIGN_RIGHT:  [ESC, 0x61, 0x02],             // alinear derecha
@@ -72,17 +93,29 @@ function bytesToString(bytes) {
   return String.fromCharCode(...bytes);
 }
 
-/** Convierte texto a bytes usando encoding Latin-1 (compatible con impresoras) */
+/**
+ * Mapa de caracteres latinos → código CP858.
+ * CP858 es compatible con Windows-1252/Latin-1 para estos caracteres,
+ * así que el valor numérico coincide con el charCode de Latin-1.
+ */
+const CP858_MAP = {
+  'á': 0xE1, 'é': 0xE9, 'í': 0xED, 'ó': 0xF3, 'ú': 0xFA, 'ü': 0xFC,
+  'Á': 0xC1, 'É': 0xC9, 'Í': 0xCD, 'Ó': 0xD3, 'Ú': 0xDA, 'Ü': 0xDC,
+  'ñ': 0xF1, 'Ñ': 0xD1, '¿': 0xBF, '¡': 0xA1,
+};
+
+/** Convierte texto a string compatible con CP858, preservando acentos y ñ */
 function textToBytes(text) {
-  // Reemplazar caracteres especiales del español a equivalentes ASCII
-  const normalized = text
-    .replace(/á/g, 'a').replace(/é/g, 'e').replace(/í/g, 'i')
-    .replace(/ó/g, 'o').replace(/ú/g, 'u').replace(/ü/g, 'u')
-    .replace(/Á/g, 'A').replace(/É/g, 'E').replace(/Í/g, 'I')
-    .replace(/Ó/g, 'O').replace(/Ú/g, 'U').replace(/Ü/g, 'U')
-    .replace(/ñ/g, 'n').replace(/Ñ/g, 'N')
-    .replace(/¿/g, '?').replace(/¡/g, '!');
-  return normalized;
+  let result = '';
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (CP858_MAP[ch]) {
+      result += String.fromCharCode(CP858_MAP[ch]);
+    } else {
+      result += ch;
+    }
+  }
+  return result;
 }
 
 // ─── Constructor de ticket ────────────────────────────────────────────────────
@@ -197,7 +230,7 @@ export async function printReceipt(address, opts = {}) {
   const now    = new Date();
   const ticket = new TicketBuilder();
 
-  ticket.cmd(CMD.RESET);
+  ticket.cmd(CMD.RESET).cmd(CMD.CODEPAGE_858);
 
   // Encabezado
   ticket
@@ -248,10 +281,9 @@ export async function printReceipt(address, opts = {}) {
     .cmd(CMD.FEED_3)
     .cmd(CMD.CUT);
 
-  // Enviar a la impresora
-  const device = await BT.connectToDevice(address);
+  // Enviar a la impresora (reutiliza conexión existente)
+  const device = await getConnection(address);
   await device.write(ticket.build());
-  await BT.disconnectFromDevice(address);
 }
 
 /**
@@ -269,6 +301,7 @@ export async function printTest(address, businessName = 'Mi Negocio', currency =
 
   ticket
     .cmd(CMD.RESET)
+    .cmd(CMD.CODEPAGE_858)
     .bold('PRUEBA DE IMPRESION', CMD.ALIGN_CENTER)
     .center(businessName)
     .separator()
@@ -287,7 +320,6 @@ export async function printTest(address, businessName = 'Mi Negocio', currency =
     .cmd(CMD.FEED_3)
     .cmd(CMD.CUT);
 
-  const device = await BT.connectToDevice(address);
+  const device = await getConnection(address);
   await device.write(ticket.build());
-  await BT.disconnectFromDevice(address);
 }

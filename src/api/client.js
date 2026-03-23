@@ -7,6 +7,7 @@ class ApiClient {
     this.baseURL = BASE_URL;
     this._pinFailCount = 0;
     this._pinLockedUntil = null;
+    this.onUnauthorized = null; // callback para sesión expirada
   }
 
   // ─── Control de intentos de PIN ──────────────────────────────────────
@@ -64,6 +65,12 @@ class ApiClient {
 
     try {
       const response = await fetch(url, config);
+
+      if (response.status === 401) {
+        this.token = null;
+        if (this.onUnauthorized) this.onUnauthorized();
+        throw new Error('Sesión expirada');
+      }
 
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));

@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import * as SecureStore from 'expo-secure-store';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
-import { Platform } from 'react-native';
+import { Platform, Alert } from 'react-native';
 import { api } from '../api/client';
 
 // Configurar cómo se muestran las notificaciones cuando la app está en primer plano
@@ -31,6 +31,23 @@ export function AuthProvider({ children }) {
   const pushTokenRef = useRef(null);
 
   useEffect(() => { restoreSession(); }, []);
+
+  // Registrar callback para logout automático cuando el token expire (401)
+  useEffect(() => {
+    api.onUnauthorized = () => {
+      SecureStore.deleteItemAsync('zenit_token').catch(() => {});
+      SecureStore.deleteItemAsync('zenit_push_token').catch(() => {});
+      api.clearToken();
+      setUser(null);
+      setSettings({});
+      setRolActivo(null);
+      setNombreActivo('');
+      setProfileReady(false);
+      setSessionEmail('');
+      Alert.alert('Sesión expirada', 'Tu sesión expiró. Inicia sesión de nuevo.');
+    };
+    return () => { api.onUnauthorized = null; };
+  }, []);
 
   async function refreshUser() {
     try { const me = await api.getMe(); if (me) setUser(me); return me; } catch { return null; }

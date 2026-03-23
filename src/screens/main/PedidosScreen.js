@@ -103,6 +103,8 @@ function PedidoCard({ pedido, onCambiarEstado, currency }) {
   );
 }
 
+const PAGE_SIZE = 30;
+
 export default function PedidosScreen() {
   const { settings, sucursalId, nombreActivo, rolActivo, permisosRolesEfectivos } = useAuth();
   const currency = settings?.currency_symbol || '$';
@@ -110,6 +112,9 @@ export default function PedidosScreen() {
   const [filtro, setFiltro]         = useState(null);
   const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore]         = useState(true);
+  const pageRef = useRef(1);
 
   // Estado del modal de PIN para cancelación
   const [pinModal, setPinModal]         = useState({ visible: false, pedidoId: null });
@@ -120,12 +125,15 @@ export default function PedidosScreen() {
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
+    pageRef.current = 1;
     try {
-      const params = { limit: 100, page: 1 };
+      const params = { limit: PAGE_SIZE, page: 1 };
       if (filtro) params.status = filtro;
       if (sucursalId) params.branch_id = sucursalId;
       const data = await api.getOrders(params);
-      setPedidos(data.data || []);
+      const rows = data.data || [];
+      setPedidos(rows);
+      setHasMore(rows.length >= PAGE_SIZE);
     } catch (e) {
       Alert.alert('Error', 'No se pudieron cargar los pedidos.');
     } finally {
@@ -133,6 +141,23 @@ export default function PedidosScreen() {
       setRefreshing(false);
     }
   }, [filtro, sucursalId]);
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    const nextPage = pageRef.current + 1;
+    try {
+      const params = { limit: PAGE_SIZE, page: nextPage };
+      if (filtro) params.status = filtro;
+      if (sucursalId) params.branch_id = sucursalId;
+      const data = await api.getOrders(params);
+      const rows = data.data || [];
+      setPedidos(prev => [...prev, ...rows]);
+      pageRef.current = nextPage;
+      setHasMore(rows.length >= PAGE_SIZE);
+    } catch { /* silencioso — el usuario puede reintentar scrolleando */ }
+    finally { setLoadingMore(false); }
+  }, [filtro, sucursalId, loadingMore, hasMore]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -219,6 +244,9 @@ export default function PedidosScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
         renderItem={({ item }) => <PedidoCard pedido={item} onCambiarEstado={cambiarEstado} currency={currency} />}
         ListEmptyComponent={<Text style={styles.empty}>No hay pedidos con este filtro</Text>}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.3}
+        ListFooterComponent={loadingMore ? <ActivityIndicator style={{ marginVertical: spacing.md }} size="small" color={colors.primary} /> : null}
       />
 
       {/* Modal de PIN para cancelación */}
