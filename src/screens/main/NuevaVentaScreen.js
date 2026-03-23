@@ -7,12 +7,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
-import EventSource from 'react-native-sse';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
+import { createSSE } from '../../utils/sse';
 import { formatMoney } from '../../utils/money';
 
 // ─── Quick tags para notas ────────────────────────────────────────────────────
@@ -239,25 +238,18 @@ export default function NuevaVentaScreen() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    let es = null;
+    let sse = null;
     SecureStore.getItemAsync('mostrar_stock').then(val => {
       const show = val === 'true';
       setMostrarStock(show);
       if (show) {
-        // Carga inicial de stock
         api.getProductsStock(sucursalId).then(map => setStockMap(map)).catch(() => {});
-        // SSE: refrescar stock en tiempo real cuando cambian los insumos
-        const url = api.getInventoryEventsUrl?.();
-        if (url) {
-          es = new EventSource(url);
-          es.addEventListener('message', () => {
-            api.getProductsStock(sucursalId).then(map => setStockMap(map)).catch(() => {});
-          });
-          es.addEventListener('error', () => {});
-        }
+        sse = createSSE(api.getInventoryEventsConfig(), () => {
+          api.getProductsStock(sucursalId).then(map => setStockMap(map)).catch(() => {});
+        });
       }
     });
-    return () => { if (es) { try { es.close(); } catch {} } };
+    return () => { sse?.close(); };
   }, [sucursalId]);
 
   // Refrescar stock cada vez que la pantalla gana foco (ej. volver de otra tab)
@@ -421,17 +413,23 @@ export default function NuevaVentaScreen() {
 
   async function confirmarDescuentoConPin() {
     if (!pinDescValue) { setPinDescError('Ingresa tu PIN'); return; }
+    if (api.isPinLocked()) {
+      setPinDescError(`Demasiados intentos. Espera ${api.getPinLockRemainingMin()} min.`);
+      return;
+    }
     setPinDescLoading(true);
     setPinDescError('');
     try {
       const perfilActual = permisosRolesEfectivos?.[rolActivo];
-      if (perfilActual?.pin_set && perfilActual?.pin) {
-        const hash = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, pinDescValue);
-        if (hash !== perfilActual.pin) {
-          setPinDescError('PIN incorrecto');
+      if (perfilActual?.pin_set) {
+        const result = await api.verifyProfilePin(rolActivo, pinDescValue);
+        if (!result.valid) {
+          api.registerPinFailure();
+          setPinDescError(api.isPinLocked() ? `Demasiados intentos. Espera 5 min.` : 'PIN incorrecto');
           setPinDescLoading(false);
           return;
         }
+        api.resetPinAttempts();
       }
       // PIN válido: aplicar descuento y registrar en auditoría
       const d = descPendiente;

@@ -1,29 +1,24 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, RefreshControl,
-  ActivityIndicator,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl,
+  ActivityIndicator, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path, Circle, Defs, LinearGradient, Stop, Text as SvgText } from 'react-native-svg';
 import { api } from '../../api/client';
+import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
+import { formatMoney, formatMoneyCompact } from '../../utils/money';
+import { createSSE } from '../../utils/sse';
 
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const MEDALS = ['🥇', '🥈', '🥉', '4°', '5°'];
 
-function fmtYAxis(val) {
-  if (val >= 1_000_000) return `$${(val / 1_000_000).toFixed(1)}M`;
-  if (val >= 10_000)    return `$${(val / 1_000).toFixed(0)}k`;
-  if (val >= 1_000)     return `$${(val / 1_000).toFixed(1)}k`;
-  return `$${Math.round(val)}`;
-}
+const fmtYAxis = (val, currency) => formatMoneyCompact(val, currency);
 
-const fmt = (n) =>
-  `$${(parseFloat(n) || 0).toLocaleString('es-MX', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+const fmt = (n, currency) => formatMoney(n, currency);
 
 const fmtNum = (n) => (parseInt(n) || 0).toLocaleString('es-MX');
 
@@ -49,7 +44,7 @@ function SectionTitle({ children, icon, color }) {
 }
 
 // ─── Gráfica de línea — últimos 7 días ───────────────────────────────────────
-function LineChart7Days({ data }) {
+function LineChart7Days({ data, currency }) {
   const [w, setW] = useState(0);
 
   const CHART_H = 140;
@@ -114,9 +109,9 @@ function LineChart7Days({ data }) {
             <Path d={`M${PAD_LEFT},${yMin} L${w - PAD_RIGHT},${yMin}`} stroke={colors.border} strokeWidth="0.8" />
 
             {/* Etiquetas eje Y */}
-            <SvgText x={PAD_LEFT - 4} y={yMax + 4}  textAnchor="end" fontSize="9" fill={colors.textMuted}>{fmtYAxis(maxVal)}</SvgText>
-            <SvgText x={PAD_LEFT - 4} y={yMid + 4}  textAnchor="end" fontSize="9" fill={colors.textMuted}>{fmtYAxis(maxVal / 2)}</SvgText>
-            <SvgText x={PAD_LEFT - 4} y={yMin}       textAnchor="end" fontSize="9" fill={colors.textMuted}>$0</SvgText>
+            <SvgText x={PAD_LEFT - 4} y={yMax + 4}  textAnchor="end" fontSize="9" fill={colors.textMuted}>{fmtYAxis(maxVal, currency)}</SvgText>
+            <SvgText x={PAD_LEFT - 4} y={yMid + 4}  textAnchor="end" fontSize="9" fill={colors.textMuted}>{fmtYAxis(maxVal / 2, currency)}</SvgText>
+            <SvgText x={PAD_LEFT - 4} y={yMin}       textAnchor="end" fontSize="9" fill={colors.textMuted}>{formatMoney(0, currency)}</SvgText>
 
             {/* Área rellena */}
             <Path d={fillPath} fill="url(#lineGrad)" />
@@ -225,15 +220,32 @@ function HourlyChart({ data }) {
 }
 
 // ─── Pantalla principal ───────────────────────────────────────────────────────
+const AUDIT_TIPOS = {
+  cancel_order:         { icon: 'close-circle-outline', label: 'Pedido cancelado',       color: '#ef4444' },
+  edit_customer:        { icon: 'person-outline',       label: 'Cliente editado',         color: '#f59e0b' },
+  inventory_adjustment: { icon: 'cube-outline',         label: 'Ajuste de inventario',    color: '#3b82f6' },
+  apply_discount:       { icon: 'pricetag-outline',     label: 'Descuento aplicado',      color: '#8b5cf6' },
+};
+
 export default function DashboardScreen() {
+  const { settings, isOwner, sucursalId } = useAuth();
+  const currency = settings?.currency_symbol || '$';
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async (isRefresh = false) => {
+  // Sucursales — tabs de filtro
+  const [branches, setBranches] = useState([]);
+  const [selectedBranch, setSelectedBranch] = useState(sucursalId || null); // inicia en la sucursal activa del dispositivo
+
+  // Audit logs
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [auditDetalle, setAuditDetalle] = useState(null); // log abierto en modal
+
+  const load = useCallback(async (isRefresh = false, branchId = selectedBranch) => {
     if (isRefresh) setRefreshing(true);
     try {
-      const data = await api.getDashboard();
+      const data = await api.getDashboard(branchId);
       setStats(data);
     } catch (e) {
       console.error('Dashboard error:', e.message);
@@ -241,11 +253,39 @@ export default function DashboardScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [selectedBranch]);
+
+  const loadAudit = useCallback(async () => {
+    if (!isOwner) return;
+    try {
+      const data = await api.getAuditLogs({ limit: 10 });
+      setAuditLogs(data.data || []);
+    } catch { /* silencioso */ }
+  }, [isOwner]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    loadAudit();
+  }, [loadAudit]);
+
+  // SSE para actualizaciones en tiempo real del audit log
+  useFocusEffect(
+    useCallback(() => {
+      if (!isOwner) return;
+      const sse = createSSE(api.getAuditEventsConfig(), () => loadAudit());
+      return () => { sse.close(); };
+    }, [isOwner, loadAudit])
+  );
+
+  // Cargar sucursales al montar (solo si hay más de una)
+  useEffect(() => {
+    api.getBranches().then(bs => {
+      if (Array.isArray(bs) && bs.length > 1) setBranches(bs);
+    }).catch(() => {});
+  }, []);
 
   if (loading) {
     return (
@@ -298,67 +338,132 @@ export default function DashboardScreen() {
           <Text style={styles.date}>{dateStr}</Text>
         </View>
 
+        {/* ── Tabs de sucursales (solo si hay más de 1) ── */}
+        {branches.length > 1 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.branchTabsScroll}
+            contentContainerStyle={styles.branchTabsContent}
+          >
+            {/* Sucursal activa primero, luego las demás, "Todas" al final */}
+            {[...branches].sort((a, b) => {
+              if (a.id === sucursalId) return -1;
+              if (b.id === sucursalId) return 1;
+              return 0;
+            }).map(b => (
+              <TouchableOpacity
+                key={b.id}
+                style={[styles.branchTab, selectedBranch === b.id && styles.branchTabActive]}
+                onPress={() => { setSelectedBranch(b.id); load(false, b.id); }}
+              >
+                <Text style={[styles.branchTabText, selectedBranch === b.id && styles.branchTabTextActive]}>
+                  {b.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              style={[styles.branchTab, selectedBranch === null && styles.branchTabActive]}
+              onPress={() => { setSelectedBranch(null); load(false, null); }}
+            >
+              <Text style={[styles.branchTabText, selectedBranch === null && styles.branchTabTextActive]}>
+                Todas
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
+        )}
+
         {/* ── Ventas de hoy ── */}
         <SectionTitle icon="today-outline">Ventas de hoy</SectionTitle>
         <View style={styles.row}>
           <StatCard
             label="Total"
-            value={fmt(hoy.monto_total)}
+            value={fmt(hoy.monto_total, currency)}
             color={colors.success}
             sub={diffLabel}
           />
           <StatCard label="Pedidos" value={fmtNum(hoy.total_pedidos)} color={colors.primary} />
         </View>
         <View style={styles.row}>
-          <StatCard label="Ticket promedio" value={fmt(hoy.ticket_promedio)} color={colors.warning} />
+          <StatCard label="Ticket promedio" value={fmt(hoy.ticket_promedio, currency)} color={colors.warning} />
           <StatCard label="Clientes únicos" value={fmtNum(clientesHoy)} color="#8b5cf6" />
         </View>
         <View style={styles.row}>
           <StatCard label="Items vendidos" value={fmtNum(itemsVendidos)} color="#06b6d4" />
           <StatCard
-            label="Stock bajo"
+            label="Stock bajo (insumos)"
             value={stockBajoCount}
             color={stockBajoCount > 0 ? colors.danger : colors.success}
             sub={stockBajoCount > 0 ? 'productos' : 'Todo en orden'}
           />
         </View>
 
-        {/* ── Alertas ── */}
+        {/* ── Alertas (stock bajo + acciones con PIN) ── */}
         <SectionTitle icon="alert-circle-outline" color={colors.danger}>
           Alertas
         </SectionTitle>
         <View style={styles.card}>
-          {stockBajoCount > 0 ? (
+          {stockBajoCount === 0 && auditLogs.length === 0 && (
+            <View style={styles.alertOkRow}>
+              <Ionicons name="checkmark-circle-outline" size={20} color={colors.success} />
+              <Text style={styles.alertOkText}>Sin alertas por el momento</Text>
+            </View>
+          )}
+          {stockBajoCount > 0 && (
             <View style={styles.alertRow}>
               <View style={[styles.alertIconWrap, { backgroundColor: colors.warning + '22' }]}>
                 <Ionicons name="warning-outline" size={18} color={colors.warning} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.alertTitle}>
-                  {stockBajoCount} producto{stockBajoCount !== 1 ? 's' : ''} con stock bajo
+                  {stockBajoCount} insumo{stockBajoCount !== 1 ? 's' : ''} con stock bajo
                 </Text>
                 <Text style={styles.alertSub}>Revisa el inventario para reponer</Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
             </View>
-          ) : (
-            <View style={styles.alertOkRow}>
-              <Ionicons name="checkmark-circle-outline" size={20} color={colors.success} />
-              <Text style={styles.alertOkText}>Sin alertas por el momento</Text>
-            </View>
           )}
+          {isOwner && auditLogs.map((log, i) => {
+            const tipo = AUDIT_TIPOS[log.action_type] || { icon: 'key-outline', label: log.action_type, color: colors.textMuted };
+            const fecha = new Date(log.createdAt);
+            const horaStr = fecha.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+            const diaStr  = fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+            return (
+              <TouchableOpacity
+                key={log.id}
+                style={[styles.alertRow, (stockBajoCount > 0 || i > 0) && styles.alertRowBorder]}
+                onPress={() => setAuditDetalle(log)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.alertIconWrap, { backgroundColor: tipo.color + '18' }]}>
+                  <Ionicons name={tipo.icon} size={18} color={tipo.color} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.alertTitle}>{tipo.label}</Text>
+                  <Text style={styles.alertSub} numberOfLines={1}>
+                    {log.employee_name}{log.target_description ? ` · ${log.target_description}` : ''}
+                  </Text>
+                </View>
+                <View style={{ alignItems: 'flex-end', gap: 2 }}>
+                  <Text style={styles.auditHora}>{horaStr}</Text>
+                  <Text style={styles.auditDia}>{diaStr}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={14} color={colors.textMuted} style={{ marginLeft: 2 }} />
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {/* ── Ayer ── */}
         <SectionTitle icon="time-outline">Ayer</SectionTitle>
         <View style={styles.row}>
-          <StatCard label="Total" value={fmt(ayer.monto_total)} color={colors.textMuted} />
+          <StatCard label="Total" value={fmt(ayer.monto_total, currency)} color={colors.textMuted} />
           <StatCard label="Pedidos" value={fmtNum(ayer.total_pedidos)} color={colors.textMuted} />
         </View>
 
         {/* ── Últimos 7 días (línea) ── */}
         <SectionTitle icon="trending-up-outline">Últimos 7 días</SectionTitle>
-        <LineChart7Days data={ultimos7Dias} />
+        <LineChart7Days data={ultimos7Dias} currency={currency} />
 
         {/* ── Actividad por hora (barras) ── */}
         <SectionTitle icon="bar-chart-outline">Actividad por hora (hoy)</SectionTitle>
@@ -402,7 +507,7 @@ export default function DashboardScreen() {
                     </Text>
                   </View>
                   <Text style={[styles.listValue, { color: colors.success }]}>
-                    {fmt(v.total)}
+                    {fmt(v.total, currency)}
                   </Text>
                 </View>
               ))}
@@ -436,7 +541,7 @@ export default function DashboardScreen() {
         {stockBajoLista.length > 0 && (
           <>
             <SectionTitle icon="warning-outline" color={colors.warning}>
-              Productos con stock bajo
+              Insumos con stock bajo
             </SectionTitle>
             <View style={styles.card}>
               {stockBajoLista.map((p, i) => (
@@ -461,6 +566,91 @@ export default function DashboardScreen() {
 
         <View style={{ height: spacing.xxl * 2 }} />
       </ScrollView>
+
+      {/* Modal detalle de alerta */}
+      <Modal
+        visible={!!auditDetalle}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setAuditDetalle(null)}
+      >
+        {auditDetalle && (() => {
+          const log = auditDetalle;
+          const tipo = AUDIT_TIPOS[log.action_type] || { icon: 'key-outline', label: log.action_type, color: colors.textMuted };
+          const fecha = new Date(log.createdAt);
+          const fechaStr = fecha.toLocaleString('es-MX', {
+            weekday: 'long', day: 'numeric', month: 'long',
+            hour: '2-digit', minute: '2-digit',
+          });
+          const fmtData = (raw) => {
+            if (!raw) return null;
+            try {
+              const obj = typeof raw === 'string' ? JSON.parse(raw) : raw;
+              return Object.entries(obj).map(([k, v]) => `${k}: ${v}`).join('\n');
+            } catch {
+              return String(raw);
+            }
+          };
+          const before = fmtData(log.before_data);
+          const after  = fmtData(log.after_data);
+          return (
+            <View style={styles.detalleOverlay}>
+              <View style={styles.detalleBox}>
+                <View style={styles.detalleHeader}>
+                  <View style={[styles.alertIconWrap, { backgroundColor: tipo.color + '22' }]}>
+                    <Ionicons name={tipo.icon} size={20} color={tipo.color} />
+                  </View>
+                  <Text style={styles.detalleTitulo}>{tipo.label}</Text>
+                  <TouchableOpacity onPress={() => setAuditDetalle(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                    <Ionicons name="close" size={22} color={colors.textMuted} />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView style={styles.detalleScroll} showsVerticalScrollIndicator={false}>
+                  <View style={styles.detalleRow}>
+                    <Text style={styles.detalleKey}>Fecha</Text>
+                    <Text style={styles.detalleVal} selectable>{fechaStr}</Text>
+                  </View>
+                  <View style={styles.detalleRow}>
+                    <Text style={styles.detalleKey}>Empleado</Text>
+                    <Text style={styles.detalleVal} selectable>{log.employee_name || '—'}</Text>
+                  </View>
+                  {log.employee_role ? (
+                    <View style={styles.detalleRow}>
+                      <Text style={styles.detalleKey}>Puesto</Text>
+                      <Text style={styles.detalleVal} selectable>{log.employee_role}</Text>
+                    </View>
+                  ) : null}
+                  {log.target_description ? (
+                    <View style={styles.detalleRow}>
+                      <Text style={styles.detalleKey}>Descripción</Text>
+                      <Text style={styles.detalleVal} selectable>{log.target_description}</Text>
+                    </View>
+                  ) : null}
+                  {log.branch_name ? (
+                    <View style={styles.detalleRow}>
+                      <Text style={styles.detalleKey}>Sucursal</Text>
+                      <Text style={styles.detalleVal} selectable>{log.branch_name}</Text>
+                    </View>
+                  ) : null}
+                  {before ? (
+                    <View style={[styles.detalleRow, { alignItems: 'flex-start' }]}>
+                      <Text style={styles.detalleKey}>Antes</Text>
+                      <Text style={[styles.detalleVal, styles.detalleCode]} selectable>{before}</Text>
+                    </View>
+                  ) : null}
+                  {after ? (
+                    <View style={[styles.detalleRow, { alignItems: 'flex-start' }]}>
+                      <Text style={styles.detalleKey}>Después</Text>
+                      <Text style={[styles.detalleVal, styles.detalleCode]} selectable>{after}</Text>
+                    </View>
+                  ) : null}
+                </ScrollView>
+              </View>
+            </View>
+          );
+        })()}
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -476,6 +666,20 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
   },
   title: { fontSize: font.xxl, fontWeight: '800', color: colors.textPrimary },
+
+  branchTabsScroll: { marginBottom: spacing.xs },
+  branchTabsContent: { paddingHorizontal: spacing.lg, gap: spacing.xs },
+  branchTab: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  branchTabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  branchTabText: { fontSize: font.sm, fontWeight: '600', color: colors.textSecondary },
+  branchTabTextActive: { color: '#fff' },
   date: {
     fontSize: font.sm,
     color: colors.textSecondary,
@@ -567,6 +771,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   alertOkText: { fontSize: font.sm, color: colors.textSecondary },
+  alertRowBorder: { borderTopWidth: 1, borderTopColor: colors.border },
 
   // Gráficas
   chartCard: {
@@ -603,4 +808,38 @@ const styles = StyleSheet.create({
   hourlyBar: { width: 22, borderRadius: 4 },
   hourlyBarValue: { fontSize: 9, color: colors.textMuted, fontWeight: '600' },
   hourlyBarLabel: { fontSize: 9, color: colors.textSecondary, marginTop: 3 },
+
+  // Audit log (hora/fecha en alertas)
+  auditHora:  { fontSize: font.sm - 1, fontWeight: '700', color: colors.textSecondary },
+  auditDia:   { fontSize: font.sm - 2, color: colors.textMuted, marginTop: 1 },
+
+  // Modal detalle de alerta
+  detalleOverlay: { flex: 1, backgroundColor: '#0007', justifyContent: 'flex-end' },
+  detalleBox: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+  },
+  detalleHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  detalleTitulo: { flex: 1, fontSize: font.lg, fontWeight: '800', color: colors.textPrimary },
+  detalleScroll: { padding: spacing.lg },
+  detalleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    gap: spacing.sm,
+  },
+  detalleKey: { width: 80, fontSize: font.sm - 1, fontWeight: '700', color: colors.textMuted },
+  detalleVal: { flex: 1, fontSize: font.sm, color: colors.textPrimary },
+  detalleCode: { fontFamily: 'monospace', fontSize: font.sm - 2, color: colors.textSecondary, lineHeight: 18 },
 });

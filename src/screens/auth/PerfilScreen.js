@@ -62,15 +62,24 @@ export default function PerfilScreen() {
 
   async function confirmarPin() {
     if (!pinInput || !puestoElegido) return;
+    if (api.isPinLocked()) {
+      Alert.alert('Bloqueado', `Demasiados intentos. Espera ${api.getPinLockRemainingMin()} minutos.`);
+      return;
+    }
     setVerificandoPin(true);
     try {
       const result = await api.verifyProfilePin(puestoElegido.rol, pinInput);
       if (result.valid) {
+        api.resetPinAttempts();
         setModalPin(false);
         seleccionarPerfil(puestoElegido.rol, puestoElegido.nombre);
       } else {
+        api.registerPinFailure();
         setPinError(true);
         setPinInput('');
+        if (api.isPinLocked()) {
+          Alert.alert('Bloqueado', 'Demasiados intentos. Espera 5 minutos.');
+        }
       }
     } catch {
       Alert.alert('Error', 'No se pudo verificar el PIN. Verifica tu conexión a internet.');

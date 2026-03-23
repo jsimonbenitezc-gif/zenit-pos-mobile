@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert,
   Modal, TextInput, ActivityIndicator, Switch, Platform,
-  RefreshControl, KeyboardAvoidingView, Image,
+  RefreshControl, KeyboardAvoidingView, Image, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
@@ -12,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api/client';
 import { colors, spacing, radius, font } from '../../theme';
+import { createSSE } from '../../utils/sse';
 import {
   isPrinterAvailable,
   getPairedDevices,
@@ -19,108 +21,63 @@ import {
   disconnectPrinter,
   printTest,
 } from '../../utils/printer';
+import {
+  ROL_LABEL, PLAN_LABEL, PLAN_COLOR, MONEDAS, PERMISOS_DEFAULT,
+  SectionTitle, SectionCard, MenuItem, SwitchRow, FieldRow,
+} from './ajustes/shared';
+import { SeccionPuestos } from './ajustes/SeccionPuestos';
+import { SeccionPlan } from './ajustes/SeccionPlan';
+import { SeccionNotificaciones } from './ajustes/SeccionNotificaciones';
+import { SeccionSucursales } from './ajustes/SeccionSucursales';
 
-// ─── Constantes ──────────────────────────────────────────────────────────────
-
-const ROL_LABEL = { owner: 'Dueño', cashier: 'Cajero', waiter: 'Mesero', delivery: 'Repartidor' };
-const PLAN_LABEL = { free: 'Gratuito', premium: 'Premium', trial: 'Prueba' };
-const PLAN_COLOR = { free: colors.textMuted, premium: '#f59e0b', trial: colors.primary };
-const MONEDAS = ['$', '€', 'Q', 'S/', '₡'];
-
-// ─── Componentes pequeños ─────────────────────────────────────────────────────
-
-function SectionTitle({ label }) {
-  return <Text style={styles.sectionTitle}>{label}</Text>;
-}
-
-function SectionCard({ children }) {
-  return <View style={styles.section}>{children}</View>;
-}
-
-
-function MenuItem({ label, sub, onPress, danger, rightText, last }) {
-  return (
-    <TouchableOpacity
-      style={[styles.menuItem, !last && styles.menuItemBorder]}
-      onPress={onPress}
-      activeOpacity={0.6}
-    >
-      <View style={{ flex: 1 }}>
-        <Text style={[styles.menuLabel, danger && { color: colors.danger }]}>{label}</Text>
-        {sub ? <Text style={styles.menuSub}>{sub}</Text> : null}
-      </View>
-      {rightText
-        ? <Text style={styles.menuRight}>{rightText}</Text>
-        : <Text style={styles.menuChevron}>›</Text>
-      }
-    </TouchableOpacity>
-  );
-}
-
-function SwitchRow({ label, sub, value, onChange, last }) {
-  return (
-    <View style={[styles.menuItem, !last && styles.menuItemBorder]}>
-      <View style={{ flex: 1, marginRight: spacing.md }}>
-        <Text style={styles.menuLabel}>{label}</Text>
-        {sub ? <Text style={styles.menuSub}>{sub}</Text> : null}
-      </View>
-      <Switch
-        value={value}
-        onValueChange={onChange}
-        trackColor={{ false: colors.border, true: colors.primary }}
-        thumbColor={Platform.OS === 'android' ? (value ? '#fff' : '#f4f3f4') : undefined}
-      />
-    </View>
-  );
-}
-
-function FieldRow({ label, value, onChangeText, placeholder, keyboardType, last }) {
-  return (
-    <View style={[styles.fieldRow, !last && styles.menuItemBorder]}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <TextInput
-        style={styles.fieldInput}
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder || ''}
-        placeholderTextColor={colors.textMuted}
-        keyboardType={keyboardType || 'default'}
-      />
-    </View>
-  );
-}
 
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 
 export default function AjustesScreen({ navigation }) {
-  const { user, isOwner, logout, refreshUser } = useAuth();
+  const { user, settings, isOwner, logout, refreshUser, refreshSettings, rolActivo, nombreActivo, cambiarPerfil } = useAuth();
   const plan      = user?.plan || 'free';
   const isPremium = plan === 'premium' || plan === 'trial';
 
   // ── Estado: carga ──────────────────────────────────────────────────────
   const [loading, setLoading]           = useState(true);
   const [refreshing, setRefreshing]     = useState(false);
-  const [recargandoPlan, setRecargandoPlan] = useState(false);
+  const cloudSettingsRef = useRef(null); // Settings crudos del API para pasar a sub-componentes
 
   // ── Estado: ajustes del negocio (backend) ──────────────────────────────
-  const [nombre, setNombre]       = useState('');
-  const [telefono, setTelefono]   = useState('');
-  const [direccion, setDireccion] = useState('');
+  const [nombre, setNombre]           = useState('');
+  const [telefono, setTelefono]       = useState('');
+  const [email, setEmail]             = useState('');
+  const [website, setWebsite]         = useState('');
+  const [rfc, setRfc]                 = useState('');
+  const [instagram, setInstagram]     = useState('');
+  const [ciudad, setCiudad]           = useState('');
+  const [estado, setEstado]           = useState('');
+  const [direccion, setDireccion]     = useState('');
+  const [tipo, setTipo]               = useState('');
   const [savingNegocio, setSavingNegocio] = useState(false);
 
   // ── Estado: ticket ─────────────────────────────────────────────────────
-  const [moneda, setMoneda]           = useState('$');
-  const [showPhone, setShowPhone]     = useState(true);
-  const [showAddress, setShowAddress] = useState(true);
-  const [showLogo, setShowLogo]       = useState(true);
-  const [logoBase64, setLogoBase64]   = useState('');
-  const [savingLogo, setSavingLogo]   = useState(false);
+  const [moneda, setMoneda]               = useState('$');
+  const [showPhone, setShowPhone]         = useState(true);
+  const [showAddress, setShowAddress]     = useState(true);
+  const [showEmail, setShowEmail]         = useState(false);
+  const [showWebsite, setShowWebsite]     = useState(false);
+  const [showInstagram, setShowInstagram] = useState(false);
+  const [showRfc, setShowRfc]             = useState(false);
+  const [ticketFooter, setTicketFooter]   = useState('');
+  const [showLogo, setShowLogo]           = useState(true);
+  const [logoBase64, setLogoBase64]       = useState('');
+  const [savingLogo, setSavingLogo]       = useState(false);
+
+  // ── SSE: ajustes en tiempo real ────────────────────────────────────────
+  const fullPermisosRef     = useRef({});  // Estructura completa de permisos_roles (incluye __b_* keys)
 
   // ── Estado: preferencias locales ──────────────────────────────────────
   const [mostrarStock, setMostrarStock]                   = useState(false);
   const [ventaSinTurno, setVentaSinTurno]                 = useState(true);
   const [requierePinDesc, setRequierePinDesc]             = useState(false);
   const [pinDescuentos, setPinDescuentos]                 = useState('');
+  const [pedirPasswordInicio, setPedirPasswordInicio]     = useState(true); // default activo
 
   // ── Estado: puntos de lealtad (backend) ───────────────────────────────
   const [puntosActivos, setPuntosActivos]   = useState(false);
@@ -132,7 +89,6 @@ export default function AjustesScreen({ navigation }) {
   // ── Estado: sucursal (backend) ────────────────────────────────────────
   const [branches, setBranches]   = useState([]);
   const [sucursalId, setSucursalId] = useState(null);
-  const [savingSucursal, setSavingSucursal] = useState(false);
 
   // ── Estado: impresora Bluetooth ───────────────────────────────────────
   const [printerAddress, setPrinterAddress] = useState('');
@@ -143,6 +99,9 @@ export default function AjustesScreen({ navigation }) {
   const [connecting, setConnecting]         = useState('');
   const [testingPrint, setTestingPrint]     = useState(false);
 
+  // ── Estado: administrar puestos ───────────────────────────────────────
+  const [permisosRoles, setPermisosRoles] = useState(null);   // null = aún cargando
+
   // ── Estado: cambiar contraseña ────────────────────────────────────────
   const [modalPassword, setModalPassword] = useState(false);
   const [passActual, setPassActual]       = useState('');
@@ -150,22 +109,6 @@ export default function AjustesScreen({ navigation }) {
   const [passConfirm, setPassConfirm]     = useState('');
   const [savingPass, setSavingPass]       = useState(false);
 
-  // ── Estado: sucursal picker ───────────────────────────────────────────
-  const [modalSucursal, setModalSucursal]           = useState(false);
-  const [modalNuevaSucursal, setModalNuevaSucursal] = useState(false);
-  const [nuevaSucursalNombre, setNuevaSucursalNombre] = useState('');
-  const [nuevaSucursalDir, setNuevaSucursalDir]     = useState('');
-  const [nuevaSucursalTel, setNuevaSucursalTel]     = useState('');
-  const [cloneOfertas, setCloneOfertas]             = useState(true);
-  const [cloneIngredientes, setCloneIngredientes]   = useState(false);
-  const [guardandoSucursal, setGuardandoSucursal]   = useState(false);
-  // ── Estado: editar sucursal ──────────────────────────────────────────
-  const [modalEditarSucursal, setModalEditarSucursal] = useState(false);
-  const [editBranch, setEditBranch]                 = useState(null); // { id, name, address, phone }
-  const [editNombre, setEditNombre]                 = useState('');
-  const [editDir, setEditDir]                       = useState('');
-  const [editTel, setEditTel]                       = useState('');
-  const [guardandoEditar, setGuardandoEditar]       = useState(false);
 
   // ─────────────────────────────────────────────────────────────────────
   // Carga inicial
@@ -175,22 +118,63 @@ export default function AjustesScreen({ navigation }) {
     if (isRefresh) setRefreshing(true); else setLoading(true);
 
     // Ajustes del backend
+    let _cloudVentaSinTurno = undefined; // undefined = no disponible en nube
     try {
       const s = await api.getSettings();
       if (s) {
+        cloudSettingsRef.current = s;
         setNombre(s.business_name || '');
         setTelefono(s.business_phone || '');
+        setEmail(s.business_email || '');
+        setWebsite(s.business_website || '');
+        setRfc(s.business_rfc || '');
+        setInstagram(s.business_instagram || '');
+        setCiudad(s.business_city || '');
+        setEstado(s.business_state || '');
         setDireccion(s.business_address || '');
+        setTipo(s.business_tipo || '');
         setMoneda(s.currency_symbol || '$');
-        setShowPhone(s.show_phone !== false);
-        setShowAddress(s.show_address !== false);
-        setShowLogo(s.show_logo !== false);
+        setShowPhone(!!(s.show_phone === true || s.show_phone === 'true' || s.show_phone === undefined));
+        setShowAddress(!!(s.show_direccion === true || s.show_direccion === 'true' || (s.show_direccion === undefined && s.show_address === undefined) || s.show_address === true || s.show_address === 'true'));
+        setShowEmail(!!(s.show_email === true || s.show_email === 'true'));
+        setShowWebsite(!!(s.show_website === true || s.show_website === 'true'));
+        setShowInstagram(!!(s.show_instagram === true || s.show_instagram === 'true'));
+        setShowRfc(!!(s.show_rfc === true || s.show_rfc === 'true'));
+        setTicketFooter(s.ticket_footer || '');
+        setShowLogo(!!(s.show_logo === true || s.show_logo === 'true' || s.show_logo === undefined));
         setLogoBase64(s.logo_base64 || '');
         setPuntosActivos(!!s.puntos_activos);
         setPuntosPorPeso(String(s.puntos_por_peso ?? '0.1'));
         setPuntosBono(String(s.puntos_bono_pedido ?? '0'));
         setPuntosValor(String(s.puntos_valor ?? '0.10'));
-        setSucursalId(s.sucursal_id || null);
+        const sucId = s.sucursal_id || null;
+        setSucursalId(sucId);
+        // venta_sin_turno desde nube (fuente de verdad compartida)
+        if (s.venta_sin_turno !== undefined) {
+          _cloudVentaSinTurno = !(s.venta_sin_turno === false || s.venta_sin_turno === 'false');
+          setVentaSinTurno(_cloudVentaSinTurno);
+        }
+        // Permisos de puestos — preservar cajero, encargado y todos los roles custom
+        const guardados = s.permisos_roles || {};
+        fullPermisosRef.current = guardados;  // guardar estructura completa para preservar __b_* keys
+        // Determinar la base de permisos según la sucursal:
+        // - Si hay config específica de la sucursal → usarla (incluye sus custom roles)
+        // - Si hay sucursal pero sin config propia → solo puestos base sin custom de otras sucursales
+        // - Sin sucursal → config global completa
+        let base;
+        if (sucId) {
+          base = guardados[`__b_${sucId}`] || { cajero: guardados.cajero, encargado: guardados.encargado };
+        } else {
+          base = Object.fromEntries(Object.entries(guardados).filter(([k]) => !k.startsWith('__b_')));
+        }
+        const allRoles = {
+          cajero:    { ...PERMISOS_DEFAULT.cajero,    ...(base.cajero    || {}) },
+          encargado: { ...PERMISOS_DEFAULT.encargado, ...(base.encargado || {}) },
+        };
+        Object.keys(base).forEach(k => {
+          if (base[k]?._custom === true) allRoles[k] = { ...base[k] };
+        });
+        setPermisosRoles(allRoles);
       }
     } catch { /* sin conexión: continuar con valores por defecto */ }
 
@@ -199,30 +183,62 @@ export default function AjustesScreen({ navigation }) {
       try {
         const bs = await api.getBranches();
         setBranches(bs || []);
+        // Sobrescribir teléfono y dirección con los de la sucursal activa
+        if (sucId) {
+          const currentBranch = (bs || []).find(b => b.id === sucId);
+          if (currentBranch) {
+            if (currentBranch.phone   != null) setTelefono(currentBranch.phone);
+            if (currentBranch.address != null) setDireccion(currentBranch.address);
+          }
+        }
       } catch {}
     }
 
     // Ajustes locales (SecureStore)
-    const [pAddr, pName, stock, sinTurno, pinReq, pin] = await Promise.all([
+    const [pAddr, pName, stock, sinTurno, pinReq, pin, pedirPwd] = await Promise.all([
       SecureStore.getItemAsync('printer_address'),
       SecureStore.getItemAsync('printer_name'),
       SecureStore.getItemAsync('mostrar_stock'),
       SecureStore.getItemAsync('venta_sin_turno'),
       SecureStore.getItemAsync('requiere_pin_descuentos'),
       SecureStore.getItemAsync('pin_descuentos'),
+      SecureStore.getItemAsync('pedir_password_inicio'),
     ]);
     setPrinterAddress(pAddr || '');
     setPrinterName(pName || '');
     setMostrarStock(stock === 'true');
-    setVentaSinTurno(sinTurno !== 'false');
+    // venta_sin_turno: usar nube si disponible, SecureStore como fallback offline
+    if (_cloudVentaSinTurno === undefined) {
+      setVentaSinTurno(sinTurno !== 'false');
+    }
     setRequierePinDesc(pinReq === 'true');
     setPinDescuentos(pin || '');
+    // pedir_password_inicio: default activo (true) igual que desktop
+    setPedirPasswordInicio(pedirPwd !== 'false');
 
     setLoading(false);
     setRefreshing(false);
   }, [isOwner, plan]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+
+  // Recargar desde la nube cada vez que el usuario regresa a esta pantalla
+  // (para reflejar cambios hechos desde desktop u otro dispositivo)
+  const _focusMounted = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (!_focusMounted.current) { _focusMounted.current = true; return; }
+      loadAll(true);
+    }, [loadAll])
+  );
+
+  // SSE: escuchar cambios de ajustes en tiempo real (ej: desktop edita Mi Negocio)
+  useFocusEffect(
+    useCallback(() => {
+      const sse = createSSE(api.getSettingsEventsConfig(), () => loadAll(true));
+      return () => { sse.close(); };
+    }, [loadAll])
+  );
 
   // ─────────────────────────────────────────────────────────────────────
   // Guardar ajustes del negocio
@@ -231,11 +247,38 @@ export default function AjustesScreen({ navigation }) {
   async function guardarNegocio() {
     setSavingNegocio(true);
     try {
-      await api.updateSettings({
-        business_name: nombre.trim(),
-        business_phone: telefono.trim(),
-        business_address: direccion.trim(),
-      });
+      if (sucursalId) {
+        // Teléfono y dirección son de la sucursal; el resto son globales del negocio
+        await Promise.all([
+          api.updateBranch(sucursalId, {
+            phone:   telefono.trim() || null,
+            address: direccion.trim() || null,
+          }),
+          api.updateSettings({
+            business_name:      nombre.trim(),
+            business_email:     email.trim(),
+            business_website:   website.trim(),
+            business_rfc:       rfc.trim(),
+            business_instagram: instagram.trim(),
+            business_city:      ciudad.trim(),
+            business_state:     estado.trim(),
+            business_tipo:      tipo,
+          }),
+        ]);
+      } else {
+        await api.updateSettings({
+          business_name:      nombre.trim(),
+          business_phone:     telefono.trim(),
+          business_email:     email.trim(),
+          business_website:   website.trim(),
+          business_rfc:       rfc.trim(),
+          business_instagram: instagram.trim(),
+          business_city:      ciudad.trim(),
+          business_state:     estado.trim(),
+          business_address:   direccion.trim(),
+          business_tipo:      tipo,
+        });
+      }
       Alert.alert('Guardado', 'Información del negocio actualizada.');
     } catch (e) {
       Alert.alert('Error', e.message);
@@ -250,7 +293,7 @@ export default function AjustesScreen({ navigation }) {
 
   async function cambiarMoneda(m) {
     setMoneda(m);
-    try { await api.updateSettings({ currency_symbol: m }); } catch {}
+    try { await api.updateSettings({ currency_symbol: m }); await refreshSettings(); } catch {}
   }
 
   async function toggleShowPhone(val) {
@@ -260,7 +303,32 @@ export default function AjustesScreen({ navigation }) {
 
   async function toggleShowAddress(val) {
     setShowAddress(val);
-    try { await api.updateSettings({ show_address: val }); } catch {}
+    try { await api.updateSettings({ show_direccion: val }); } catch {}
+  }
+
+  async function toggleShowEmail(val) {
+    setShowEmail(val);
+    try { await api.updateSettings({ show_email: val }); } catch {}
+  }
+
+  async function toggleShowWebsite(val) {
+    setShowWebsite(val);
+    try { await api.updateSettings({ show_website: val }); } catch {}
+  }
+
+  async function toggleShowInstagram(val) {
+    setShowInstagram(val);
+    try { await api.updateSettings({ show_instagram: val }); } catch {}
+  }
+
+  async function toggleShowRfc(val) {
+    setShowRfc(val);
+    try { await api.updateSettings({ show_rfc: val }); } catch {}
+  }
+
+  async function guardarTicketFooter(val) {
+    setTicketFooter(val);
+    try { await api.updateSettings({ ticket_footer: val }); } catch {}
   }
 
   async function toggleShowLogo(val) {
@@ -339,9 +407,15 @@ export default function AjustesScreen({ navigation }) {
     await SecureStore.setItemAsync('mostrar_stock', val ? 'true' : 'false');
   }
 
+  async function togglePedirPasswordInicio(val) {
+    setPedirPasswordInicio(val);
+    await SecureStore.setItemAsync('pedir_password_inicio', val ? 'true' : 'false');
+  }
+
   async function toggleVentaSinTurno(val) {
     setVentaSinTurno(val);
     await SecureStore.setItemAsync('venta_sin_turno', val ? 'true' : 'false');
+    api.updateSettings({ venta_sin_turno: val }).catch(() => {});
   }
 
   async function toggleRequierePinDesc(val) {
@@ -382,6 +456,7 @@ export default function AjustesScreen({ navigation }) {
         puntos_bono_pedido: pb,
         puntos_valor: pv,
       });
+      await refreshSettings();
       Alert.alert('Guardado', 'Configuración de puntos actualizada.');
     } catch (e) {
       Alert.alert('Error', e.message);
@@ -392,108 +467,11 @@ export default function AjustesScreen({ navigation }) {
 
   async function togglePuntosActivos(val) {
     setPuntosActivos(val);
-    try { await api.updateSettings({ puntos_activos: val }); } catch {}
+    try { await api.updateSettings({ puntos_activos: val }); await refreshSettings(); } catch {}
   }
 
   // ─────────────────────────────────────────────────────────────────────
-  // Sucursal
-  // ─────────────────────────────────────────────────────────────────────
-
-  async function seleccionarSucursal(id) {
-    setSucursalId(id);
-    setModalSucursal(false);
-    setSavingSucursal(true);
-    try {
-      await api.updateSettings({ sucursal_id: id });
-    } catch (e) {
-      Alert.alert('Error', e.message);
-    } finally {
-      setSavingSucursal(false);
-    }
-  }
-
-  const sucursalActual = branches.find(b => b.id === sucursalId);
-
-  function abrirNuevaSucursal() {
-    setNuevaSucursalNombre('');
-    setNuevaSucursalDir('');
-    setNuevaSucursalTel('');
-    setCloneOfertas(true);
-    setCloneIngredientes(false);
-    setModalNuevaSucursal(true);
-  }
-
-  async function guardarNuevaSucursal() {
-    if (!nuevaSucursalNombre.trim()) {
-      Alert.alert('Nombre requerido', 'Escribe un nombre para la sucursal.');
-      return;
-    }
-    setGuardandoSucursal(true);
-    try {
-      const clone_options = [
-        cloneOfertas      && 'offers',
-        cloneIngredientes && 'ingredients',
-      ].filter(Boolean);
-      const created = await api.createBranch({
-        name:         nuevaSucursalNombre.trim(),
-        address:      nuevaSucursalDir.trim() || undefined,
-        phone:        nuevaSucursalTel.trim() || undefined,
-        clone_options,
-      });
-      setBranches(prev => [...prev, created]);
-      setModalNuevaSucursal(false);
-    } catch (e) {
-      Alert.alert('Error', e.message);
-    } finally {
-      setGuardandoSucursal(false);
-    }
-  }
-
-  function abrirEditarSucursal(b) {
-    setEditBranch(b);
-    setEditNombre(b.name || '');
-    setEditDir(b.address || '');
-    setEditTel(b.phone || '');
-    setModalEditarSucursal(true);
-  }
-
-  async function guardarEditarSucursal() {
-    if (!editNombre.trim()) {
-      Alert.alert('Nombre requerido', 'Escribe un nombre para la sucursal.');
-      return;
-    }
-    setGuardandoEditar(true);
-    try {
-      const updated = await api.updateBranch(editBranch.id, {
-        name:    editNombre.trim(),
-        address: editDir.trim() || undefined,
-        phone:   editTel.trim() || undefined,
-      });
-      setBranches(prev => prev.map(b => b.id === editBranch.id ? { ...b, ...updated } : b));
-      setModalEditarSucursal(false);
-    } catch (e) {
-      Alert.alert('Error', e.message);
-    } finally {
-      setGuardandoEditar(false);
-    }
-  }
-
-  async function eliminarSucursal(branch) {
-    Alert.alert('Eliminar sucursal', `¿Eliminar "${branch.name}"?`, [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: async () => {
-        try {
-          await api.deleteBranch(branch.id);
-          setBranches(prev => prev.filter(b => b.id !== branch.id));
-          if (sucursalId === branch.id) {
-            setSucursalId(null);
-            try { await api.updateSettings({ sucursal_id: null }); } catch {}
-          }
-        } catch (e) { Alert.alert('Error', e.message); }
-      }},
-    ]);
-  }
-
+  // Notificaciones
   // ─────────────────────────────────────────────────────────────────────
   // Impresora Bluetooth
   // ─────────────────────────────────────────────────────────────────────
@@ -614,6 +592,129 @@ export default function AjustesScreen({ navigation }) {
     );
   }
 
+  // ── Vista simplificada para empleados ─────────────────────────────────
+  if (rolActivo && rolActivo !== 'dueno') {
+    const permsActivo = permisosRoles?.[rolActivo] || {};
+    const labelActivo = permsActivo._label || (rolActivo === 'cajero' ? 'Cajero' : rolActivo === 'encargado' ? 'Encargado' : rolActivo);
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScrollView contentContainerStyle={styles.scroll}>
+          <Text style={styles.title}>Ajustes</Text>
+
+          <View style={styles.profileCard}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{(permsActivo.nombre || labelActivo)?.[0]?.toUpperCase() || '?'}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.profileName}>{permsActivo.nombre || labelActivo}</Text>
+              <Text style={styles.profileRole}>{labelActivo}</Text>
+            </View>
+          </View>
+
+          <SectionTitle label="Impresora" />
+          <SectionCard>
+            <MenuItem
+              label="Impresora Bluetooth"
+              sub={printerName || 'Sin impresora seleccionada'}
+              onPress={abrirBusquedaImpresoras}
+            />
+            <MenuItem
+              label="Imprimir ticket de prueba"
+              sub={printerAddress ? `Conectar a ${printerName}` : 'Selecciona una impresora primero'}
+              onPress={imprimirPrueba}
+              rightText={testingPrint ? '...' : undefined}
+              last
+            />
+          </SectionCard>
+
+          <SectionTitle label="Pantalla de Cocina" />
+          <SectionCard>
+            <MenuItem
+              label="Abrir KDS"
+              sub={isPremium ? 'Vista en tiempo real para el personal de cocina' : 'Función exclusiva del plan Premium'}
+              onPress={isPremium
+                ? () => navigation.navigate('KDS')
+                : () => Alert.alert('Función Premium', 'Solicita al administrador que actualice el plan.')
+              }
+              last
+            />
+          </SectionCard>
+
+          <SectionTitle label="Cuenta" />
+          <SectionCard>
+            <MenuItem
+              label="Cambiar perfil"
+              sub="Volver a la pantalla de selección de perfil"
+              onPress={cambiarPerfil}
+              last
+            />
+          </SectionCard>
+
+          <Text style={styles.footer}>Zenit POS · Versión 1.0.0</Text>
+        </ScrollView>
+
+        {/* Modal impresora Bluetooth */}
+        <Modal visible={modalPrinter} animationType="slide" presentationStyle="pageSheet">
+          <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Impresora Bluetooth</Text>
+              <TouchableOpacity onPress={() => setModalPrinter(false)}>
+                <Text style={styles.linkText}>Cerrar</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
+              {printerName ? (
+                <View style={styles.printerCurrentCard}>
+                  <Text style={styles.printerCurrentLabel}>Impresora actual</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+                    <Ionicons name="print-outline" size={16} color={colors.textPrimary} />
+                    <Text style={styles.printerCurrentName}>{printerName}</Text>
+                  </View>
+                  <Text style={styles.menuSub}>{printerAddress}</Text>
+                </View>
+              ) : (
+                <View style={styles.printerCurrentCard}>
+                  <Text style={styles.menuSub}>Sin impresora configurada</Text>
+                </View>
+              )}
+              <Text style={[styles.sectionTitle, { marginTop: spacing.xl }]}>Dispositivos emparejados</Text>
+              {scanning && (
+                <View style={{ alignItems: 'center', padding: spacing.xl }}>
+                  <ActivityIndicator color={colors.primary} />
+                  <Text style={[styles.menuSub, { marginTop: spacing.sm }]}>Buscando dispositivos...</Text>
+                </View>
+              )}
+              {!scanning && scannedDevices.length === 0 && (
+                <View style={styles.section}>
+                  <Text style={[styles.emptySmall, { textAlign: 'center' }]}>
+                    No se encontraron dispositivos.{'\n'}Asegúrate de que la impresora esté encendida y emparejada en los ajustes de Bluetooth.
+                  </Text>
+                </View>
+              )}
+              {!scanning && scannedDevices.map(device => (
+                <TouchableOpacity
+                  key={device.address}
+                  style={styles.deviceRow}
+                  onPress={() => seleccionarImpresora(device)}
+                  disabled={connecting === device.address}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.menuLabel}>{device.name}</Text>
+                    <Text style={styles.menuSub}>{device.address}</Text>
+                  </View>
+                  {connecting === device.address
+                    ? <ActivityIndicator color={colors.primary} />
+                    : <Text style={{ color: colors.primary, fontWeight: '700' }}>Conectar</Text>
+                  }
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView
@@ -658,12 +759,73 @@ export default function AjustesScreen({ navigation }) {
             keyboardType="phone-pad"
           />
           <FieldRow
+            label="Correo electrónico"
+            value={email}
+            onChangeText={setEmail}
+            placeholder="contacto@minegocio.com"
+            keyboardType="email-address"
+          />
+          <FieldRow
+            label="Sitio web"
+            value={website}
+            onChangeText={setWebsite}
+            placeholder="www.minegocio.com"
+          />
+          <FieldRow
+            label="RFC / ID Fiscal"
+            value={rfc}
+            onChangeText={setRfc}
+            placeholder="XAXX010101000"
+          />
+          <FieldRow
+            label="Instagram"
+            value={instagram}
+            onChangeText={setInstagram}
+            placeholder="@minegocio"
+          />
+          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+            <View style={{ flex: 1 }}>
+              <FieldRow
+                label="Ciudad"
+                value={ciudad}
+                onChangeText={setCiudad}
+                placeholder="Guadalajara"
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <FieldRow
+                label="Estado"
+                value={estado}
+                onChangeText={setEstado}
+                placeholder="Jalisco"
+              />
+            </View>
+          </View>
+          <FieldRow
             label="Dirección"
             value={direccion}
             onChangeText={setDireccion}
             placeholder="Ej: Calle 5, Col. Centro"
-            last
           />
+          {/* Tipo de negocio */}
+          <View style={[styles.fieldRow, styles.menuItemBorder]}>
+            <Text style={styles.fieldLabel}>Tipo de negocio</Text>
+            <View style={styles.tipoWrap}>
+              {[
+                ['restaurante','Restaurante'],['tienda','Tienda'],
+                ['ropa','Ropa'],['salon','Salón'],['farmacia','Farmacia'],
+                ['panaderia','Panadería'],['otro','Otro'],
+              ].map(([val, lbl]) => (
+                <TouchableOpacity
+                  key={val}
+                  style={[styles.tipoChip, tipo === val && styles.tipoChipActive]}
+                  onPress={() => setTipo(tipo === val ? '' : val)}
+                >
+                  <Text style={[styles.tipoChipText, tipo === val && styles.tipoChipTextActive]}>{lbl}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
         </SectionCard>
         <TouchableOpacity
           style={[styles.btnSave, savingNegocio && { opacity: 0.7 }]}
@@ -748,6 +910,40 @@ export default function AjustesScreen({ navigation }) {
             value={showAddress}
             onChange={toggleShowAddress}
           />
+          <SwitchRow
+            label="Mostrar correo en ticket"
+            value={showEmail}
+            onChange={toggleShowEmail}
+          />
+          <SwitchRow
+            label="Mostrar sitio web en ticket"
+            value={showWebsite}
+            onChange={toggleShowWebsite}
+          />
+          <SwitchRow
+            label="Mostrar Instagram en ticket"
+            value={showInstagram}
+            onChange={toggleShowInstagram}
+          />
+          <SwitchRow
+            label="Mostrar RFC en ticket"
+            value={showRfc}
+            onChange={toggleShowRfc}
+          />
+          {/* Mensaje de cierre del ticket */}
+          <View style={[styles.fieldRow, styles.menuItemBorder]}>
+            <Text style={styles.fieldLabel}>Mensaje de cierre</Text>
+            <TextInput
+              style={[styles.fieldInput, { height: 54, textAlignVertical: 'top' }]}
+              value={ticketFooter}
+              onChangeText={setTicketFooter}
+              onEndEditing={() => guardarTicketFooter(ticketFooter)}
+              placeholder="¡Gracias por tu compra!"
+              placeholderTextColor={colors.textMuted}
+              multiline
+              numberOfLines={2}
+            />
+          </View>
           <MenuItem
             label="Impresora Bluetooth"
             sub={printerName || 'Sin impresora seleccionada'}
@@ -769,6 +965,12 @@ export default function AjustesScreen({ navigation }) {
             label="Impresora predeterminada"
             sub={printerName || 'Sin impresora configurada'}
             onPress={abrirBusquedaImpresoras}
+          />
+          <SwitchRow
+            label="Pedir contraseña al iniciar"
+            sub="Solicita tu contraseña cada vez que abres la app"
+            value={pedirPasswordInicio}
+            onChange={togglePedirPasswordInicio}
           />
           <SwitchRow
             label="Mostrar stock disponible"
@@ -855,8 +1057,8 @@ export default function AjustesScreen({ navigation }) {
               />
               {isPremium && puntosActivos && (
                 <>
-                  <FieldRow
-                    label="Puntos por cada $1"
+                    <FieldRow
+                      label={`Puntos por cada ${moneda}1`}
                     value={puntosPorPeso}
                     onChangeText={setPuntosPorPeso}
                     placeholder="0.1"
@@ -895,64 +1097,18 @@ export default function AjustesScreen({ navigation }) {
           </>
         )}
 
-        {/* ── Sucursal (todos los dueños) ───────────────────────────── */}
+        {/* ── Sucursales ─── */}
         {isOwner && (
-          <>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm, marginTop: spacing.xs }}>
-              <Text style={[styles.sectionTitle, { marginBottom: 0, marginTop: 0 }]}>Sucursal</Text>
-              {!isPremium && (
-                <View style={styles.premiumBadge}>
-                  <Ionicons name="lock-closed" size={10} color="#b45309" />
-                  <Text style={styles.premiumBadgeText}> Premium</Text>
-                </View>
-              )}
-            </View>
-            <SectionCard>
-              {isPremium ? (
-                <>
-                  <MenuItem
-                    label="Sucursal de este dispositivo"
-                    sub={savingSucursal ? 'Guardando...' : (sucursalActual?.name || 'Sin sucursal asignada')}
-                    onPress={() => setModalSucursal(true)}
-                  />
-                  {branches.length === 0 ? (
-                    <Text style={styles.emptySmall}>Aún no hay sucursales creadas</Text>
-                  ) : (
-                    branches.map(b => (
-                      <View key={b.id} style={[styles.menuItem, styles.menuItemBorder]}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.menuLabel}>{b.name}</Text>
-                          {b.address ? <Text style={styles.menuSub}>{b.address}</Text> : null}
-                          {b.phone   ? <Text style={styles.menuSub}>{b.phone}</Text>   : null}
-                        </View>
-                        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                          <TouchableOpacity onPress={() => abrirEditarSucursal(b)} style={styles.btnIconSmall}>
-                            <Ionicons name="pencil-outline" size={16} color={colors.textMuted} />
-                          </TouchableOpacity>
-                          <TouchableOpacity onPress={() => eliminarSucursal(b)} style={styles.btnIconSmall}>
-                            <Ionicons name="trash-outline" size={16} color={colors.danger} />
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    ))
-                  )}
-                  <TouchableOpacity
-                    style={[styles.menuItem, branches.length > 0 && styles.menuItemBorder]}
-                    onPress={abrirNuevaSucursal}
-                  >
-                    <Text style={[styles.menuLabel, { color: colors.primary }]}>+ Nueva sucursal</Text>
-                  </TouchableOpacity>
-                </>
-              ) : (
-                <View style={styles.menuItem}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.menuLabel}>Gestión de sucursales</Text>
-                    <Text style={styles.menuSub}>Disponible en el plan Premium</Text>
-                  </View>
-                </View>
-              )}
-            </SectionCard>
-          </>
+          <SeccionSucursales
+            isOwner={isOwner}
+            isPremium={isPremium}
+            branches={branches}
+            setBranches={setBranches}
+            sucursalId={sucursalId}
+            setSucursalId={setSucursalId}
+            onRefresh={() => loadAll(true)}
+            styles={styles}
+          />
         )}
 
         {/* ── Pantalla de Cocina (KDS) ───────────────────────────────── */}
@@ -976,60 +1132,25 @@ export default function AjustesScreen({ navigation }) {
           />
         </SectionCard>
 
-        {/* ── Mi Plan (solo dueño) ──────────────────────────────────── */}
-        {isOwner && (
-          <>
-            <SectionTitle label="Mi Plan" />
-            <SectionCard>
-              <View style={[styles.menuItem, styles.menuItemBorder]}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.menuLabel}>Plan actual</Text>
-                  <Text style={styles.menuSub}>
-                    {plan === 'premium'
-                      ? `Premium${user?.plan_expires_at ? ' · expira ' + new Date(user.plan_expires_at).toLocaleDateString('es-MX') : ''}`
-                      : plan === 'trial'
-                        ? `Prueba gratuita${user?.plan_expires_at ? ' · expira ' + new Date(user.plan_expires_at).toLocaleDateString('es-MX') : ''}`
-                        : 'Gratuito — funciones básicas'
-                    }
-                  </Text>
-                </View>
-                <View style={[styles.planBadge, { backgroundColor: PLAN_COLOR[plan] + '22', borderColor: PLAN_COLOR[plan] }]}>
-                  <Text style={[styles.planBadgeText, { color: PLAN_COLOR[plan] }]}>
-                    {PLAN_LABEL[plan] || plan}
-                  </Text>
-                </View>
-              </View>
-              <View style={[styles.menuItem, { justifyContent: 'flex-end' }]}>
-                <TouchableOpacity
-                  style={[styles.btnRecargar, recargandoPlan && { opacity: 0.6 }]}
-                  disabled={recargandoPlan}
-                  onPress={async () => {
-                    setRecargandoPlan(true);
-                    await refreshUser();
-                    setRecargandoPlan(false);
-                  }}
-                >
-                  <Text style={styles.btnRecargarText}>
-                    {recargandoPlan ? 'Verificando...' : '↻ Recargar plan'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              {plan === 'free' && (
-                <View style={[styles.menuItem, { flexDirection: 'column', alignItems: 'flex-start' }]}>
-                  <Text style={[styles.menuSub, { marginBottom: spacing.sm }]}>
-                    Premium incluye: Inventario · Ofertas · Sucursales · Puntos de fidelidad · KDS
-                  </Text>
-                  <TouchableOpacity
-                    style={[styles.btnSave, { alignSelf: 'stretch' }]}
-                    onPress={() => Alert.alert('Premium', 'Visita zenitpos.app para actualizar tu plan.')}
-                  >
-                    <Text style={styles.btnSaveText}>Ver planes Premium →</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </SectionCard>
-          </>
+        {/* ── Administrar Puestos ─── */}
+        {isOwner && permisosRoles && (
+          <SeccionPuestos
+            permisosRoles={permisosRoles}
+            setPermisosRoles={setPermisosRoles}
+            sucursalId={sucursalId}
+            branches={branches}
+            fullPermisosRef={fullPermisosRef}
+            refreshSettings={refreshSettings}
+            styles={styles}
+          />
         )}
+
+
+        {/* ── Mi Plan ─── */}
+        {isOwner && <SeccionPlan plan={plan} user={user} refreshUser={refreshUser} styles={styles} />}
+
+        {/* ── Notificaciones ─── */}
+        {isOwner && <SeccionNotificaciones initialSettings={cloudSettingsRef.current} styles={styles} />}
 
         {/* ── Cuenta ────────────────────────────────────────────────── */}
         <SectionTitle label="Cuenta" />
@@ -1039,6 +1160,13 @@ export default function AjustesScreen({ navigation }) {
             sub="Actualiza tu contraseña de acceso"
             onPress={abrirCambioPassword}
           />
+          {Object.values(permisosRoles || {}).some(p => p?.enabled === true) && (
+            <MenuItem
+              label="Cambiar perfil"
+              sub={nombreActivo ? `Activo: ${nombreActivo}` : rolActivo === 'dueno' ? 'Activo: Administrador' : `Activo: ${rolActivo}`}
+              onPress={cambiarPerfil}
+            />
+          )}
           <MenuItem
             label="Cerrar sesión"
             danger
@@ -1181,172 +1309,6 @@ export default function AjustesScreen({ navigation }) {
           </SafeAreaView>
         </KeyboardAvoidingView>
       </Modal>
-
-      {/* ════════════════════════════════════════════════════════════════
-          MODAL: Nueva sucursal
-      ════════════════════════════════════════════════════════════════ */}
-      <Modal visible={modalNuevaSucursal} animationType="slide" presentationStyle="pageSheet">
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Nueva sucursal</Text>
-              <TouchableOpacity onPress={() => setModalNuevaSucursal(false)}>
-                <Text style={styles.linkText}>Cancelar</Text>
-              </TouchableOpacity>
-            </View>
-            <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
-              <Text style={styles.label}>Nombre *</Text>
-              <TextInput
-                style={styles.input}
-                value={nuevaSucursalNombre}
-                onChangeText={setNuevaSucursalNombre}
-                placeholder="Ej: Sucursal Centro"
-                placeholderTextColor={colors.textMuted}
-              />
-              <Text style={[styles.label, { marginTop: spacing.md }]}>Dirección (opcional)</Text>
-              <TextInput
-                style={styles.input}
-                value={nuevaSucursalDir}
-                onChangeText={setNuevaSucursalDir}
-                placeholder="Ej: Av. Principal 123"
-                placeholderTextColor={colors.textMuted}
-              />
-              <Text style={[styles.label, { marginTop: spacing.md }]}>Teléfono (opcional)</Text>
-              <TextInput
-                style={styles.input}
-                value={nuevaSucursalTel}
-                onChangeText={setNuevaSucursalTel}
-                placeholder="Ej: 55 1234 5678"
-                placeholderTextColor={colors.textMuted}
-                keyboardType="phone-pad"
-              />
-              <Text style={[styles.label, { marginTop: spacing.lg }]}>¿Qué datos copiar a esta sucursal?</Text>
-              <Text style={[styles.menuSub, { marginBottom: spacing.sm }]}>
-                Productos, categorías y clientes se comparten automáticamente entre todas las sucursales.
-              </Text>
-              <TouchableOpacity style={styles.checkRow} onPress={() => setCloneOfertas(v => !v)}>
-                <View style={[styles.checkbox, cloneOfertas && styles.checkboxOn]}>
-                  {cloneOfertas && <Text style={styles.checkboxCheck}>✓</Text>}
-                </View>
-                <Text style={styles.checkLabel}>Ofertas (descuentos y combos)</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.checkRow} onPress={() => setCloneIngredientes(v => !v)}>
-                <View style={[styles.checkbox, cloneIngredientes && styles.checkboxOn]}>
-                  {cloneIngredientes && <Text style={styles.checkboxCheck}>✓</Text>}
-                </View>
-                <Text style={styles.checkLabel}>Ingredientes (sin stock)</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.btnSave, { marginTop: spacing.xl }, guardandoSucursal && { opacity: 0.7 }]}
-                onPress={guardarNuevaSucursal}
-                disabled={guardandoSucursal}
-              >
-                {guardandoSucursal
-                  ? <ActivityIndicator color="#fff" />
-                  : <Text style={styles.btnSaveText}>Crear sucursal</Text>
-                }
-              </TouchableOpacity>
-            </ScrollView>
-          </SafeAreaView>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* ════════════════════════════════════════════════════════════════
-          MODAL: Editar sucursal
-      ════════════════════════════════════════════════════════════════ */}
-      <Modal visible={modalEditarSucursal} animationType="slide" presentationStyle="pageSheet">
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Editar sucursal</Text>
-              <TouchableOpacity onPress={() => setModalEditarSucursal(false)}>
-                <Text style={styles.linkText}>Cancelar</Text>
-              </TouchableOpacity>
-            </View>
-            <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
-              <Text style={styles.label}>Nombre *</Text>
-              <TextInput
-                style={styles.input}
-                value={editNombre}
-                onChangeText={setEditNombre}
-                placeholder="Nombre de la sucursal"
-                placeholderTextColor={colors.textMuted}
-              />
-              <Text style={[styles.label, { marginTop: spacing.md }]}>Dirección (opcional)</Text>
-              <TextInput
-                style={styles.input}
-                value={editDir}
-                onChangeText={setEditDir}
-                placeholder="Ej: Av. Principal 123"
-                placeholderTextColor={colors.textMuted}
-              />
-              <Text style={[styles.label, { marginTop: spacing.md }]}>Teléfono (opcional)</Text>
-              <TextInput
-                style={styles.input}
-                value={editTel}
-                onChangeText={setEditTel}
-                placeholder="Ej: 55 1234 5678"
-                placeholderTextColor={colors.textMuted}
-                keyboardType="phone-pad"
-              />
-              <TouchableOpacity
-                style={[styles.btnSave, { marginTop: spacing.xl }, guardandoEditar && { opacity: 0.7 }]}
-                onPress={guardarEditarSucursal}
-                disabled={guardandoEditar}
-              >
-                {guardandoEditar
-                  ? <ActivityIndicator color="#fff" />
-                  : <Text style={styles.btnSaveText}>Guardar cambios</Text>
-                }
-              </TouchableOpacity>
-            </ScrollView>
-          </SafeAreaView>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* ════════════════════════════════════════════════════════════════
-          MODAL: Selector de sucursal
-      ════════════════════════════════════════════════════════════════ */}
-      <Modal visible={modalSucursal} animationType="slide" presentationStyle="pageSheet">
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Seleccionar sucursal</Text>
-            <TouchableOpacity onPress={() => setModalSucursal(false)}>
-              <Text style={styles.linkText}>Cancelar</Text>
-            </TouchableOpacity>
-          </View>
-          <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
-            <Text style={[styles.menuSub, { marginBottom: spacing.lg }]}>
-              Elige la sucursal que corresponde a este dispositivo.
-            </Text>
-            {/* Opción: sin sucursal */}
-            <TouchableOpacity
-              style={[styles.deviceRow, !sucursalId && { borderColor: colors.primary }]}
-              onPress={() => seleccionarSucursal(null)}
-            >
-              <Text style={[styles.menuLabel, !sucursalId && { color: colors.primary }]}>
-                Sin sucursal asignada
-              </Text>
-              {!sucursalId && <Text style={{ color: colors.primary }}>✓</Text>}
-            </TouchableOpacity>
-            {branches.map(b => (
-              <TouchableOpacity
-                key={b.id}
-                style={[styles.deviceRow, sucursalId === b.id && { borderColor: colors.primary }]}
-                onPress={() => seleccionarSucursal(b.id)}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.menuLabel, sucursalId === b.id && { color: colors.primary }]}>
-                    {b.name}
-                  </Text>
-                  {b.address ? <Text style={styles.menuSub}>{b.address}</Text> : null}
-                </View>
-                {sucursalId === b.id && <Text style={{ color: colors.primary }}>✓</Text>}
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -1370,7 +1332,30 @@ const styles = StyleSheet.create({
 
   // Secciones
   sectionTitle: { fontSize: font.sm, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: spacing.sm, marginTop: spacing.xs },
+  sectionSub:   { fontSize: font.sm - 1, color: colors.textMuted, marginBottom: spacing.md, marginTop: -spacing.xs },
   section:      { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', marginBottom: spacing.sm },
+  // Puestos
+  puestoCard:     { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.sm, overflow: 'hidden' },
+  puestoHeader:   { flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
+  puestoLabel:    { fontSize: font.md, fontWeight: '700', color: colors.textPrimary },
+  puestoSub:      { fontSize: font.sm - 1, color: colors.textMuted, marginTop: 2 },
+  permisosWrap:   { padding: spacing.md },
+  permisosTitle:  { fontSize: font.sm - 1, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: spacing.sm },
+  nombreInput:       { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.sm, fontSize: font.md, color: colors.textPrimary, backgroundColor: colors.background, marginTop: spacing.xs },
+  puestoLabelInput:  { fontSize: font.md, fontWeight: '700', color: colors.textPrimary, borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 2, marginBottom: 2 },
+  formNuevoPuesto:   { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.sm },
+  formNuevoTitle:    { fontSize: font.sm, fontWeight: '700', color: colors.textSecondary, marginBottom: spacing.sm },
+  btnNuevoPuesto:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, borderWidth: 2, borderStyle: 'dashed', borderColor: colors.border, borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.sm },
+  btnNuevoPuestoText:{ fontSize: font.sm, fontWeight: '700', color: colors.primary },
+  pinSection:        { padding: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
+  pinStatus:         { fontSize: font.sm, color: '#16a34a', fontWeight: '600', marginBottom: spacing.xs },
+  btnPinGuardar:     { backgroundColor: colors.primary, borderRadius: radius.md, paddingHorizontal: spacing.md, justifyContent: 'center', alignItems: 'center' },
+  btnPinGuardarText: { color: '#fff', fontWeight: '700', fontSize: font.sm },
+  btnQuitarPin:      { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: spacing.sm },
+  btnQuitarPinText:  { color: colors.danger, fontSize: font.sm, fontWeight: '600' },
+  permisoRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.sm },
+  permisoRowBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  permisoNombre:  { fontSize: font.sm, color: colors.textPrimary, fontWeight: '500' },
   divider:      { height: 1, backgroundColor: colors.border },
 
   // Filas de menú
@@ -1403,7 +1388,15 @@ const styles = StyleSheet.create({
   btnSaveText:     { color: '#fff', fontSize: font.md, fontWeight: '700' },
   btnRecargar:     { borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   btnRecargarText: { fontSize: font.sm, color: colors.textSecondary, fontWeight: '600' },
+  btnPlan:         { borderRadius: radius.md, padding: spacing.md, alignItems: 'center', minHeight: 44, justifyContent: 'center' },
+  btnPlanText:     { fontSize: font.md, fontWeight: '700' },
   btnIconSmall:    { padding: spacing.xs },
+  // Tipo de negocio chips
+  tipoWrap:        { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.xs },
+  tipoChip:        { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background },
+  tipoChipActive:  { borderColor: colors.primary, backgroundColor: colors.primary + '18' },
+  tipoChipText:    { fontSize: font.sm, color: colors.textSecondary },
+  tipoChipTextActive: { color: colors.primary, fontWeight: '700' },
   checkRow:        { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
   checkbox:        { width: 20, height: 20, borderRadius: 4, borderWidth: 1.5, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   checkboxOn:      { backgroundColor: colors.primary, borderColor: colors.primary },

@@ -1,12 +1,14 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  RefreshControl, ActivityIndicator, Alert,
+  RefreshControl, ActivityIndicator, Alert, Modal, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../api/client';
+import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
+import { formatMoney } from '../../utils/money';
 
 const ESTADOS = [
   { key: null,         label: 'Todos' },
@@ -26,7 +28,7 @@ const ESTADO_COLOR = {
 const PAGO_LABEL = { efectivo: 'Efectivo', tarjeta: 'Tarjeta', transferencia: 'Transferencia' };
 const PAGO_ICON  = { efectivo: 'cash-outline', tarjeta: 'card-outline', transferencia: 'phone-portrait-outline' };
 
-function PedidoCard({ pedido, onCambiarEstado }) {
+function PedidoCard({ pedido, onCambiarEstado, currency }) {
   const fecha = new Date(pedido.createdAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
   const color = ESTADO_COLOR[pedido.status] || colors.textMuted;
 
@@ -45,7 +47,7 @@ function PedidoCard({ pedido, onCambiarEstado }) {
           <View style={[styles.badge, { backgroundColor: color + '22' }]}>
             <Text style={[styles.badgeText, { color }]}>{pedido.status}</Text>
           </View>
-          <Text style={styles.pedidoTotal}>${parseFloat(pedido.total).toFixed(2)}</Text>
+          <Text style={styles.pedidoTotal}>{formatMoney(parseFloat(pedido.total), currency)}</Text>
         </View>
       </View>
 
@@ -101,16 +103,26 @@ function PedidoCard({ pedido, onCambiarEstado }) {
 }
 
 export default function PedidosScreen() {
+  const { settings, sucursalId, nombreActivo, rolActivo, permisosRolesEfectivos } = useAuth();
+  const currency = settings?.currency_symbol || '$';
   const [pedidos, setPedidos]       = useState([]);
   const [filtro, setFiltro]         = useState(null);
   const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Estado del modal de PIN para cancelación
+  const [pinModal, setPinModal]         = useState({ visible: false, pedidoId: null });
+  const [pinValue, setPinValue]         = useState('');
+  const [pinError, setPinError]         = useState('');
+  const [pinLoading, setPinLoading]     = useState(false);
+  const pinInputRef = useRef(null);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     try {
       const params = { limit: 100, page: 1 };
       if (filtro) params.status = filtro;
+      if (sucursalId) params.branch_id = sucursalId;
       const data = await api.getOrders(params);
       setPedidos(data.data || []);
     } catch (e) {
@@ -119,16 +131,55 @@ export default function PedidosScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [filtro]);
+  }, [filtro, sucursalId]);
 
   useEffect(() => { load(); }, [load]);
 
   async function cambiarEstado(id, status) {
+    if (status === 'cancelado') {
+      // Mostrar modal de PIN antes de cancelar
+      setPinModal({ visible: true, pedidoId: id });
+      setPinValue('');
+      setPinError('');
+      return;
+    }
     try {
       await api.updateOrderStatus(id, status);
       setPedidos(prev => prev.map(p => p.id === id ? { ...p, status } : p));
     } catch (e) {
       Alert.alert('Error', e.message);
+    }
+  }
+
+  async function confirmarCancelacion() {
+    if (!pinValue) { setPinError('Ingresa tu PIN'); return; }
+    if (api.isPinLocked()) {
+      setPinError(`Demasiados intentos. Espera ${api.getPinLockRemainingMin()} min.`);
+      return;
+    }
+    setPinLoading(true);
+    setPinError('');
+    try {
+      const perfilActual = permisosRolesEfectivos?.[rolActivo];
+      if (perfilActual?.pin_set) {
+        const result = await api.verifyProfilePin(rolActivo, pinValue);
+        if (!result.valid) {
+          api.registerPinFailure();
+          setPinError(api.isPinLocked() ? 'Demasiados intentos. Espera 5 min.' : 'PIN incorrecto');
+          setPinLoading(false);
+          return;
+        }
+        api.resetPinAttempts();
+      }
+
+      // PIN válido: cancelar con auditoría usando nombre del cajero activo
+      await api.cancelOrderWithPin(pinModal.pedidoId, nombreActivo || '');
+      setPedidos(prev => prev.map(p => p.id === pinModal.pedidoId ? { ...p, status: 'cancelado' } : p));
+      setPinModal({ visible: false, pedidoId: null });
+    } catch (e) {
+      setPinError(e.message || 'Error al verificar PIN');
+    } finally {
+      setPinLoading(false);
     }
   }
 
@@ -165,9 +216,58 @@ export default function PedidosScreen() {
         contentContainerStyle={{ padding: spacing.lg, paddingTop: spacing.sm }}
         ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
-        renderItem={({ item }) => <PedidoCard pedido={item} onCambiarEstado={cambiarEstado} />}
+        renderItem={({ item }) => <PedidoCard pedido={item} onCambiarEstado={cambiarEstado} currency={currency} />}
         ListEmptyComponent={<Text style={styles.empty}>No hay pedidos con este filtro</Text>}
       />
+
+      {/* Modal de PIN para cancelación */}
+      <Modal
+        visible={pinModal.visible}
+        transparent
+        animationType="fade"
+        onShow={() => setTimeout(() => pinInputRef.current?.focus(), 100)}
+      >
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>Autorización requerida</Text>
+            <Text style={styles.modalMsg}>
+              Cancelar pedido #{pinModal.pedidoId}.{'\n'}Esta acción quedará registrada.{'\n'}Ingresa tu PIN para confirmar.
+            </Text>
+            <TextInput
+              ref={pinInputRef}
+              style={[styles.pinInput, pinError ? styles.pinInputError : null]}
+              placeholder="PIN"
+              placeholderTextColor={colors.textMuted}
+              secureTextEntry
+              keyboardType="number-pad"
+              maxLength={20}
+              value={pinValue}
+              onChangeText={v => { setPinValue(v); setPinError(''); }}
+              onSubmitEditing={confirmarCancelacion}
+            />
+            {pinError ? <Text style={styles.pinErrorText}>{pinError}</Text> : null}
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnCancel]}
+                onPress={() => setPinModal({ visible: false, pedidoId: null })}
+                disabled={pinLoading}
+              >
+                <Text style={styles.modalBtnCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnConfirm, pinLoading && { opacity: 0.6 }]}
+                onPress={confirmarCancelacion}
+                disabled={pinLoading}
+              >
+                {pinLoading
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <Text style={styles.modalBtnConfirmText}>Confirmar</Text>
+                }
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -197,4 +297,18 @@ const styles = StyleSheet.create({
   accionBtn: { flex: 1, padding: spacing.sm, borderRadius: radius.sm, alignItems: 'center' },
   accionBtnText: { color: '#fff', fontWeight: '700', fontSize: font.sm },
   empty: { textAlign: 'center', color: colors.textMuted, marginTop: spacing.xxl, fontSize: font.md },
+  // Modal de PIN
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: spacing.lg },
+  modalBox: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.xl, width: '100%', maxWidth: 360, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 12, elevation: 8 },
+  modalTitle: { fontSize: font.lg, fontWeight: '800', color: colors.textPrimary, marginBottom: spacing.sm, textAlign: 'center' },
+  modalMsg: { fontSize: font.sm, color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.lg, lineHeight: 20 },
+  pinInput: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.xl, textAlign: 'center', letterSpacing: 8, color: colors.textPrimary, backgroundColor: colors.background, marginBottom: spacing.sm },
+  pinInputError: { borderColor: colors.danger },
+  pinErrorText: { color: colors.danger, fontSize: font.sm - 1, textAlign: 'center', marginBottom: spacing.sm },
+  modalActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
+  modalBtn: { flex: 1, padding: spacing.md, borderRadius: radius.md, alignItems: 'center' },
+  modalBtnCancel: { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
+  modalBtnCancelText: { color: colors.textSecondary, fontWeight: '600', fontSize: font.sm },
+  modalBtnConfirm: { backgroundColor: colors.danger },
+  modalBtnConfirmText: { color: '#fff', fontWeight: '700', fontSize: font.sm },
 });

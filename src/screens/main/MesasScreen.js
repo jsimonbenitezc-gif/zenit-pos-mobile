@@ -6,13 +6,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import EventSource from 'react-native-sse';
 import * as SecureStore from 'expo-secure-store';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
 import { formatMoney } from '../../utils/money';
+import { createSSE } from '../../utils/sse';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -168,31 +168,19 @@ export default function MesasScreen() {
       });
 
       // SSE: actualización en tiempo real cuando cambia un pedido
-      const url = api.getOrdersEventsUrl();
-      let esOrders = null;
-      if (url) {
-        esOrders = new EventSource(url);
-        esOrders.addEventListener('message', () => load());
-        esOrders.addEventListener('error', () => {});
-      }
+      const sseOrders = createSSE(api.getOrdersEventsConfig(), () => load());
 
       // SSE: actualización en tiempo real cuando cambian los insumos (stock)
-      const invUrl = api.getInventoryEventsUrl?.();
-      let esInv = null;
-      if (invUrl) {
-        esInv = new EventSource(invUrl);
-        esInv.addEventListener('message', () => {
-          api.getProductsStock(sucursalId).then(map => setStockMap(map)).catch(() => {});
-        });
-        esInv.addEventListener('error', () => {});
-      }
+      const sseInv = createSSE(api.getInventoryEventsConfig(), () => {
+        api.getProductsStock(sucursalId).then(map => setStockMap(map)).catch(() => {});
+      });
 
       // Intervalo de respaldo por si el SSE falla o no está disponible
       const interval = setInterval(() => load(), 30000);
 
       return () => {
-        esOrders?.close();
-        esInv?.close();
+        sseOrders.close();
+        sseInv.close();
         clearInterval(interval);
       };
     }, [load])

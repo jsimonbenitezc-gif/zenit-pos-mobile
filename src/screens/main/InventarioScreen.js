@@ -7,11 +7,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import EventSource from 'react-native-sse';
-import * as Crypto from 'expo-crypto';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
+import { createSSE } from '../../utils/sse';
 
 const MOTIVOS = [
   { key: 'merma',     label: 'Merma' },
@@ -286,8 +285,6 @@ export default function InventarioScreen() {
   const [busqueda, setBusqueda]         = useState('');
   const [loading, setLoading]           = useState(true);
   const [refreshing, setRefresh]        = useState(false);
-  const sseRef                          = useRef(null);
-  const sseRetryRef                     = useRef(null);
 
   // ── Modal movimiento ──
   const [modalMov, setModalMov]         = useState(false);
@@ -361,33 +358,8 @@ export default function InventarioScreen() {
   useFocusEffect(
     useCallback(() => {
       if (!isPremium) return;
-      const url = api.getInventoryEventsUrl?.();
-      if (!url) return;
-
-      const connect = () => {
-        if (sseRef.current) {
-          try { sseRef.current.close(); } catch {}
-          sseRef.current = null;
-        }
-        const es = new EventSource(url);
-        sseRef.current = es;
-        es.onmessage = () => load(true);
-        es.onerror = () => {
-          try { es.close(); } catch {}
-          sseRef.current = null;
-          if (sseRetryRef.current) clearTimeout(sseRetryRef.current);
-          sseRetryRef.current = setTimeout(connect, 10000);
-        };
-      };
-
-      connect();
-      return () => {
-        if (sseRetryRef.current) clearTimeout(sseRetryRef.current);
-        if (sseRef.current) {
-          try { sseRef.current.close(); } catch {}
-          sseRef.current = null;
-        }
-      };
+      const sse = createSSE(api.getInventoryEventsConfig(), () => load(true));
+      return () => { sse.close(); };
     }, [isPremium, load])
   );
 
@@ -532,17 +504,23 @@ export default function InventarioScreen() {
 
   const confirmarAjusteConPin = async () => {
     if (!pinAjusteValue) { setPinAjusteError('Ingresa tu PIN'); return; }
+    if (api.isPinLocked()) {
+      setPinAjusteError(`Demasiados intentos. Espera ${api.getPinLockRemainingMin()} min.`);
+      return;
+    }
     setPinAjusteLoading(true);
     setPinAjusteError('');
     try {
       const perfilActual = permisosRolesEfectivos?.[rolActivo];
-      if (perfilActual?.pin_set && perfilActual?.pin) {
-        const hash = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, pinAjusteValue);
-        if (hash !== perfilActual.pin) {
-          setPinAjusteError('PIN incorrecto');
+      if (perfilActual?.pin_set) {
+        const result = await api.verifyProfilePin(rolActivo, pinAjusteValue);
+        if (!result.valid) {
+          api.registerPinFailure();
+          setPinAjusteError(api.isPinLocked() ? 'Demasiados intentos. Espera 5 min.' : 'PIN incorrecto');
           setPinAjusteLoading(false);
           return;
         }
+        api.resetPinAttempts();
       }
       const qty = parseFloat(cantidad);
       setPinAjusteModal(false);

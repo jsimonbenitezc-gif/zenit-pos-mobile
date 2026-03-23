@@ -5,6 +5,36 @@ class ApiClient {
   constructor() {
     this.token = null;
     this.baseURL = BASE_URL;
+    this._pinFailCount = 0;
+    this._pinLockedUntil = null;
+  }
+
+  // ─── Control de intentos de PIN ──────────────────────────────────────
+  isPinLocked() {
+    if (!this._pinLockedUntil) return false;
+    if (Date.now() >= this._pinLockedUntil) {
+      this._pinFailCount = 0;
+      this._pinLockedUntil = null;
+      return false;
+    }
+    return true;
+  }
+
+  getPinLockRemainingMin() {
+    if (!this._pinLockedUntil) return 0;
+    return Math.max(0, Math.ceil((this._pinLockedUntil - Date.now()) / 60000));
+  }
+
+  registerPinFailure() {
+    this._pinFailCount++;
+    if (this._pinFailCount >= 5) {
+      this._pinLockedUntil = Date.now() + 5 * 60 * 1000;
+    }
+  }
+
+  resetPinAttempts() {
+    this._pinFailCount = 0;
+    this._pinLockedUntil = null;
   }
 
   setToken(token) {
@@ -181,14 +211,20 @@ class ApiClient {
     return this.request(`/inventory/products/${id}/recipe`, { method: 'DELETE' });
   }
 
-  getInventoryEventsUrl() {
+  getInventoryEventsConfig() {
     if (!this.token) return null;
-    return `${BASE_URL}/inventory/events?token=${this.token}`;
+    return {
+      url: `${BASE_URL}/inventory/events`,
+      options: { headers: { Authorization: `Bearer ${this.token}` } },
+    };
   }
 
-  getOrdersEventsUrl() {
+  getOrdersEventsConfig() {
     if (!this.token) return null;
-    return `${BASE_URL}/orders/events?token=${this.token}`;
+    return {
+      url: `${BASE_URL}/orders/events`,
+      options: { headers: { Authorization: `Bearer ${this.token}` } },
+    };
   }
 
   getProductsStock(branchId) {
@@ -196,9 +232,12 @@ class ApiClient {
     return this.request(`/inventory/products-stock${q}`);
   }
 
-  getSettingsEventsUrl() {
+  getSettingsEventsConfig() {
     if (!this.token) return null;
-    return `${BASE_URL}/settings/events?token=${this.token}`;
+    return {
+      url: `${BASE_URL}/settings/events`,
+      options: { headers: { Authorization: `Bearer ${this.token}` } },
+    };
   }
 
   getMovements(params = {}) {
@@ -329,9 +368,12 @@ class ApiClient {
     return this.request(`/turnos/historial${q}`);
   }
 
-  getTurnoEventsUrl() {
+  getTurnoEventsConfig() {
     if (!this.token) return null;
-    return `${this.baseURL}/turnos/events?token=${this.token}`;
+    return {
+      url: `${this.baseURL}/turnos/events`,
+      options: { headers: { Authorization: `Bearer ${this.token}` } },
+    };
   }
 
   // ─── Plan ────────────────────────────────────────────────────────────────
@@ -380,9 +422,12 @@ class ApiClient {
     return this.request(`/audit${q ? '?' + q : ''}`);
   }
 
-  getAuditEventsUrl() {
+  getAuditEventsConfig() {
     if (!this.token) return null;
-    return `${BASE_URL}/audit/events?token=${this.token}`;
+    return {
+      url: `${BASE_URL}/audit/events`,
+      options: { headers: { Authorization: `Bearer ${this.token}` } },
+    };
   }
 
   // ─── Push Notifications ──────────────────────────────────────────────────
