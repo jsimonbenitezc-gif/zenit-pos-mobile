@@ -43,7 +43,8 @@
           "defaultChannel": "default",
           "sounds": []
         }
-      ]
+      ],
+      "expo-font"
     ],
     "extra": {
       "eas": {
