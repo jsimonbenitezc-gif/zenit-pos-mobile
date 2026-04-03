@@ -50,7 +50,7 @@ class ApiClient {
   // Se llama al arrancar la app sin bloquear nada.
   ping() {
     const base = BASE_URL.replace(/\/api$/, '');
-    fetch(`${base}/health`, { signal: AbortSignal.timeout(60000) }).catch(() => {});
+    fetch(`${base}/health`).catch(() => {});
   }
 
   async request(endpoint, options = {}) {
