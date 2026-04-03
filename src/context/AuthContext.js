@@ -30,7 +30,10 @@ export function AuthProvider({ children }) {
   const [sessionEmail, setSessionEmail] = useState('');
   const pushTokenRef = useRef(null);
 
-  useEffect(() => { restoreSession(); }, []);
+  useEffect(() => {
+    api.ping(); // despertar el servidor en background mientras carga la app
+    restoreSession();
+  }, []);
 
   // Registrar callback para logout automático cuando el token expire (401)
   useEffect(() => {
@@ -169,32 +172,12 @@ export function AuthProvider({ children }) {
     return data.user;
   }
 
-  async function loginStaff(username, password) {
-    const data = await api.staffLogin(username, password);
-    await SecureStore.setItemAsync('zenit_token', data.token);
-    await SecureStore.setItemAsync('zenit_session_email', username);
-    await SecureStore.setItemAsync('zenit_login_type', 'staff');
-    api.setToken(data.token);
-    setUser(data.user);
-    setSessionEmail(username);
-    const s = await refreshSettings();
-    await _resolverPerfil(s);
-    registrarPushToken(); // sin await — no bloquea el login
-    return data.user;
-  }
-
   // Valida la contraseña del admin contra el backend SIN cambiar el estado de perfil.
   // Lo llama PerfilScreen después de seleccionar el perfil admin.
   async function verificarPasswordAdmin(password) {
     const email = sessionEmail;
     if (!email) throw new Error('No hay sesión activa. Cierra sesión e inicia de nuevo.');
-    const loginType = await SecureStore.getItemAsync('zenit_login_type') || 'owner';
-    let data;
-    if (loginType === 'staff') {
-      data = await api.staffLogin(email, password);
-    } else {
-      data = await api.login(email, password);
-    }
+    const data = await api.login(email, password);
     // Actualizar token sin tocar el estado de perfil
     await SecureStore.setItemAsync('zenit_token', data.token);
     api.setToken(data.token);
@@ -239,7 +222,7 @@ export function AuthProvider({ children }) {
     <AuthContext.Provider value={{
       user, settings, loading, isOwner, sucursalId, permisosRolesEfectivos,
       rolActivo, nombreActivo, profileReady, sessionEmail,
-      loginOwner, loginStaff, logout,
+      loginOwner, logout,
       verificarPasswordAdmin,
       refreshUser, refreshSettings,
       seleccionarPerfil, cambiarPerfil,

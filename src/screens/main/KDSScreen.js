@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import { api } from '../../api/client';
+import { useAuth } from '../../context/AuthContext';
 
 const KDS_WEB_BASE = 'https://zenit-pos-backend.onrender.com/kds';
 
@@ -38,6 +39,7 @@ const KDS = {
 };
 
 const TIPO_LABEL = {
+  comer:     'Comer aquí',
   local:     'Comer aquí',
   llevar:    'Para llevar',
   domicilio: 'Domicilio',
@@ -66,7 +68,7 @@ function formatMinutos(min) {
 function OrderCard({ order, onComplete }) {
   const min     = minutosDesde(order.createdAt);
   const color   = colorPorTiempo(min);
-  const tableName = order.Table?.name;
+  const tableName = order.table?.name;
   const tipo    = order.order_type ? (TIPO_LABEL[order.order_type] || order.order_type) : null;
   const badge   = tableName ? tableName : (tipo || 'Mostrador');
   const badgeIcon = tableName ? 'grid-outline' : 'storefront-outline';
@@ -97,10 +99,10 @@ function OrderCard({ order, onComplete }) {
 
       {/* Productos */}
       <View style={styles.itemsList}>
-        {(order.OrderItems || []).map((item, i) => (
+        {(order.items || []).map((item, i) => (
           <View key={i} style={styles.itemRow}>
             <Text style={styles.itemQty}>{item.quantity}×</Text>
-            <Text style={styles.itemName}>{item.Product?.name || `Producto ${item.product_id}`}</Text>
+            <Text style={styles.itemName}>{item.product?.name || `Producto ${item.product_id}`}</Text>
           </View>
         ))}
       </View>
@@ -128,6 +130,7 @@ function OrderCard({ order, onComplete }) {
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 
 export default function KDSScreen({ navigation }) {
+  const { sucursalId } = useAuth();
   const [orders, setOrders]       = useState([]);
   const [loading, setLoading]     = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -139,7 +142,8 @@ export default function KDSScreen({ navigation }) {
   async function abrirQR() {
     const token = await SecureStore.getItemAsync('zenit_token');
     if (!token) return;
-    const kdsUrl = `${KDS_WEB_BASE}?token=${encodeURIComponent(token)}`;
+    const branchParam = sucursalId ? `&branch_id=${sucursalId}` : '';
+    const kdsUrl = `${KDS_WEB_BASE}?token=${encodeURIComponent(token)}${branchParam}`;
     const qrSrc  = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(kdsUrl)}`;
     setQrUrl(qrSrc);
     setShowQR(true);
@@ -150,8 +154,10 @@ export default function KDSScreen({ navigation }) {
   const loadOrders = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     try {
-      const data = await api.getOrders({ status: 'registrado', limit: 100 });
-      const list = Array.isArray(data) ? data : (data?.orders || data?.rows || []);
+      const params = { status: 'registrado', limit: 100 };
+      if (sucursalId) params.branch_id = sucursalId;
+      const data = await api.getOrders(params);
+      const list = Array.isArray(data) ? data : (data?.data || data?.orders || data?.rows || []);
       setOrders(list);
       setLastUpdate(new Date());
     } catch {
@@ -160,7 +166,7 @@ export default function KDSScreen({ navigation }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [sucursalId]);
 
   useEffect(() => {
     loadOrders();

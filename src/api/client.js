@@ -1,4 +1,4 @@
-const BASE_URL = 'https://zenit-pos-backend.onrender.com/api';
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://zenit-pos-backend.onrender.com/api';
 const REQUEST_TIMEOUT_MS = 30000; // 30 segundos
 
 class ApiClient {
@@ -46,6 +46,13 @@ class ApiClient {
     this.token = null;
   }
 
+  // Despierta el servidor de Render.com en background (cold start ~30s).
+  // Se llama al arrancar la app sin bloquear nada.
+  ping() {
+    const base = BASE_URL.replace(/\/api$/, '');
+    fetch(`${base}/health`, { signal: AbortSignal.timeout(60000) }).catch(() => {});
+  }
+
   async request(endpoint, options = {}) {
     const url = `${BASE_URL}${endpoint}`;
     const headers = { 'Content-Type': 'application/json' };
@@ -80,7 +87,10 @@ class ApiClient {
       return response.json();
     } catch (error) {
       if (error.name === 'AbortError') {
-        throw new Error('El servidor no respondió a tiempo. Verifica tu conexión a internet e intenta de nuevo.');
+        throw new Error('El servidor tardó mucho en responder');
+      }
+      if (error instanceof TypeError && error.message.includes('Network request failed')) {
+        throw new Error('Sin conexión al servidor');
       }
       throw error;
     } finally {
@@ -402,25 +412,24 @@ class ApiClient {
   }
 
   // ─── Auditoría / PIN de empleado ─────────────────────────────────────────
-  // El PIN se verifica localmente; solo se envía el nombre del cajero al backend.
-  cancelOrderWithPin(orderId, employeeName) {
+  cancelOrderWithPin(orderId, { employee_id, pin, employee_name }) {
     return this.request(`/orders/${orderId}/status`, {
       method: 'PUT',
-      body: { status: 'cancelado', employee_name: employeeName }
+      body: { status: 'cancelado', employee_id, pin, employee_name }
     });
   }
 
-  updateCustomerWithPin(id, data, employeeName) {
+  updateCustomerWithPin(id, data, { employee_id, pin, employee_name }) {
     return this.request(`/customers/${id}`, {
       method: 'PUT',
-      body: { ...data, employee_name: employeeName }
+      body: { ...data, employee_id, pin, employee_name }
     });
   }
 
-  createMovementWithPin(data, employeeName) {
+  createMovementWithPin(data, { employee_id, pin, employee_name }) {
     return this.request('/inventory/movements', {
       method: 'POST',
-      body: { ...data, employee_name: employeeName }
+      body: { ...data, employee_id, pin, employee_name }
     });
   }
 

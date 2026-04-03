@@ -7,13 +7,18 @@
  * Compatible con impresoras térmicas Bluetooth de 58mm y 80mm.
  */
 
-import { Platform } from 'react-native';
+import { Platform, NativeModules } from 'react-native';
 
+// react-native-bluetooth-classic inicializa código Java nativo al importarse.
+// Solo lo cargamos si el módulo nativo existe, para evitar crash en devices
+// que no tienen Bluetooth o en builds donde el módulo nativo falló al registrarse.
 let BT = null;
-try {
-  BT = require('react-native-bluetooth-classic').default;
-} catch {
-  // No disponible en Expo Go o web
+if (NativeModules.RNBluetoothClassic) {
+  try {
+    BT = require('react-native-bluetooth-classic').default;
+  } catch {
+    // Módulo nativo presente pero JS falló — continuar sin impresión
+  }
 }
 
 // ─── Disponibilidad ───────────────────────────────────────────────────────────

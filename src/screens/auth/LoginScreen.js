@@ -8,25 +8,20 @@ import { colors, spacing, radius, font } from '../../theme';
 import { friendlyError } from '../../utils/errors';
 
 export default function LoginScreen() {
-  const { loginOwner, loginStaff } = useAuth();
+  const { loginOwner } = useAuth();
 
-  const [modo, setModo]         = useState('owner');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading]   = useState(false);
 
   async function handleLogin() {
     if (!username.trim() || !password) {
-      Alert.alert('Campos requeridos', 'Ingresa tu usuario y contraseña.');
+      Alert.alert('Campos requeridos', 'Ingresa tu correo y contraseña.');
       return;
     }
     setLoading(true);
     try {
-      if (modo === 'owner') {
-        await loginOwner(username.trim(), password);
-      } else {
-        await loginStaff(username.trim(), password);
-      }
+      await loginOwner(username.trim(), password);
     } catch (e) {
       Alert.alert('Error al iniciar sesión', friendlyError(e) || 'Verifica tus credenciales.');
     } finally {
@@ -39,34 +34,19 @@ export default function LoginScreen() {
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
 
         <View style={styles.header}>
-          <Image source={require('../../../assets/logo.png')} style={styles.logoImg} resizeMode="contain" />
+          <Image source={require('../../../assets/icon.png')} style={styles.logoImg} resizeMode="contain" />
           <Text style={styles.appName}>Zenit POS</Text>
           <Text style={styles.subtitle}>Sistema de punto de venta</Text>
         </View>
 
-        <View style={styles.modoSelector}>
-          <TouchableOpacity
-            style={[styles.modoBtn, modo === 'owner' && styles.modoBtnActive]}
-            onPress={() => setModo('owner')}
-          >
-            <Text style={[styles.modoBtnText, modo === 'owner' && styles.modoBtnTextActive]}>Dueño</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.modoBtn, modo === 'staff' && styles.modoBtnActive]}
-            onPress={() => setModo('staff')}
-          >
-            <Text style={[styles.modoBtnText, modo === 'staff' && styles.modoBtnTextActive]}>Empleado</Text>
-          </TouchableOpacity>
-        </View>
-
         <View style={styles.form}>
-          <Text style={styles.label}>{modo === 'owner' ? 'Correo electrónico' : 'Usuario'}</Text>
+          <Text style={styles.label}>Correo electrónico</Text>
           <TextInput
             style={styles.input}
             value={username}
             onChangeText={setUsername}
-            placeholder={modo === 'owner' ? 'correo@ejemplo.com' : 'mi.usuario'}
-            keyboardType={modo === 'owner' ? 'email-address' : 'default'}
+            placeholder="correo@ejemplo.com"
+            keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
             placeholderTextColor={colors.textMuted}
@@ -105,11 +85,6 @@ const styles = StyleSheet.create({
   logoImg:          { width: 90, height: 90, marginBottom: spacing.md },
   appName:          { fontSize: font.xxl + 4, fontWeight: '800', color: colors.textPrimary, letterSpacing: -0.5 },
   subtitle:         { fontSize: font.md, color: colors.textSecondary, marginTop: spacing.xs },
-  modoSelector:     { flexDirection: 'row', backgroundColor: colors.border, borderRadius: radius.lg, padding: 3, marginBottom: spacing.xl },
-  modoBtn:          { flex: 1, paddingVertical: spacing.sm + 2, borderRadius: radius.md, alignItems: 'center' },
-  modoBtnActive:    { backgroundColor: colors.surface, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
-  modoBtnText:      { fontSize: font.md, fontWeight: '600', color: colors.textSecondary },
-  modoBtnTextActive:{ color: colors.textPrimary },
   form:             { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.xl, borderWidth: 1, borderColor: colors.border },
   label:            { fontSize: font.sm, fontWeight: '600', color: colors.textSecondary, marginBottom: spacing.xs },
   input:            { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.md, color: colors.textPrimary, backgroundColor: colors.background },

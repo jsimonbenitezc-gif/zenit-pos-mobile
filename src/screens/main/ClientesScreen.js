@@ -129,7 +129,11 @@ export default function ClientesScreen() {
       // PIN válido: guardar con auditoría
       setGuardandoEditar(true);
       const payload = { name: editNombre.trim(), phone: editTelefono.trim(), address: editDireccion.trim() || null };
-      const updated = await api.updateCustomerWithPin(editando.id, payload, nombreActivo || '');
+      const updated = await api.updateCustomerWithPin(editando.id, payload, {
+        employee_id: rolActivo,
+        pin: pinEditValue,
+        employee_name: nombreActivo || '',
+      });
       setClientes(prev => prev.map(c => c.id === editando.id ? { ...c, ...updated } : c));
       setPinEditModal(false);
       setModalEditar(false);

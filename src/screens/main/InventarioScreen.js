@@ -474,7 +474,7 @@ export default function InventarioScreen() {
     _ejecutarMovimiento(qty);
   };
 
-  const _ejecutarMovimiento = async (qty, employeeName) => {
+  const _ejecutarMovimiento = async (qty, authData) => {
     setSaving(true);
     try {
       const movData = {
@@ -485,8 +485,8 @@ export default function InventarioScreen() {
         notes: notasMov.trim() || undefined,
         branch_id: sucursalId || undefined,
       };
-      if (employeeName !== undefined) {
-        await api.createMovementWithPin(movData, employeeName);
+      if (authData) {
+        await api.createMovementWithPin(movData, authData);
       } else {
         await api.createMovement(movData);
       }
@@ -525,7 +525,11 @@ export default function InventarioScreen() {
       }
       const qty = parseFloat(cantidad);
       setPinAjusteModal(false);
-      await _ejecutarMovimiento(qty, nombreActivo || '');
+      await _ejecutarMovimiento(qty, {
+        employee_id: rolActivo,
+        pin: pinAjusteValue,
+        employee_name: nombreActivo || '',
+      });
     } catch (e) {
       setPinAjusteError(e.message || 'Error al verificar PIN');
     } finally {

@@ -198,8 +198,12 @@ export default function PedidosScreen() {
         api.resetPinAttempts();
       }
 
-      // PIN válido: cancelar con auditoría usando nombre del cajero activo
-      await api.cancelOrderWithPin(pinModal.pedidoId, nombreActivo || '');
+      // PIN válido: cancelar con auditoría
+      await api.cancelOrderWithPin(pinModal.pedidoId, {
+        employee_id: rolActivo,
+        pin: pinValue,
+        employee_name: nombreActivo || '',
+      });
       setPedidos(prev => prev.map(p => p.id === pinModal.pedidoId ? { ...p, status: 'cancelado' } : p));
       setPinModal({ visible: false, pedidoId: null });
     } catch (e) {

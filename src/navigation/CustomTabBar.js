@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import { useAuth } from '../context/AuthContext';
 import { colors, spacing, radius, font } from '../theme';
+import { SCREEN_PERM_MAP } from './screenPerms';
 
 export const ALL_SCREENS = [
   { name: 'NuevaVenta', label: 'Venta', icon: 'cart-outline', active: 'cart', ownerOnly: false },
@@ -32,7 +33,7 @@ function moveItem(list, from, to) {
 }
 
 export default function CustomTabBar({ state, navigation }) {
-  const { isOwner } = useAuth();
+  const { isOwner, rolActivo, settings, permisosRolesEfectivos, cambiarPerfil } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [slots, setSlots] = useState(DEFAULT_SLOTS);
@@ -42,10 +43,19 @@ export default function CustomTabBar({ state, navigation }) {
   const [dragging, setDragging] = useState(false);
   const [draggedName, setDraggedName] = useState(null);
 
-  const availableScreens = useMemo(
-    () => ALL_SCREENS.filter(s => !s.ownerOnly || isOwner),
-    [isOwner],
-  );
+  const availableScreens = useMemo(() => {
+    let lista = ALL_SCREENS.filter(s => !s.ownerOnly || isOwner);
+    if (rolActivo && rolActivo !== 'dueno') {
+      const permisos = permisosRolesEfectivos?.[rolActivo] || {};
+      lista = lista.filter(s => {
+        if (s.name === 'Ajustes') return true; // siempre visible (impresora/KDS/cambiar perfil)
+        const key = SCREEN_PERM_MAP[s.name];
+        if (!key) return true;
+        return permisos[key] !== false;
+      });
+    }
+    return lista;
+  }, [isOwner, rolActivo, permisosRolesEfectivos]);
 
   const BAR_HEIGHT = 64 + (insets.bottom || spacing.sm);
   const sheetY = useRef(new Animated.Value(360)).current;
@@ -70,6 +80,33 @@ export default function CustomTabBar({ state, navigation }) {
       } catch {}
     });
   }, []);
+
+  // Slots efectivos:
+  // 1. Tomar los slots guardados que estén disponibles (en orden de preferencia)
+  // 2. Completar hasta 5 con pantallas disponibles no usadas aún
+  // 3. Si hay menos de 5 disponibles, mostrar solo las que hay (sin repetir)
+  const effectiveSlots = useMemo(() => {
+    const available = availableScreens.map(s => s.name);
+    if (available.length === 0) return [];
+    const result = [];
+    const used = new Set();
+    // Paso 1: slots preferidos disponibles
+    for (const name of slots) {
+      if (available.includes(name) && !used.has(name)) {
+        result.push(name);
+        used.add(name);
+      }
+    }
+    // Paso 2: rellenar con disponibles no usados
+    for (const name of available) {
+      if (result.length >= 5) break;
+      if (!used.has(name)) {
+        result.push(name);
+        used.add(name);
+      }
+    }
+    return result;
+  }, [slots, availableScreens]);
 
   useEffect(() => {
     const id = sheetY.addListener(({ value }) => {
@@ -267,7 +304,7 @@ export default function CustomTabBar({ state, navigation }) {
           </Text>
 
           <View style={styles.quickRow}>
-            {slots.map((screenName, idx) => {
+            {effectiveSlots.map((screenName, idx) => {
               const screen = availableScreens.find(s => s.name === screenName);
               if (!screen) return null;
               const picked = selectedSlot === idx;
@@ -316,6 +353,22 @@ export default function CustomTabBar({ state, navigation }) {
               );
             })}
           </View>
+
+          {/* Cambiar perfil — visible si hay puestos activos */}
+          {Object.values(permisosRolesEfectivos || {}).some(p => p?.enabled) && (
+            <Pressable
+              style={styles.cambiarPerfilBtn}
+              onPress={() => { closeMore(); cambiarPerfil(); }}
+            >
+              <Ionicons name="swap-horizontal-outline" size={18} color={colors.textSecondary} />
+              <Text style={styles.cambiarPerfilText}>
+                {rolActivo && rolActivo !== 'dueno'
+                  ? `Activo: ${permisosRolesEfectivos?.[rolActivo]?.nombre || permisosRolesEfectivos?.[rolActivo]?._label || rolActivo} · Cambiar perfil`
+                  : 'Cambiar perfil'}
+              </Text>
+              <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+            </Pressable>
+          )}
         </Animated.View>
       )}
 
@@ -338,7 +391,7 @@ export default function CustomTabBar({ state, navigation }) {
           onLayout={(e) => setTabsWidth(e.nativeEvent.layout.width)}
           {...(dragging ? reorderPan.panHandlers : {})}
         >
-          {slots.map((screenName, idx) => {
+          {effectiveSlots.map((screenName, idx) => {
             const screen = availableScreens.find(s => s.name === screenName);
             if (!screen) return null;
             const isActive = currentRoute === screenName;
@@ -591,6 +644,22 @@ const styles = StyleSheet.create({
   moreItemLabelActive: {
     color: colors.primary,
     fontWeight: '700',
+  },
+  cambiarPerfilBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    marginTop: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  cambiarPerfilText: {
+    flex: 1,
+    fontSize: font.sm,
+    color: colors.textSecondary,
+    fontWeight: '600',
   },
 });
 
