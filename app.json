@@ -12,7 +12,14 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Zenit POS necesita acceso a la cámara para escanear códigos QR y tomar fotos de productos.",
+        "NSPhotoLibraryUsageDescription": "Zenit POS necesita acceso a tu galería para seleccionar imágenes de productos y el logo del negocio.",
+        "NSPhotoLibraryAddUsageDescription": "Zenit POS necesita guardar imágenes en tu galería.",
+        "NSBluetoothAlwaysUsageDescription": "Zenit POS necesita acceso a Bluetooth para conectarse a impresoras térmicas.",
+        "NSBluetoothPeripheralUsageDescription": "Zenit POS necesita acceso a Bluetooth para conectarse a impresoras térmicas."
+      }
     },
     "android": {
       "adaptiveIcon": {
