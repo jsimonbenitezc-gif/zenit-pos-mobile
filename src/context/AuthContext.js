@@ -39,8 +39,10 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     api.onUnauthorized = () => {
       SecureStore.deleteItemAsync('zenit_token').catch(() => {});
+      SecureStore.deleteItemAsync('zenit_refresh_token').catch(() => {});
       SecureStore.deleteItemAsync('zenit_push_token').catch(() => {});
       api.clearToken();
+      api.clearRefreshToken();
       setUser(null);
       setSettings({});
       setRolActivo(null);
@@ -49,7 +51,17 @@ export function AuthProvider({ children }) {
       setSessionEmail('');
       Alert.alert('Sesión expirada', 'Tu sesión expiró. Inicia sesión de nuevo.');
     };
-    return () => { api.onUnauthorized = null; };
+    // Persistir nuevos tokens cuando el cliente API rota el access token
+    api.onTokenRefreshed = async (token, refreshToken) => {
+      try {
+        await SecureStore.setItemAsync('zenit_token', token);
+        if (refreshToken) await SecureStore.setItemAsync('zenit_refresh_token', refreshToken);
+      } catch {}
+    };
+    return () => {
+      api.onUnauthorized = null;
+      api.onTokenRefreshed = null;
+    };
   }, []);
 
   async function refreshUser() {
@@ -104,8 +116,10 @@ export function AuthProvider({ children }) {
   async function restoreSession() {
     try {
       const token = await SecureStore.getItemAsync('zenit_token');
+      const refreshToken = await SecureStore.getItemAsync('zenit_refresh_token');
       if (token) {
         api.setToken(token);
+        if (refreshToken) api.setRefreshToken(refreshToken);
         const me = await api.getMe();
         setUser(me);
         const email = await SecureStore.getItemAsync('zenit_session_email') || '';
@@ -116,7 +130,9 @@ export function AuthProvider({ children }) {
       }
     } catch {
       await SecureStore.deleteItemAsync('zenit_token');
+      await SecureStore.deleteItemAsync('zenit_refresh_token');
       api.clearToken();
+      api.clearRefreshToken();
     } finally {
       setLoading(false);
     }
@@ -161,9 +177,11 @@ export function AuthProvider({ children }) {
   async function loginOwner(username, password) {
     const data = await api.login(username, password);
     await SecureStore.setItemAsync('zenit_token', data.token);
+    if (data.refreshToken) await SecureStore.setItemAsync('zenit_refresh_token', data.refreshToken);
     await SecureStore.setItemAsync('zenit_session_email', username);
     await SecureStore.setItemAsync('zenit_login_type', 'owner');
     api.setToken(data.token);
+    if (data.refreshToken) api.setRefreshToken(data.refreshToken);
     setUser(data.user);
     setSessionEmail(username);
     const s = await refreshSettings();
@@ -180,7 +198,9 @@ export function AuthProvider({ children }) {
     const data = await api.login(email, password);
     // Actualizar token sin tocar el estado de perfil
     await SecureStore.setItemAsync('zenit_token', data.token);
+    if (data.refreshToken) await SecureStore.setItemAsync('zenit_refresh_token', data.refreshToken);
     api.setToken(data.token);
+    if (data.refreshToken) api.setRefreshToken(data.refreshToken);
     setUser(data.user);
   }
 
@@ -203,9 +223,11 @@ export function AuthProvider({ children }) {
       if (token) await api.unregisterPushToken(token);
     } catch {}
     await SecureStore.deleteItemAsync('zenit_token');
+    await SecureStore.deleteItemAsync('zenit_refresh_token');
     await SecureStore.deleteItemAsync('zenit_push_token');
     pushTokenRef.current = null;
     api.clearToken();
+    api.clearRefreshToken();
     setUser(null);
     setSettings({});
     setRolActivo(null);
@@ -218,9 +240,18 @@ export function AuthProvider({ children }) {
   const sucursalId = settings?.sucursal_id || null;
   const permisosRolesEfectivos = _permisosEfectivos(settings);
 
+  // Premium activo: misma regla que el backend (middleware/checkPlan.js) —
+  // el plan debe ser premium o trial Y la fecha de vencimiento debe estar en el futuro.
+  // Sin esto, un premium vencido vería pantallas vacías en vez del bloqueo.
+  const isPremium = (() => {
+    if (user?.plan !== 'premium' && user?.plan !== 'trial') return false;
+    if (!user?.plan_expires_at) return false;
+    return new Date(user.plan_expires_at) > new Date();
+  })();
+
   return (
     <AuthContext.Provider value={{
-      user, settings, loading, isOwner, sucursalId, permisosRolesEfectivos,
+      user, settings, loading, isOwner, isPremium, sucursalId, permisosRolesEfectivos,
       rolActivo, nombreActivo, profileReady, sessionEmail,
       loginOwner, logout,
       verificarPasswordAdmin,

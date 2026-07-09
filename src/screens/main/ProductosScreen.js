@@ -6,6 +6,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { Image } from 'react-native';
+import IconoProducto from '../../components/IconoProducto';
+import IconPicker from '../../components/IconPicker';
 import { api } from '../../api/client';
 import { colors, spacing, radius, font } from '../../theme';
 import { formatMoney } from '../../utils/money';
@@ -17,7 +21,7 @@ import { useAuth } from '../../context/AuthContext';
 function ProductRow({ product, onEdit, currency }) {
   return (
     <View style={styles.row}>
-      <Text style={styles.rowEmoji}>{product.emoji || '🛍️'}</Text>
+      <IconoProducto valor={product.emoji || 'svg:shopping-bag'} imagen={product.image} size={24} color={colors.textSecondary} />
       <View style={{ flex: 1 }}>
         <Text style={styles.rowName}>{product.name}</Text>
         <Text style={styles.rowCat}>{product.category?.name || 'Sin categoría'}</Text>
@@ -35,7 +39,7 @@ function ProductRow({ product, onEdit, currency }) {
 function CatRow({ cat, onEdit, onDelete }) {
   return (
     <View style={styles.row}>
-      <Text style={styles.rowEmoji}>{cat.emoji || '📁'}</Text>
+      <IconoProducto valor={cat.emoji || 'svg:folder'} size={24} color={colors.textSecondary} />
       <Text style={[styles.rowName, { flex: 1 }]}>{cat.name}</Text>
       <TouchableOpacity style={styles.editBtn} onPress={() => onEdit(cat)}>
         <Ionicons name="pencil-outline" size={16} color={colors.textMuted} />
@@ -70,8 +74,13 @@ export default function ProductosScreen() {
   const [nombre, setNombre]         = useState('');
   const [precio, setPrecio]         = useState('');
   const [emoji, setEmoji]           = useState('');
+  const [imagenProd, setImagenProd] = useState(null); // data URI de la foto (o null)
   const [catId, setCatId]           = useState('');
   const [guardando, setGuardando]   = useState(false);
+
+  // Icon picker
+  const [pickerProd, setPickerProd] = useState(false);
+  const [pickerCat, setPickerCat]   = useState(false);
 
   // Modal categoría
   const [modalCat, setModalCat]     = useState(false);
@@ -100,7 +109,7 @@ export default function ProductosScreen() {
 
   function abrirNuevoProd() {
     setEditProd(null);
-    setNombre(''); setPrecio(''); setEmoji(''); setCatId(categorias[0]?.id || '');
+    setNombre(''); setPrecio(''); setEmoji('svg:package'); setImagenProd(null); setCatId(categorias[0]?.id || '');
     setModalProd(true);
   }
 
@@ -108,9 +117,35 @@ export default function ProductosScreen() {
     setEditProd(p);
     setNombre(p.name);
     setPrecio(String(p.price));
-    setEmoji(p.emoji || '');
+    setEmoji(p.emoji || 'svg:package');
+    setImagenProd(p.image || null);
     setCatId(p.category_id || '');
     setModalProd(true);
+  }
+
+  // Elige una foto de la galería, la reduce a ~300px y la deja como data URI.
+  // Se guarda en la nube (image) para verse en todos los dispositivos.
+  async function elegirImagenProd() {
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert('Permiso necesario', 'Autoriza el acceso a tus fotos para elegir una imagen.');
+        return;
+      }
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.6,
+        base64: true,
+      });
+      if (res.canceled || !res.assets?.[0]?.base64) return;
+      const asset = res.assets[0];
+      const mime = asset.mimeType || 'image/jpeg';
+      setImagenProd(`data:${mime};base64,${asset.base64}`);
+    } catch (e) {
+      Alert.alert('Error', 'No se pudo cargar la imagen.');
+    }
   }
 
   async function guardarProd() {
@@ -125,7 +160,14 @@ export default function ProductosScreen() {
     }
     setGuardando(true);
     try {
-      const body = { name: nombre.trim(), price: precioNum, emoji: emoji.trim(), category_id: catId || null };
+      // Si hay foto, se guarda la imagen (y se limpia el emoji); si no, al revés.
+      const body = {
+        name: nombre.trim(),
+        price: precioNum,
+        emoji: imagenProd ? '' : emoji.trim(),
+        image: imagenProd || null,
+        category_id: catId || null,
+      };
       if (editandoProd) {
         const updated = await api.updateProduct(editandoProd.id, body);
         setProductos(prev => prev.map(p => p.id === editandoProd.id ? { ...p, ...updated } : p));
@@ -157,14 +199,14 @@ export default function ProductosScreen() {
 
   function abrirNuevaCat() {
     setEditCat(null);
-    setCatNombre(''); setCatEmoji('');
+    setCatNombre(''); setCatEmoji('svg:package');
     setModalCat(true);
   }
 
   function abrirEditarCat(c) {
     setEditCat(c);
     setCatNombre(c.name);
-    setCatEmoji(c.emoji || '');
+    setCatEmoji(c.emoji || 'svg:package');
     setModalCat(true);
   }
 
@@ -275,9 +317,10 @@ export default function ProductosScreen() {
                 style={[styles.catChip, catFiltro === c.id && styles.catChipActive]}
                 onPress={() => setCatFiltro(catFiltro === c.id ? null : c.id)}
               >
-                <Text style={[styles.catChipText, catFiltro === c.id && styles.catChipTextActive]}>
-                  {c.emoji ? `${c.emoji} ` : ''}{c.name}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  {c.emoji ? <IconoProducto valor={c.emoji} size={14} color={catFiltro === c.id ? '#fff' : colors.textSecondary} /> : null}
+                  <Text style={[styles.catChipText, catFiltro === c.id && styles.catChipTextActive]}>{c.name}</Text>
+                </View>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -323,8 +366,28 @@ export default function ProductosScreen() {
               <Text style={[styles.label, { marginTop: spacing.md }]}>Precio *</Text>
               <TextInput style={styles.input} value={precio} onChangeText={setPrecio} placeholder="0.00" keyboardType="decimal-pad" placeholderTextColor={colors.textMuted} />
 
-              <Text style={[styles.label, { marginTop: spacing.md }]}>Emoji</Text>
-              <TextInput style={styles.input} value={emoji} onChangeText={setEmoji} placeholder="🍔" placeholderTextColor={colors.textMuted} />
+              <Text style={[styles.label, { marginTop: spacing.md }]}>Imagen o icono</Text>
+              {imagenProd ? (
+                <View style={{ alignItems: 'center', marginBottom: spacing.sm }}>
+                  <Image source={{ uri: imagenProd }} style={{ width: 100, height: 100, borderRadius: radius.md }} />
+                  <TouchableOpacity onPress={() => setImagenProd(null)} style={{ marginTop: spacing.xs }}>
+                    <Text style={[styles.linkText, { color: colors.danger }]}>Quitar foto</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity style={styles.iconPickerBtn} onPress={() => setPickerProd(true)}>
+                  <IconoProducto valor={emoji || 'svg:package'} size={28} color={colors.textPrimary} />
+                  <Text style={styles.iconPickerLabel}>Cambiar icono</Text>
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={[styles.iconPickerBtn, { marginTop: spacing.xs }]} onPress={elegirImagenProd}>
+                <Ionicons name="image-outline" size={22} color={colors.primary} />
+                <Text style={[styles.iconPickerLabel, { color: colors.primary }]}>
+                  {imagenProd ? 'Cambiar foto' : 'Subir una foto'}
+                </Text>
+                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+              </TouchableOpacity>
 
               <Text style={[styles.label, { marginTop: spacing.md }]}>Categoría</Text>
               <TouchableOpacity
@@ -339,7 +402,10 @@ export default function ProductosScreen() {
                   style={[styles.catOpcion, catId === c.id && styles.catOpcionActive]}
                   onPress={() => setCatId(c.id)}
                 >
-                  <Text style={[styles.catOpcionText, catId === c.id && { color: '#fff' }]}>{c.emoji} {c.name}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    {c.emoji ? <IconoProducto valor={c.emoji} size={18} color={catId === c.id ? '#fff' : colors.textPrimary} /> : null}
+                    <Text style={[styles.catOpcionText, catId === c.id && { color: '#fff' }]}>{c.name}</Text>
+                  </View>
                 </TouchableOpacity>
               ))}
 
@@ -378,8 +444,12 @@ export default function ProductosScreen() {
               <Text style={styles.label}>Nombre *</Text>
               <TextInput style={styles.input} value={catNombre} onChangeText={setCatNombre} placeholder="Ej: Bebidas" placeholderTextColor={colors.textMuted} />
 
-              <Text style={[styles.label, { marginTop: spacing.md }]}>Emoji</Text>
-              <TextInput style={styles.input} value={catEmoji} onChangeText={setCatEmoji} placeholder="🥤" placeholderTextColor={colors.textMuted} />
+              <Text style={[styles.label, { marginTop: spacing.md }]}>Icono</Text>
+              <TouchableOpacity style={styles.iconPickerBtn} onPress={() => setPickerCat(true)}>
+                <IconoProducto valor={catEmoji || 'svg:package'} size={28} color={colors.textPrimary} />
+                <Text style={styles.iconPickerLabel}>Cambiar icono</Text>
+                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+              </TouchableOpacity>
 
               <TouchableOpacity
                 style={[styles.btnGuardar, { marginTop: spacing.xl }, guardandoCat && { opacity: 0.7 }]}
@@ -395,6 +465,10 @@ export default function ProductosScreen() {
           </SafeAreaView>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Icon pickers */}
+      <IconPicker value={emoji} onSelect={setEmoji} visible={pickerProd} onClose={() => setPickerProd(false)} />
+      <IconPicker value={catEmoji} onSelect={setCatEmoji} visible={pickerCat} onClose={() => setPickerCat(false)} />
     </SafeAreaView>
   );
 }
@@ -437,4 +511,10 @@ const styles = StyleSheet.create({
   btnGuardarText: { color: '#fff', fontSize: font.lg, fontWeight: '700' },
   btnEliminar: { borderWidth: 1, borderColor: colors.danger, borderRadius: radius.md, padding: spacing.md, alignItems: 'center', marginTop: spacing.lg },
   btnEliminarText: { color: colors.danger, fontSize: font.md, fontWeight: '700' },
+  iconPickerBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    borderWidth: 1, borderColor: colors.border, borderRadius: radius.md,
+    padding: spacing.md, backgroundColor: colors.surface,
+  },
+  iconPickerLabel: { flex: 1, fontSize: font.md, color: colors.textSecondary },
 });

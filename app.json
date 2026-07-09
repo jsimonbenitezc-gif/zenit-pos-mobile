@@ -3,13 +3,13 @@
     "name": "zenit-pos-mobile",
     "slug": "zenit-pos",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#2563eb"
     },
     "ios": {
       "supportsTablet": true,
@@ -23,10 +23,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#2563eb",
+        "foregroundImage": "./assets/android-icon-foreground.png"
       },
       "package": "com.zenitsoftware.zenitpos",
       "permissions": [
@@ -51,7 +49,13 @@
           "sounds": []
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-screen-orientation",
+        {
+          "initialOrientation": "DEFAULT"
+        }
+      ]
     ],
     "extra": {
       "eas": {

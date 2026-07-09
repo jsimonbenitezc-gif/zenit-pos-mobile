@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import {
   View, Text, FlatList, StyleSheet, ActivityIndicator,
   RefreshControl, Alert, TextInput, TouchableOpacity,
@@ -7,6 +7,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import IconoProducto from '../../components/IconoProducto';
+import ListaComprasSection from './ListaComprasSection';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
@@ -37,12 +39,13 @@ function unidadesInsumo(ing) {
 }
 
 // Elimina ceros innecesarios de valores DECIMAL que vienen del backend como strings
-// Ej: "39.000" → "39", "0.600" → "0.6", "5.500" → "5.5"
+// y limita a 2 decimales (los consumos por receta dejan colas tipo 1.9999999925).
+// Ej: "39.000" → "39", "0.600" → "0.6", "1.9999999925" → "2"
 function fmt(val) {
   if (val == null) return '—';
   const n = parseFloat(val);
   if (isNaN(n)) return String(val);
-  return String(n);
+  return String(Math.round(n * 100) / 100);
 }
 
 // ─── Insumo row ───────────────────────────────────────────────────────────────
@@ -147,7 +150,7 @@ function RecetaRow({ product, items, ingredients, preparations, onDelete, onEdit
         onPress={() => setExpanded(v => !v)}
         activeOpacity={0.7}
       >
-        <Text style={{ fontSize: 22, marginRight: spacing.sm }}>{product.emoji || '📦'}</Text>
+        <View style={{ marginRight: spacing.sm }}><IconoProducto valor={product.emoji || 'svg:package'} size={22} color={colors.textPrimary} /></View>
         <View style={{ flex: 1 }}>
           <Text style={styles.rowName}>{product.name}</Text>
           <Text style={styles.rowUnit}>{items.length} {items.length === 1 ? 'componente' : 'componentes'}</Text>
@@ -206,14 +209,21 @@ function MovRow({ item }) {
 
 // ─── Premium gate ─────────────────────────────────────────────────────────────
 function PremiumGate() {
+  const navigation = useNavigation();
   return (
     <View style={styles.premiumWrap}>
       <Ionicons name="layers-outline" size={52} color={colors.textMuted} />
       <Text style={styles.premiumTitle}>Función Premium</Text>
       <Text style={styles.premiumSubtitle}>
         El control de inventario está disponible en el plan Premium.
-        Actívalo desde la app de escritorio Zenit POS.
+        Revisa el estado de tu plan en Ajustes.
       </Text>
+      <TouchableOpacity
+        style={styles.premiumBtn}
+        onPress={() => navigation.navigate('Ajustes')}
+      >
+        <Text style={styles.premiumBtnText}>Ver mi plan</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -274,8 +284,7 @@ function IngSelector({ ingredients, preparations, selected, onSelect, includePre
 
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 export default function InventarioScreen() {
-  const { user, sucursalId, nombreActivo, rolActivo, permisosRolesEfectivos } = useAuth();
-  const isPremium = user?.plan === 'premium' || user?.plan === 'trial';
+  const { user, isPremium, sucursalId, nombreActivo, rolActivo, permisosRolesEfectivos } = useAuth();
 
   const [tab, setTab]                   = useState('insumos');
   const [ingredients, setIngredients]   = useState([]);
@@ -359,8 +368,8 @@ export default function InventarioScreen() {
   useFocusEffect(
     useCallback(() => {
       if (!isPremium) return;
-      const sse = createSSE(api.getInventoryEventsConfig(), () => load(true));
-      return () => { sse.close(); };
+      const sse = createSSE(() => api.getInventoryEventsConfig(), () => load(true));
+      return () => { try { sse?.close(); } catch {} };
     }, [isPremium, load])
   );
 
@@ -632,7 +641,7 @@ export default function InventarioScreen() {
   const recetasData = Object.entries(recetasPorProd)
     .map(([pid, items]) => {
       const prod = products.find(p => p.id === parseInt(pid));
-      const product = prod || { id: parseInt(pid), name: `Producto #${pid}`, emoji: '📦' };
+      const product = prod || { id: parseInt(pid), name: `Producto #${pid}`, emoji: 'svg:package' };
       return { product, items };
     })
     .filter(r => !q || r.product.name.toLowerCase().includes(q));
@@ -642,6 +651,7 @@ export default function InventarioScreen() {
     { key: 'preparaciones', label: 'Preps',      icon: 'beaker-outline' },
     { key: 'recetas',       label: 'Recetas',    icon: 'book-outline' },
     { key: 'historial',     label: 'Historial',  icon: 'time-outline' },
+    { key: 'compras',       label: 'Compras',    icon: 'cart-outline' },
   ];
 
   return (
@@ -701,17 +711,19 @@ export default function InventarioScreen() {
         ))}
       </View>
 
-      {/* Búsqueda */}
-      <View style={styles.searchWrap}>
-        <Ionicons name="search-outline" size={18} color={colors.textMuted} />
-        <TextInput
-          style={styles.searchInput}
-          value={busqueda}
-          onChangeText={setBusqueda}
-          placeholder={tab === 'insumos' ? 'Buscar insumo...' : tab === 'preparaciones' ? 'Buscar preparación...' : tab === 'recetas' ? 'Buscar producto...' : 'Buscar...'}
-          placeholderTextColor={colors.textMuted}
-        />
-      </View>
+      {/* Búsqueda (la pestaña de compras tiene sus propios controles) */}
+      {tab !== 'compras' && (
+        <View style={styles.searchWrap}>
+          <Ionicons name="search-outline" size={18} color={colors.textMuted} />
+          <TextInput
+            style={styles.searchInput}
+            value={busqueda}
+            onChangeText={setBusqueda}
+            placeholder={tab === 'insumos' ? 'Buscar insumo...' : tab === 'preparaciones' ? 'Buscar preparación...' : tab === 'recetas' ? 'Buscar producto...' : 'Buscar...'}
+            placeholderTextColor={colors.textMuted}
+          />
+        </View>
+      )}
 
       {/* Contenido */}
       {tab === 'insumos' && (
@@ -747,6 +759,9 @@ export default function InventarioScreen() {
           renderItem={({ item }) => <MovRow item={item} />}
           ListEmptyComponent={<Text style={styles.empty}>No hay movimientos registrados</Text>}
         />
+      )}
+      {tab === 'compras' && (
+        <ListaComprasSection branchId={sucursalId} nombreActivo={nombreActivo} />
       )}
 
       {/* ── Modal movimiento ── */}
@@ -958,7 +973,7 @@ export default function InventarioScreen() {
                 <Text style={styles.label}>Producto *</Text>
                 {recetaProd ? (
                   <View style={styles.ingSelecRow}>
-                    <Text style={{ fontSize: 20, marginRight: spacing.xs }}>{recetaProd.emoji || '📦'}</Text>
+                    <View style={{ marginRight: spacing.xs }}><IconoProducto valor={recetaProd.emoji || 'svg:package'} size={20} color={colors.textPrimary} /></View>
                     <Text style={[styles.ingSelecNombre, { flex: 1 }]}>{recetaProd.name}</Text>
                     <TouchableOpacity onPress={() => setRecetaProd(null)}>
                       <Ionicons name="close-circle" size={22} color={colors.textMuted} />
@@ -1092,7 +1107,7 @@ function ProductSelector({ products, onSelect }) {
         <View style={styles.sugerenciasBox}>
           {sugs.map(p => (
             <TouchableOpacity key={p.id} style={styles.sugerenciaItem} onPress={() => { onSelect(p); setBusq(''); }}>
-              <Text style={styles.sugNombre}>{p.emoji ? `${p.emoji} ` : ''}{p.name}</Text>
+              <Text style={styles.sugNombre}>{p.name}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -1140,6 +1155,8 @@ const styles = StyleSheet.create({
   premiumWrap:         { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xxl, gap: spacing.md },
   premiumTitle:        { fontSize: font.xl, fontWeight: '800', color: colors.textPrimary },
   premiumSubtitle:     { fontSize: font.md, color: colors.textMuted, textAlign: 'center', lineHeight: 22 },
+  premiumBtn:          { backgroundColor: colors.primary, paddingVertical: 12, paddingHorizontal: 28, borderRadius: radius.md, marginTop: spacing.sm },
+  premiumBtnText:      { color: '#fff', fontSize: font.md, fontWeight: '700' },
   overlay:             { flex: 1, backgroundColor: '#0006', justifyContent: 'flex-end' },
   modalBox:            { backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '92%' },
   modalHeader:         { flexDirection: 'row', alignItems: 'center', padding: spacing.lg, borderBottomWidth: 1, borderColor: colors.border },

@@ -4,10 +4,13 @@ const REQUEST_TIMEOUT_MS = 30000; // 30 segundos
 class ApiClient {
   constructor() {
     this.token = null;
+    this.refreshToken = null;
     this.baseURL = BASE_URL;
     this._pinFailCount = 0;
     this._pinLockedUntil = null;
     this.onUnauthorized = null; // callback para sesión expirada
+    this.onTokenRefreshed = null; // callback (token, refreshToken) tras rotación exitosa
+    this._refreshPromise = null; // dedupe: evita refrescar varias veces en paralelo
   }
 
   // ─── Control de intentos de PIN ──────────────────────────────────────
@@ -46,6 +49,14 @@ class ApiClient {
     this.token = null;
   }
 
+  setRefreshToken(refreshToken) {
+    this.refreshToken = refreshToken;
+  }
+
+  clearRefreshToken() {
+    this.refreshToken = null;
+  }
+
   // Despierta el servidor de Render.com en background (cold start ~30s).
   // Se llama al arrancar la app sin bloquear nada.
   ping() {
@@ -53,7 +64,77 @@ class ApiClient {
     fetch(`${base}/health`).catch(() => {});
   }
 
-  async request(endpoint, options = {}) {
+  // Intenta rotar el access token usando el refresh token actual.
+  // Devuelve el nuevo access token o null si falló.
+  // Usa fetch directamente (no this.request) para evitar recursión infinita.
+  async _doRefresh() {
+    if (!this.refreshToken) return null;
+    const url = `${BASE_URL}/auth/refresh`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: this.refreshToken }),
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      if (!data || !data.token) return null;
+      this.token = data.token;
+      if (data.refreshToken) this.refreshToken = data.refreshToken;
+      if (this.onTokenRefreshed) {
+        try { await this.onTokenRefreshed(data.token, data.refreshToken || null); } catch {}
+      }
+      return data.token;
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  // Garantiza una sola operación de refresh concurrente.
+  _refreshTokenOnce() {
+    if (!this._refreshPromise) {
+      this._refreshPromise = this._doRefresh().finally(() => {
+        this._refreshPromise = null;
+      });
+    }
+    return this._refreshPromise;
+  }
+
+  // Decodifica la fecha de expiración (exp) del JWT actual, en milisegundos.
+  // Sin atob(): Hermes no garantiza soportarlo (ver CLAUDE.md — trampas Hermes).
+  _tokenExpMs() {
+    try {
+      const payload = this.token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+      let out = '', buffer = 0, bits = 0;
+      for (const c of payload.replace(/=+$/, '')) {
+        const val = chars.indexOf(c);
+        if (val < 0) continue;
+        buffer = (buffer << 6) | val; bits += 6;
+        if (bits >= 8) { bits -= 8; out += String.fromCharCode((buffer >> bits) & 0xff); }
+      }
+      return (JSON.parse(out).exp || 0) * 1000;
+    } catch { return 0; }
+  }
+
+  // Renueva el access token si está vencido o por vencer (< 60s).
+  // Lo usan las conexiones SSE antes de (re)conectar: sin esto, una reconexión
+  // con token vencido falla en cadena y las pantallas quedan esperando al polling.
+  async ensureFreshToken() {
+    if (!this.token || !this.refreshToken) return;
+    const exp = this._tokenExpMs();
+    if (exp && exp - Date.now() < 60000) {
+      await this._refreshTokenOnce();
+    }
+  }
+
+  async request(endpoint, options = {}, _isRetry = false) {
     const url = `${BASE_URL}${endpoint}`;
     const headers = { 'Content-Type': 'application/json' };
 
@@ -74,7 +155,15 @@ class ApiClient {
       const response = await fetch(url, config);
 
       if (response.status === 401) {
+        // Si tenemos refresh token y no es ya un reintento, intentar rotar y reintentar
+        if (!_isRetry && this.refreshToken) {
+          const nuevoToken = await this._refreshTokenOnce();
+          if (nuevoToken) {
+            return this.request(endpoint, options, true);
+          }
+        }
         this.token = null;
+        this.refreshToken = null;
         if (this.onUnauthorized) this.onUnauthorized();
         throw new Error('Sesión expirada');
       }
@@ -228,7 +317,8 @@ class ApiClient {
     return this.request(`/inventory/products/${id}/recipe`, { method: 'DELETE' });
   }
 
-  getInventoryEventsConfig() {
+  async getInventoryEventsConfig() {
+    await this.ensureFreshToken();
     if (!this.token) return null;
     return {
       url: `${BASE_URL}/inventory/events`,
@@ -236,7 +326,8 @@ class ApiClient {
     };
   }
 
-  getOrdersEventsConfig() {
+  async getOrdersEventsConfig() {
+    await this.ensureFreshToken();
     if (!this.token) return null;
     return {
       url: `${BASE_URL}/orders/events`,
@@ -249,7 +340,8 @@ class ApiClient {
     return this.request(`/inventory/products-stock${q}`);
   }
 
-  getSettingsEventsConfig() {
+  async getSettingsEventsConfig() {
+    await this.ensureFreshToken();
     if (!this.token) return null;
     return {
       url: `${BASE_URL}/settings/events`,
@@ -385,7 +477,8 @@ class ApiClient {
     return this.request(`/turnos/historial${q}`);
   }
 
-  getTurnoEventsConfig() {
+  async getTurnoEventsConfig() {
+    await this.ensureFreshToken();
     if (!this.token) return null;
     return {
       url: `${this.baseURL}/turnos/events`,
@@ -438,7 +531,8 @@ class ApiClient {
     return this.request(`/audit${q ? '?' + q : ''}`);
   }
 
-  getAuditEventsConfig() {
+  async getAuditEventsConfig() {
+    await this.ensureFreshToken();
     if (!this.token) return null;
     return {
       url: `${BASE_URL}/audit/events`,
@@ -453,6 +547,41 @@ class ApiClient {
 
   unregisterPushToken(token) {
     return this.request('/push/token', { method: 'DELETE', body: { token } });
+  }
+
+  // ─── Lista de compras ────────────────────────────────────────────────────
+  getShoppingList(branchId) {
+    const q = branchId ? `?branch_id=${branchId}` : '';
+    return this.request(`/shopping-list${q}`);
+  }
+
+  getShoppingInventoryOptions(branchId) {
+    const q = branchId ? `?branch_id=${branchId}` : '';
+    return this.request(`/shopping-list/inventory-options${q}`);
+  }
+
+  generateShoppingList(branchId) {
+    return this.request('/shopping-list/generate', { method: 'POST', body: { branch_id: branchId || null } });
+  }
+
+  addShoppingItem(data) {
+    return this.request('/shopping-list/items', { method: 'POST', body: data });
+  }
+
+  updateShoppingItem(id, data) {
+    return this.request(`/shopping-list/items/${id}`, { method: 'PUT', body: data });
+  }
+
+  deleteShoppingItem(id) {
+    return this.request(`/shopping-list/items/${id}`, { method: 'DELETE' });
+  }
+
+  clearShoppingList(branchId) {
+    return this.request('/shopping-list/clear', { method: 'POST', body: { branch_id: branchId || null } });
+  }
+
+  sendShoppingList(branchId, sentBy) {
+    return this.request('/shopping-list/send', { method: 'POST', body: { branch_id: branchId || null, sent_by: sentBy || null } });
   }
 }
 

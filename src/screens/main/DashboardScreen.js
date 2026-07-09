@@ -7,6 +7,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path, Circle, Defs, LinearGradient, Stop, Text as SvgText } from 'react-native-svg';
+import SvgIcon from '../../components/SvgIcon';
+import IconoProducto from '../../components/IconoProducto';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
@@ -14,7 +16,7 @@ import { formatMoney, formatMoneyCompact } from '../../utils/money';
 import { createSSE } from '../../utils/sse';
 
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-const MEDALS = ['🥇', '🥈', '🥉', '4°', '5°'];
+const MEDAL_COLORS = ['#ca8a04', '#94a3b8', '#b45309'];
 
 const fmtYAxis = (val, currency) => formatMoneyCompact(val, currency);
 
@@ -275,8 +277,8 @@ export default function DashboardScreen() {
   useFocusEffect(
     useCallback(() => {
       if (!isOwner) return;
-      const sse = createSSE(api.getAuditEventsConfig(), () => loadAudit());
-      return () => { sse.close(); };
+      const sse = createSSE(() => api.getAuditEventsConfig(), () => loadAudit());
+      return () => { try { sse?.close(); } catch {} };
     }, [isOwner, loadAudit])
   );
 
@@ -476,11 +478,13 @@ export default function DashboardScreen() {
             <View style={styles.card}>
               {topProductos.map((p, i) => (
                 <View key={i} style={[styles.listRow, i > 0 && styles.listRowBorder]}>
-                  <Text style={styles.medal}>{MEDALS[i]}</Text>
-                  <Text style={styles.listName} numberOfLines={1}>
-                    {p.emoji ? p.emoji + ' ' : ''}
-                    {p.nombre}
-                  </Text>
+                  <View style={styles.medal}>
+                    {i < 3 ? <SvgIcon name="medal" size={18} color={MEDAL_COLORS[i]} /> : <Text style={{ fontSize: font.md, textAlign: 'center' }}>{`${i+1}°`}</Text>}
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }}>
+                    {p.emoji ? <IconoProducto valor={p.emoji} size={16} color={colors.textPrimary} /> : null}
+                    <Text style={styles.listName} numberOfLines={1}>{p.nombre}</Text>
+                  </View>
                   <Text style={styles.listValue}>{p.total_vendido} uds</Text>
                 </View>
               ))}
@@ -546,10 +550,10 @@ export default function DashboardScreen() {
             <View style={styles.card}>
               {stockBajoLista.map((p, i) => (
                 <View key={p.id} style={[styles.listRow, i > 0 && styles.listRowBorder]}>
-                  <Text style={styles.listName} numberOfLines={1}>
-                    {p.emoji ? p.emoji + ' ' : ''}
-                    {p.name}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }}>
+                    {p.emoji ? <IconoProducto valor={p.emoji} size={16} color={colors.textPrimary} /> : null}
+                    <Text style={styles.listName} numberOfLines={1}>{p.name}</Text>
+                  </View>
                   <Text
                     style={[
                       styles.listValue,

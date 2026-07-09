@@ -7,6 +7,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import IconoProducto from '../../components/IconoProducto';
+import SvgIcon from '../../components/SvgIcon';
 import * as SecureStore from 'expo-secure-store';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
@@ -37,14 +39,14 @@ function ProductCard({ product, onPress, currency, mostrarStock, stockMap }) {
     if (stock === 0) {
       stockEl = <Text style={{ fontSize: 10, color: '#ef4444', fontWeight: '600', marginTop: 2 }}>Sin stock</Text>;
     } else if (stock <= 3) {
-      stockEl = <Text style={{ fontSize: 10, color: '#f59e0b', fontWeight: '600', marginTop: 2 }}>⚠ {stock} disponibles</Text>;
+      stockEl = <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}><SvgIcon name="triangle-alert" size={10} color="#f59e0b" /><Text style={{ fontSize: 10, color: '#f59e0b', fontWeight: '600', marginLeft: 2 }}>{stock} disponibles</Text></View>;
     } else {
       stockEl = <Text style={{ fontSize: 10, color: '#10b981', marginTop: 2 }}>{stock} disponibles</Text>;
     }
   }
   return (
     <TouchableOpacity style={[styles.productCard, mostrarStock && stock === 0 && { opacity: 0.5 }]} onPress={() => onPress(product)}>
-      <Text style={styles.productEmoji}>{product.emoji || '🛍️'}</Text>
+      <IconoProducto valor={product.emoji || 'svg:shopping-bag'} imagen={product.image} size={32} color={colors.textSecondary} />
       <Text style={styles.productName} numberOfLines={2}>{product.name}</Text>
       <Text style={styles.productPrice}>{formatMoney(parseFloat(product.price), currency)}</Text>
       {stockEl}
@@ -57,11 +59,14 @@ function ProductCard({ product, onPress, currency, mostrarStock, stockMap }) {
 function CartItem({ item, onDelete, onEditNota, currency }) {
   return (
     <View style={styles.cartItem}>
-      <Text style={styles.cartEmoji}>{item.emoji || '🛍️'}</Text>
+      <IconoProducto valor={item.emoji || 'svg:shopping-bag'} size={24} color={colors.textSecondary} />
       <View style={{ flex: 1 }}>
         <Text style={styles.cartName} numberOfLines={1}>{item.nombre}</Text>
         {item.nota ? (
-          <Text style={styles.cartNota} numberOfLines={1}>📝 {item.nota}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Ionicons name="document-text-outline" size={12} color={colors.textMuted} />
+            <Text style={[styles.cartNota, { marginLeft: 2 }]} numberOfLines={1}>{item.nota}</Text>
+          </View>
         ) : null}
         <Text style={styles.cartPrice}>{formatMoney(item.precio, currency)}</Text>
       </View>
@@ -82,9 +87,8 @@ function CartItem({ item, onDelete, onEditNota, currency }) {
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 
 export default function NuevaVentaScreen() {
-  const { settings, user, refreshSettings, sucursalId, nombreActivo, rolActivo, permisosRolesEfectivos } = useAuth();
+  const { settings, user, isPremium, refreshSettings, sucursalId, nombreActivo, rolActivo, permisosRolesEfectivos } = useAuth();
   const currency = settings?.currency_symbol || '$';
-  const isPremium = user?.plan === 'premium' || user?.plan === 'trial';
 
   const [categories, setCategories] = useState([]);
   const [catActiva, setCatActiva]   = useState(null);
@@ -226,7 +230,7 @@ export default function NuevaVentaScreen() {
       ]);
       const cats = grouped.map(g => ({ id: g.id, name: g.name, emoji: g.emoji }));
       const all  = grouped.flatMap(g => (g.products || []).map(p => ({ ...p, category_id: g.id })));
-      setCategories([{ id: null, name: 'Todos', emoji: '🔍' }, ...cats]);
+      setCategories([{ id: null, name: 'Todos', emoji: 'svg:search' }, ...cats]);
       setProductos(all);
       setClientes(clts);
     } catch {
@@ -245,12 +249,12 @@ export default function NuevaVentaScreen() {
       setMostrarStock(show);
       if (show) {
         api.getProductsStock(sucursalId).then(map => setStockMap(map)).catch(() => {});
-        sse = createSSE(api.getInventoryEventsConfig(), () => {
+        sse = createSSE(() => api.getInventoryEventsConfig(), () => {
           api.getProductsStock(sucursalId).then(map => setStockMap(map)).catch(() => {});
         });
       }
     });
-    return () => { sse?.close(); };
+    return () => { try { sse?.close(); } catch {} };
   }, [sucursalId]);
 
   // Refrescar stock cada vez que la pantalla gana foco (ej. volver de otra tab)
@@ -309,7 +313,7 @@ export default function NuevaVentaScreen() {
       uid,
       product_id: producto.id,
       nombre: producto.name,
-      emoji: producto.emoji || '🛍️',
+      emoji: producto.emoji || 'svg:shopping-bag',
       precio: parseFloat(producto.price),
       nota: '',
     }]);
@@ -640,9 +644,12 @@ export default function NuevaVentaScreen() {
             style={[styles.catChip, catActiva === c.id && styles.catChipActive]}
             onPress={() => { setCatActiva(c.id); setShowSug(false); }}
           >
-            <Text style={[styles.catChipText, catActiva === c.id && styles.catChipTextActive]}>
-              {c.emoji} {c.name}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <IconoProducto valor={c.emoji} size={16} color={catActiva === c.id ? '#fff' : colors.textSecondary} />
+              <Text style={[styles.catChipText, catActiva === c.id && styles.catChipTextActive]}>
+                {c.name}
+              </Text>
+            </View>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -854,7 +861,7 @@ export default function NuevaVentaScreen() {
                   {descuentoPuntos > 0 && (
                     <View style={styles.totalDesgloseRow}>
                       <Text style={[styles.totalDesgloseLabel, { color: '#7c3aed' }]}>
-                        ⭐ Puntos canjeados
+                        Puntos canjeados
                       </Text>
                       <Text style={[styles.totalDesgloseValor, { color: '#7c3aed' }]}>
                         -{formatMoney(descuentoPuntos, currency)}
@@ -964,7 +971,7 @@ export default function NuevaVentaScreen() {
                   <View style={styles.puntosHeader}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.puntosBalance}>
-                        ⭐ {puntosDisponibles} puntos disponibles
+                        {puntosDisponibles} puntos disponibles
                       </Text>
                       {puntosDisponibles > 0 && (
                         <Text style={styles.puntosValor}>

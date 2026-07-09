@@ -19,8 +19,7 @@ function avatarColor(name) {
 }
 
 export default function ClientesScreen() {
-  const { settings, user, nombreActivo, rolActivo, permisosRolesEfectivos } = useAuth();
-  const isPremium = user?.plan === 'premium' || user?.plan === 'trial';
+  const { settings, user, isPremium, nombreActivo, rolActivo, permisosRolesEfectivos } = useAuth();
 
   const [clientes, setClientes]     = useState([]);
   const [busqueda, setBusqueda]     = useState('');
@@ -205,7 +204,7 @@ export default function ClientesScreen() {
           onPress={() => setTab('fidelidad')}
         >
           <Text style={[styles.tabText, tab === 'fidelidad' && styles.tabTextActive]}>
-            ⭐ Fidelidad
+            Fidelidad
           </Text>
           {enFidelidad > 0 && (
             <View style={[styles.badge, tab === 'fidelidad' && styles.badgeActive]}>

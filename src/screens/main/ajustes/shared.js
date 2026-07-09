@@ -7,7 +7,8 @@ import { Ionicons } from '@expo/vector-icons';
 
 export const ROL_LABEL = { owner: 'Dueño', cashier: 'Cajero', waiter: 'Mesero', delivery: 'Repartidor' };
 export const PLAN_LABEL = { free: 'Gratuito', premium: 'Premium', trial: 'Prueba' };
-export const PLAN_COLOR = { free: colors.textMuted, premium: '#f59e0b', trial: colors.primary };
+// Premium en verde: comunica "activo y en orden" (el ámbar se leía como advertencia)
+export const PLAN_COLOR = { free: colors.textMuted, premium: colors.success, trial: colors.primary };
 export const MONEDAS = ['MX$', 'US$', '$', '€', 'Q', 'S/', '₡'];
 
 export const PERMISOS_DEFAULT = {

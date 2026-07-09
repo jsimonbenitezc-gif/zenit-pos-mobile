@@ -121,7 +121,7 @@ function OrderCard({ order, onComplete }) {
         onPress={() => onComplete(order.id)}
         activeOpacity={0.7}
       >
-        <Text style={styles.btnCompleteText}>✓  Completado</Text>
+        <Text style={styles.btnCompleteText}>Completado</Text>
       </TouchableOpacity>
     </View>
   );

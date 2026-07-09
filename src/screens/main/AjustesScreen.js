@@ -35,9 +35,8 @@ import { SeccionSucursales } from './ajustes/SeccionSucursales';
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 
 export default function AjustesScreen({ navigation }) {
-  const { user, settings, isOwner, logout, refreshUser, refreshSettings, rolActivo, nombreActivo, cambiarPerfil } = useAuth();
+  const { user, settings, isOwner, isPremium, logout, refreshUser, refreshSettings, rolActivo, nombreActivo, cambiarPerfil } = useAuth();
   const plan      = user?.plan || 'free';
-  const isPremium = plan === 'premium' || plan === 'trial';
 
   // ── Estado: carga ──────────────────────────────────────────────────────
   const [loading, setLoading]           = useState(true);
@@ -236,8 +235,8 @@ export default function AjustesScreen({ navigation }) {
   // SSE: escuchar cambios de ajustes en tiempo real (ej: desktop edita Mi Negocio)
   useFocusEffect(
     useCallback(() => {
-      const sse = createSSE(api.getSettingsEventsConfig(), () => loadAll(true));
-      return () => { sse.close(); };
+      const sse = createSSE(() => api.getSettingsEventsConfig(), () => loadAll(true));
+      return () => { try { sse?.close(); } catch {} };
     }, [loadAll])
   );
 
@@ -1246,7 +1245,7 @@ export default function AjustesScreen({ navigation }) {
             ))}
 
             <Text style={[styles.menuSub, { textAlign: 'center', marginTop: spacing.xl }]}>
-              ⚠️ Solo muestra dispositivos ya emparejados.{'\n'}
+              Solo muestra dispositivos ya emparejados.{'\n'}
               Empareja tu impresora primero desde Bluetooth en Ajustes del sistema.
             </Text>
           </ScrollView>

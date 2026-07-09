@@ -6,6 +6,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import IconoProducto from '../../components/IconoProducto';
+import SvgIcon from '../../components/SvgIcon';
 import * as SecureStore from 'expo-secure-store';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../../api/client';
@@ -169,10 +171,10 @@ export default function MesasScreen() {
       });
 
       // SSE: actualización en tiempo real cuando cambia un pedido
-      const sseOrders = createSSE(api.getOrdersEventsConfig(), () => load());
+      const sseOrders = createSSE(() => api.getOrdersEventsConfig(), () => load());
 
       // SSE: actualización en tiempo real cuando cambian los insumos (stock)
-      const sseInv = createSSE(api.getInventoryEventsConfig(), () => {
+      const sseInv = createSSE(() => api.getInventoryEventsConfig(), () => {
         api.getProductsStock(sucursalId).then(map => setStockMap(map)).catch(() => {});
       });
 
@@ -180,8 +182,8 @@ export default function MesasScreen() {
       const interval = setInterval(() => load(), 30000);
 
       return () => {
-        sseOrders.close();
-        sseInv.close();
+        try { sseOrders?.close(); } catch {}
+        try { sseInv?.close(); } catch {}
         clearInterval(interval);
       };
     }, [load])
@@ -310,7 +312,7 @@ export default function MesasScreen() {
             const pts   = Math.floor(parseFloat(ordenActiva.total || 0) * rate) + bonus;
             if (pts > 0) {
               await api.updateCustomerLoyalty(clienteSelec.id, { points_delta: pts });
-              showToast(`⭐ +${pts} puntos para ${clienteSelec.name}`);
+              showToast(`+${pts} puntos para ${clienteSelec.name}`);
             }
           }
         } catch { /* los puntos no son críticos */ }
@@ -460,10 +462,10 @@ export default function MesasScreen() {
           <ScrollView contentContainerStyle={{ padding: spacing.lg }}>
             {ordenActiva?.items?.map((item, i) => (
               <View key={i} style={styles.itemRow}>
-                <Text style={styles.itemEmoji}>{item.product?.emoji || '🛍️'}</Text>
+                <IconoProducto valor={item.product?.emoji || 'svg:shopping-bag'} size={22} color={colors.textSecondary} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.itemName}>{item.product?.name || 'Producto'}</Text>
-                  {item.notes ? <Text style={styles.itemNota}>📝 {item.notes}</Text> : null}
+                  {item.notes ? <View style={{ flexDirection: 'row', alignItems: 'center' }}><Ionicons name="document-text-outline" size={12} color={colors.textMuted} /><Text style={[styles.itemNota, { marginLeft: 2 }]}>{item.notes}</Text></View> : null}
                 </View>
                 <Text style={styles.itemQty}>×{item.quantity}</Text>
                 <Text style={styles.itemPrice}>{formatMoney(parseFloat(item.subtotal || 0), currency)}</Text>
@@ -525,14 +527,14 @@ export default function MesasScreen() {
                   if (stock === 0) {
                     stockEl = <Text style={{ fontSize: 10, color: '#ef4444', fontWeight: '600', marginTop: 2 }}>Sin stock</Text>;
                   } else if (stock <= 3) {
-                    stockEl = <Text style={{ fontSize: 10, color: '#f59e0b', fontWeight: '600', marginTop: 2 }}>⚠ {stock} disp.</Text>;
+                    stockEl = <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}><SvgIcon name="triangle-alert" size={10} color="#f59e0b" /><Text style={{ fontSize: 10, color: '#f59e0b', fontWeight: '600', marginLeft: 2 }}>{stock} disp.</Text></View>;
                   } else {
                     stockEl = <Text style={{ fontSize: 10, color: '#10b981', marginTop: 2 }}>{stock} disp.</Text>;
                   }
                 }
                 return (
                   <View style={[styles.pCard, mostrarStock && stock === 0 && { opacity: 0.5 }]}>
-                    <Text style={styles.pEmoji}>{item.emoji || '🛍️'}</Text>
+                    <IconoProducto valor={item.emoji || 'svg:shopping-bag'} size={28} color={colors.textSecondary} />
                     <Text style={styles.pName} numberOfLines={2}>{item.name}</Text>
                     <Text style={styles.pPrice}>{formatMoney(parseFloat(item.price), currency)}</Text>
                     {stockEl}

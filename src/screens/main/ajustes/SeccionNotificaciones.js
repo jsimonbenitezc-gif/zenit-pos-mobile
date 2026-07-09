@@ -1,9 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../../api/client';
 import { colors, spacing, font } from '../../../theme';
 import { SectionTitle, SectionCard, SwitchRow } from './shared';
 import { friendlyError } from '../../../utils/errors';
+
+// Subtítulo de grupo dentro de Notificaciones: ícono + texto, para que cada
+// bloque se lea como parte de la misma sección.
+function SubTituloNotif({ icon, label, styles }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing.sm, marginBottom: spacing.xs }}>
+      <Ionicons name={icon} size={13} color={colors.primary} />
+      <Text style={[styles.sectionTitle, { fontSize: font.sm, color: colors.textSecondary, marginBottom: 0, marginTop: 0 }]}>{label}</Text>
+    </View>
+  );
+}
 
 export function SeccionNotificaciones({ initialSettings, styles }) {
   // ── Estado: notificaciones push ───────────────────────────────────────
@@ -82,8 +94,11 @@ export function SeccionNotificaciones({ initialSettings, styles }) {
         Recibe alertas en tu teléfono sobre lo que pasa en tu negocio, incluso cuando no tienes la app abierta.
       </Text>
 
+      {/* Línea vertical que conecta visualmente todos los grupos de notificaciones */}
+      <View style={{ borderLeftWidth: 2, borderLeftColor: colors.primary + '44', paddingLeft: spacing.md, marginLeft: 2 }}>
+
       {/* Turnos y Caja */}
-      <Text style={[styles.sectionTitle, { fontSize: font.sm, color: colors.textMuted, marginBottom: spacing.xs, marginTop: spacing.sm }]}>Turnos y Caja</Text>
+      <SubTituloNotif icon="cash-outline" label="Turnos y Caja" styles={styles} />
       <SectionCard>
         <SwitchRow label="Turno abierto" sub="Cuando un empleado abre caja" value={notifTurnoAbierto} onChange={v => toggleNotif('notif_turno_abierto', v, setNotifTurnoAbierto)} />
         <SwitchRow label="Turno cerrado" sub="Resumen al cerrar caja (pedidos y ventas)" value={notifTurnoCerrado} onChange={v => toggleNotif('notif_turno_cerrado', v, setNotifTurnoCerrado)} />
@@ -104,7 +119,7 @@ export function SeccionNotificaciones({ initialSettings, styles }) {
       </SectionCard>
 
       {/* Ventas */}
-      <Text style={[styles.sectionTitle, { fontSize: font.sm, color: colors.textMuted, marginBottom: spacing.xs, marginTop: spacing.sm }]}>Ventas</Text>
+      <SubTituloNotif icon="cart-outline" label="Ventas" styles={styles} />
       <SectionCard>
         <SwitchRow label="Venta grande" sub={`Cuando una venta supera $${notifVentaUmbral}`} value={notifVentaGrande} onChange={v => toggleNotif('notif_venta_grande', v, setNotifVentaGrande)} />
         {notifVentaGrande && (
@@ -119,14 +134,14 @@ export function SeccionNotificaciones({ initialSettings, styles }) {
       </SectionCard>
 
       {/* Inventario */}
-      <Text style={[styles.sectionTitle, { fontSize: font.sm, color: colors.textMuted, marginBottom: spacing.xs, marginTop: spacing.sm }]}>Inventario</Text>
+      <SubTituloNotif icon="cube-outline" label="Inventario" styles={styles} />
       <SectionCard>
         <SwitchRow label="Producto sin stock" sub="Cuando un producto llega a 0 unidades" value={notifStockCero} onChange={v => toggleNotif('notif_stock_cero', v, setNotifStockCero)} />
         <SwitchRow label="Ajuste de inventario" sub="Cuando un empleado registra una merma o entrada" value={notifAjusteInv} onChange={v => toggleNotif('notif_ajuste_inventario', v, setNotifAjusteInv)} last />
       </SectionCard>
 
       {/* Empleados y Clientes */}
-      <Text style={[styles.sectionTitle, { fontSize: font.sm, color: colors.textMuted, marginBottom: spacing.xs, marginTop: spacing.sm }]}>Empleados y Clientes</Text>
+      <SubTituloNotif icon="people-outline" label="Empleados y Clientes" styles={styles} />
       <SectionCard>
         <SwitchRow label="Nuevo acceso al sistema" sub="Cuando alguien inicia sesión en la app" value={notifNuevoAcceso} onChange={v => toggleNotif('notif_nuevo_acceso', v, setNotifNuevoAcceso)} />
         <SwitchRow label="Nuevo cliente registrado" sub="Al agregar un cliente a la base de datos" value={notifClienteNuevo} onChange={v => toggleNotif('notif_cliente_nuevo', v, setNotifClienteNuevo)} />
@@ -134,7 +149,7 @@ export function SeccionNotificaciones({ initialSettings, styles }) {
       </SectionCard>
 
       {/* Reportes programados */}
-      <Text style={[styles.sectionTitle, { fontSize: font.sm, color: colors.textMuted, marginBottom: spacing.xs, marginTop: spacing.sm }]}>Reportes programados</Text>
+      <SubTituloNotif icon="calendar-outline" label="Reportes programados" styles={styles} />
       <SectionCard>
         <SwitchRow label="Resumen diario" sub={`Se envía a las ${notifResumenHora}:00 hrs`} value={notifResumenDiario} onChange={v => toggleNotif('notif_resumen_diario', v, setNotifResumenDiario)} />
         {notifResumenDiario && (
@@ -145,6 +160,8 @@ export function SeccionNotificaciones({ initialSettings, styles }) {
         )}
         <SwitchRow label="Resumen semanal" sub="Cada lunes a las 8 AM con el total de la semana" value={notifResumenSemanal} onChange={v => toggleNotif('notif_resumen_semanal', v, setNotifResumenSemanal)} last />
       </SectionCard>
+
+      </View>
 
       {/* Botón guardar umbrales */}
       <TouchableOpacity

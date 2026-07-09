@@ -4,6 +4,7 @@ import {
   RefreshControl, Alert, TouchableOpacity, TextInput, Modal, Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
@@ -48,14 +49,21 @@ function DiscountCard({ discount, currency, onEdit }) {
 }
 
 function PremiumGate() {
+  const navigation = useNavigation();
   return (
     <View style={styles.premiumWrap}>
       <Ionicons name="pricetag-outline" size={52} color={colors.textMuted} />
       <Text style={styles.premiumTitle}>Función Premium</Text>
       <Text style={styles.premiumSubtitle}>
         Las ofertas y descuentos están disponibles en el plan Premium.
-        Actívalo desde la app de escritorio Zenit POS.
+        Revisa el estado de tu plan en Ajustes.
       </Text>
+      <TouchableOpacity
+        style={styles.premiumBtn}
+        onPress={() => navigation.navigate('Ajustes')}
+      >
+        <Text style={styles.premiumBtnText}>Ver mi plan</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -64,8 +72,7 @@ function PremiumGate() {
 const FORM_EMPTY = { nombre: '', tipo: 'percentage', valor: '', active: true, requires_pin: false };
 
 export default function OfertasScreen() {
-  const { user, settings } = useAuth();
-  const isPremium = user?.plan === 'premium' || user?.plan === 'trial';
+  const { user, settings, isPremium } = useAuth();
   const isOwner = user?.role === 'owner';
   const currency = settings?.currency_symbol || '$';
 
@@ -320,6 +327,8 @@ const styles = StyleSheet.create({
   premiumWrap:       { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xxl, gap: spacing.md },
   premiumTitle:      { fontSize: font.xl, fontWeight: '800', color: colors.textPrimary },
   premiumSubtitle:   { fontSize: font.md, color: colors.textMuted, textAlign: 'center', lineHeight: 22 },
+  premiumBtn:        { backgroundColor: colors.primary, paddingVertical: 12, paddingHorizontal: 28, borderRadius: radius.md, marginTop: spacing.sm },
+  premiumBtnText:    { color: '#fff', fontSize: font.md, fontWeight: '700' },
   emptyWrap:         { alignItems: 'center', marginTop: spacing.xxl, gap: spacing.sm },
   empty:             { color: colors.textPrimary, fontSize: font.md, fontWeight: '600' },
   emptyHint:         { color: colors.textMuted, fontSize: font.sm },

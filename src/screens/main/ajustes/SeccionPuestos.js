@@ -247,7 +247,7 @@ export function SeccionPuestos({
                 <View style={styles.pinSection}>
                   <Text style={styles.permisosTitle}>PIN de acceso</Text>
                   {perms.pin_set
-                    ? <Text style={styles.pinStatus}>✓ PIN configurado</Text>
+                    ? <Text style={styles.pinStatus}>PIN configurado</Text>
                     : <Text style={[styles.pinStatus, { color: colors.textMuted }]}>Sin PIN — cualquiera puede seleccionar este perfil.</Text>
                   }
                   <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
