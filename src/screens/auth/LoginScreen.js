@@ -7,7 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
 import { friendlyError } from '../../utils/errors';
 
-export default function LoginScreen() {
+export default function LoginScreen({ navigation }) {
   const { loginOwner } = useAuth();
 
   const [username, setUsername] = useState('');
@@ -71,6 +71,10 @@ export default function LoginScreen() {
           >
             {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnLoginText}>Entrar</Text>}
           </TouchableOpacity>
+
+          <TouchableOpacity style={styles.registerLink} onPress={() => navigation.navigate('Register')} disabled={loading}>
+            <Text style={styles.registerText}>¿No tienes cuenta? <Text style={styles.registerStrong}>Crear cuenta</Text></Text>
+          </TouchableOpacity>
         </View>
 
         <Text style={styles.footer}>Zenit POS · Todos los derechos reservados</Text>
@@ -90,5 +94,8 @@ const styles = StyleSheet.create({
   input:            { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.md, color: colors.textPrimary, backgroundColor: colors.background },
   btnLogin:         { backgroundColor: colors.primary, borderRadius: radius.md, padding: spacing.md + 2, alignItems: 'center', marginTop: spacing.xl },
   btnLoginText:     { color: '#fff', fontSize: font.lg, fontWeight: '700' },
+  registerLink:     { alignItems: 'center', marginTop: spacing.lg },
+  registerText:     { color: colors.textSecondary, fontSize: font.md },
+  registerStrong:   { color: colors.primary, fontWeight: '700' },
   footer:           { textAlign: 'center', color: colors.textMuted, fontSize: font.sm - 1, marginTop: spacing.xxl },
 });

@@ -659,7 +659,7 @@ export default function InventarioScreen() {
     <SafeAreaView style={styles.safe}>
       {/* Header */}
       <View style={styles.header}>
-        <LogoTitle title="Inventario" titleStyle={styles.pageTitle} style={{ flex: 1 }} />
+        <LogoTitle title="Inventario" titleStyle={styles.pageTitle} />
         <View style={styles.headerActions}>
           {tab === 'insumos' && <>
             <TouchableOpacity style={styles.btnAdd} onPress={abrirNuevoInsumo}>
@@ -1120,9 +1120,9 @@ function ProductSelector({ products, onSelect }) {
 const styles = StyleSheet.create({
   safe:                { flex: 1, backgroundColor: colors.background },
   centered:            { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header:              { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.sm },
-  pageTitle:           { fontSize: font.xl, fontWeight: '800', color: colors.textPrimary, flex: 1 },
-  headerActions:       { flexDirection: 'row', gap: spacing.sm },
+  header:              { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.sm, gap: spacing.sm },
+  pageTitle:           { fontSize: font.xl, fontWeight: '800', color: colors.textPrimary },
+  headerActions:       { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
   btnEntrada:          { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#dcfce7', borderWidth: 1, borderColor: '#86efac', borderRadius: radius.lg, paddingHorizontal: spacing.sm + 2, paddingVertical: 6 },
   btnEntradaText:      { fontSize: font.sm - 1, fontWeight: '700', color: '#16a34a' },
   btnSalida:           { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#fee2e2', borderWidth: 1, borderColor: '#fca5a5', borderRadius: radius.lg, paddingHorizontal: spacing.sm + 2, paddingVertical: 6 },

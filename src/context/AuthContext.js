@@ -190,6 +190,24 @@ export function AuthProvider({ children }) {
     return data.user;
   }
 
+  // Crea una cuenta nueva de dueño y deja la sesión iniciada (el backend devuelve
+  // token + refreshToken, igual que login).
+  async function registerOwner(name, email, password) {
+    const data = await api.register(name, email, password);
+    await SecureStore.setItemAsync('zenit_token', data.token);
+    if (data.refreshToken) await SecureStore.setItemAsync('zenit_refresh_token', data.refreshToken);
+    await SecureStore.setItemAsync('zenit_session_email', email);
+    await SecureStore.setItemAsync('zenit_login_type', 'owner');
+    api.setToken(data.token);
+    if (data.refreshToken) api.setRefreshToken(data.refreshToken);
+    setUser(data.user);
+    setSessionEmail(email);
+    const s = await refreshSettings();
+    await _resolverPerfil(s);
+    registrarPushToken(); // sin await
+    return data.user;
+  }
+
   // Valida la contraseña del admin contra el backend SIN cambiar el estado de perfil.
   // Lo llama PerfilScreen después de seleccionar el perfil admin.
   async function verificarPasswordAdmin(password) {
@@ -253,7 +271,7 @@ export function AuthProvider({ children }) {
     <AuthContext.Provider value={{
       user, settings, loading, isOwner, isPremium, sucursalId, permisosRolesEfectivos,
       rolActivo, nombreActivo, profileReady, sessionEmail,
-      loginOwner, logout,
+      loginOwner, registerOwner, logout,
       verificarPasswordAdmin,
       refreshUser, refreshSettings,
       seleccionarPerfil, cambiarPerfil,

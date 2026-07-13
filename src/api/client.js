@@ -11,6 +11,7 @@ class ApiClient {
     this.onUnauthorized = null; // callback para sesión expirada
     this.onTokenRefreshed = null; // callback (token, refreshToken) tras rotación exitosa
     this._refreshPromise = null; // dedupe: evita refrescar varias veces en paralelo
+    this._refreshRejected = false; // true solo si el servidor rechazó el refresh token (401/403)
   }
 
   // ─── Control de intentos de PIN ──────────────────────────────────────
@@ -69,6 +70,7 @@ class ApiClient {
   // Usa fetch directamente (no this.request) para evitar recursión infinita.
   async _doRefresh() {
     if (!this.refreshToken) return null;
+    this._refreshRejected = false;
     const url = `${BASE_URL}/auth/refresh`;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -80,7 +82,12 @@ class ApiClient {
         cache: 'no-store',
         signal: controller.signal,
       });
-      if (!response.ok) return null;
+      if (!response.ok) {
+        // Solo un 401/403 significa que el refresh token ya no sirve (sesión realmente
+        // expirada). Un 500 u otro error es del servidor → transitorio, no invalidar.
+        this._refreshRejected = (response.status === 401 || response.status === 403);
+        return null;
+      }
       const data = await response.json();
       if (!data || !data.token) return null;
       this.token = data.token;
@@ -90,6 +97,8 @@ class ApiClient {
       }
       return data.token;
     } catch {
+      // Error de red / timeout (p. ej. cold start de Render): NO sabemos si el token
+      // sigue válido → no invalidar la sesión, solo fallar el request de forma transitoria.
       return null;
     } finally {
       clearTimeout(timeout);
@@ -155,17 +164,30 @@ class ApiClient {
       const response = await fetch(url, config);
 
       if (response.status === 401) {
-        // Si tenemos refresh token y no es ya un reintento, intentar rotar y reintentar
-        if (!_isRetry && this.refreshToken) {
-          const nuevoToken = await this._refreshTokenOnce();
-          if (nuevoToken) {
-            return this.request(endpoint, options, true);
+        // Endpoints de autenticación: un 401 significa CREDENCIALES INCORRECTAS, no
+        // sesión expirada. No hay que rotar token ni borrar la sesión — se deja caer al
+        // manejo genérico de abajo, que devuelve el mensaje del backend ("Credenciales
+        // incorrectas"). Sin esto, un login fallido mostraba "Sesión expirada".
+        const esEndpointAuth = endpoint.startsWith('/auth/login') || endpoint.startsWith('/auth/register') || endpoint.startsWith('/staff/login');
+        if (!esEndpointAuth) {
+          // Si tenemos refresh token y no es ya un reintento, intentar rotar y reintentar
+          if (!_isRetry && this.refreshToken) {
+            const nuevoToken = await this._refreshTokenOnce();
+            if (nuevoToken) {
+              return this.request(endpoint, options, true);
+            }
+            // El refresh falló. Solo cerrar sesión si el servidor rechazó el refresh token
+            // explícitamente (401/403). Si fue un fallo de red / cold start de Render, NO
+            // borrar la sesión: se falla el request de forma transitoria y se reintenta luego.
+            if (!this._refreshRejected) {
+              throw new Error('Sin conexión al servidor');
+            }
           }
+          this.token = null;
+          this.refreshToken = null;
+          if (this.onUnauthorized) this.onUnauthorized();
+          throw new Error('Sesión expirada');
         }
-        this.token = null;
-        this.refreshToken = null;
-        if (this.onUnauthorized) this.onUnauthorized();
-        throw new Error('Sesión expirada');
       }
 
       if (!response.ok) {
@@ -211,6 +233,10 @@ class ApiClient {
   // ─── Auth ────────────────────────────────────────────────────────────────
   login(username, password) {
     return this.request('/auth/login', { method: 'POST', body: { username, password } });
+  }
+
+  register(name, email, password) {
+    return this.request('/auth/register', { method: 'POST', body: { name, email, password } });
   }
 
   staffLogin(username, password) {

@@ -11,6 +11,7 @@ import CustomTabBar, { ALL_SCREENS } from './CustomTabBar';
 import { SCREEN_PERM_MAP } from './screenPerms';
 
 import LoginScreen       from '../screens/auth/LoginScreen';
+import RegisterScreen    from '../screens/auth/RegisterScreen';
 import PerfilScreen      from '../screens/auth/PerfilScreen';
 import DashboardScreen   from '../screens/main/DashboardScreen';
 import NuevaVentaScreen  from '../screens/main/NuevaVentaScreen';
@@ -120,7 +121,10 @@ export default function Navigation() {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!user ? (
-          <Stack.Screen name="Login" component={LoginScreen} />
+          <>
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Register" component={RegisterScreen} />
+          </>
         ) : !profileReady ? (
           <Stack.Screen name="Perfil" component={PerfilScreen} />
         ) : (
