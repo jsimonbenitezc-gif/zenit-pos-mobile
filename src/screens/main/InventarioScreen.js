@@ -12,6 +12,7 @@ import ListaComprasSection from './ListaComprasSection';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
+import LogoTitle from '../../components/LogoTitle';
 import { createSSE } from '../../utils/sse';
 import { friendlyError } from '../../utils/errors';
 
@@ -620,7 +621,7 @@ export default function InventarioScreen() {
 
   if (!isPremium) return (
     <SafeAreaView style={styles.safe}>
-      <Text style={styles.pageTitle}>Inventario</Text>
+      <LogoTitle title="Inventario" titleStyle={styles.pageTitle} />
       <PremiumGate />
     </SafeAreaView>
   );
@@ -658,7 +659,7 @@ export default function InventarioScreen() {
     <SafeAreaView style={styles.safe}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.pageTitle}>Inventario</Text>
+        <LogoTitle title="Inventario" titleStyle={styles.pageTitle} style={{ flex: 1 }} />
         <View style={styles.headerActions}>
           {tab === 'insumos' && <>
             <TouchableOpacity style={styles.btnAdd} onPress={abrirNuevoInsumo}>

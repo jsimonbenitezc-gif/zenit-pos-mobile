@@ -13,6 +13,7 @@ import * as SecureStore from 'expo-secure-store';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
+import LogoTitle from '../../components/LogoTitle';
 import { createSSE } from '../../utils/sse';
 import { formatMoney } from '../../utils/money';
 import { friendlyError } from '../../utils/errors';
@@ -554,7 +555,7 @@ export default function NuevaVentaScreen() {
     <SafeAreaView style={styles.safe}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Nueva Venta</Text>
+        <LogoTitle title="Nueva Venta" titleStyle={styles.title} />
         {carrito.length > 0 && (
           <TouchableOpacity style={styles.carritoBtn} onPress={openCartPanel}>
             <Ionicons name="cart" size={16} color="#fff" />

@@ -12,6 +12,7 @@ import IconoProducto from '../../components/IconoProducto';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
+import LogoTitle from '../../components/LogoTitle';
 import { formatMoney, formatMoneyCompact } from '../../utils/money';
 import { createSSE } from '../../utils/sse';
 
@@ -336,7 +337,7 @@ export default function DashboardScreen() {
       >
         {/* ── Header ── */}
         <View style={styles.header}>
-          <Text style={styles.title}>Resumen</Text>
+          <LogoTitle title="Resumen" titleStyle={styles.title} />
           <Text style={styles.date}>{dateStr}</Text>
         </View>
 

@@ -13,6 +13,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
+import LogoTitle from '../../components/LogoTitle';
 import { formatMoney } from '../../utils/money';
 import { createSSE } from '../../utils/sse';
 import { friendlyError } from '../../utils/errors';
@@ -373,7 +374,7 @@ export default function MesasScreen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Mesas</Text>
+        <LogoTitle title="Mesas" titleStyle={styles.title} />
         {isOwner && (
           <TouchableOpacity style={styles.btnAdd} onPress={() => setModalCrear(true)}>
             <Ionicons name="add" size={20} color="#fff" />

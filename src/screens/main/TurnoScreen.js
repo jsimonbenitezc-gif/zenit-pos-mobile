@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api/client';
 import { colors, spacing, radius, font } from '../../theme';
+import LogoTitle from '../../components/LogoTitle';
 import { formatMoney } from '../../utils/money';
 import { friendlyError } from '../../utils/errors';
 
@@ -129,7 +130,7 @@ export default function TurnoScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={{ padding: spacing.lg }}>
-        <Text style={styles.title}>Turno</Text>
+        <LogoTitle title="Turno" titleStyle={styles.title} />
 
         {turno ? (
           <>

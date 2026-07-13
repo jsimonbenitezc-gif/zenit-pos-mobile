@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
+import LogoTitle from '../../components/LogoTitle';
 import { friendlyError } from '../../utils/errors';
 
 const AVATAR_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316'];
@@ -180,7 +181,7 @@ export default function ClientesScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.title}>Clientes</Text>
+          <LogoTitle title="Clientes" titleStyle={styles.title} />
           <Text style={styles.subtitle}>{clientes.length} registrados</Text>
         </View>
         <TouchableOpacity style={styles.addBtn} onPress={() => setModalNuevo(true)}>

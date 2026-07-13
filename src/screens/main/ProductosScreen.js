@@ -12,6 +12,7 @@ import IconoProducto from '../../components/IconoProducto';
 import IconPicker from '../../components/IconPicker';
 import { api } from '../../api/client';
 import { colors, spacing, radius, font } from '../../theme';
+import LogoTitle from '../../components/LogoTitle';
 import { formatMoney } from '../../utils/money';
 import { friendlyError } from '../../utils/errors';
 import { useAuth } from '../../context/AuthContext';
@@ -257,7 +258,7 @@ export default function ProductosScreen() {
     <SafeAreaView style={styles.safe}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Productos</Text>
+        <LogoTitle title="Productos" titleStyle={styles.title} />
         {isOwner && (
           <TouchableOpacity
             style={styles.addBtn}

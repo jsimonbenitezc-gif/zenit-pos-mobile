@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet,
+  View, Text, FlatList, ScrollView, TouchableOpacity, StyleSheet,
   RefreshControl, ActivityIndicator, Alert, Modal, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
+import LogoTitle from '../../components/LogoTitle';
 import { formatMoney } from '../../utils/money';
 import { friendlyError } from '../../utils/errors';
 
@@ -220,25 +221,28 @@ export default function PedidosScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <Text style={styles.title}>Pedidos</Text>
+        <LogoTitle title="Pedidos" titleStyle={styles.title} />
       </View>
 
-      {/* Filtros */}
-      <FlatList
+      {/* Filtros — ScrollView (no FlatList) con flexGrow:0 para que la fila no se
+          estire verticalmente. minHeight + alignItems:center dan aire arriba/abajo
+          para que el borde redondeado del chip no se recorte. */}
+      <ScrollView
         horizontal
-        data={ESTADOS}
-        keyExtractor={e => String(e.key)}
+        style={{ flexGrow: 0 }}
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.sm, paddingBottom: spacing.sm }}
-        renderItem={({ item }) => (
+        contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.sm, alignItems: 'center', minHeight: 48 }}
+      >
+        {ESTADOS.map(item => (
           <TouchableOpacity
+            key={String(item.key)}
             style={[styles.chip, filtro === item.key && styles.chipActive]}
             onPress={() => setFiltro(item.key)}
           >
             <Text style={[styles.chipText, filtro === item.key && styles.chipTextActive]}>{item.label}</Text>
           </TouchableOpacity>
-        )}
-      />
+        ))}
+      </ScrollView>
 
       <FlatList
         data={pedidos}

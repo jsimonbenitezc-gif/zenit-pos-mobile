@@ -187,6 +187,27 @@ class ApiClient {
     }
   }
 
+  // Recorre todas las páginas de un endpoint paginado y devuelve un array plano.
+  // Los endpoints /products, /customers e /inventory/ingredients responden
+  // { data, pagination } (no un array). Las pantallas esperan un array y hacen
+  // .filter directamente, así que desenvolvemos aquí en un solo punto.
+  async _getAllPaginated(endpoint) {
+    const sep = endpoint.includes('?') ? '&' : '?';
+    let page = 1;
+    const acumulado = [];
+    // Tope de seguridad para no ciclar indefinidamente
+    for (let i = 0; i < 100; i++) {
+      const resp = await this.request(`${endpoint}${sep}page=${page}&limit=100`);
+      if (Array.isArray(resp)) return resp; // endpoint no paginado
+      const filas = Array.isArray(resp?.data) ? resp.data : [];
+      acumulado.push(...filas);
+      const totalPages = resp?.pagination?.totalPages || 1;
+      if (page >= totalPages || filas.length === 0) break;
+      page++;
+    }
+    return acumulado;
+  }
+
   // ─── Auth ────────────────────────────────────────────────────────────────
   login(username, password) {
     return this.request('/auth/login', { method: 'POST', body: { username, password } });
@@ -202,7 +223,7 @@ class ApiClient {
 
   // ─── Productos ───────────────────────────────────────────────────────────
   getProducts() {
-    return this.request('/products');
+    return this._getAllPaginated('/products');
   }
 
   getProductsGrouped() {
@@ -254,7 +275,7 @@ class ApiClient {
 
   // ─── Clientes ────────────────────────────────────────────────────────────
   getCustomers() {
-    return this.request('/customers');
+    return this._getAllPaginated('/customers');
   }
 
   createCustomer(data) {
@@ -274,7 +295,7 @@ class ApiClient {
   // ─── Inventario (premium) ────────────────────────────────────────────────
   getIngredients(branchId) {
     const q = branchId ? `?branch_id=${branchId}` : '';
-    return this.request(`/inventory/ingredients${q}`);
+    return this._getAllPaginated(`/inventory/ingredients${q}`);
   }
 
   createMovement(data) {

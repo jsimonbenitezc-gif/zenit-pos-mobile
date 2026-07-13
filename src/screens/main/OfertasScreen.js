@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
+import LogoTitle from '../../components/LogoTitle';
 import { formatMoney } from '../../utils/money';
 import { friendlyError } from '../../utils/errors';
 
@@ -175,7 +176,7 @@ export default function OfertasScreen() {
 
   if (!isPremium) return (
     <SafeAreaView style={styles.safe}>
-      <Text style={styles.title}>Ofertas</Text>
+      <LogoTitle title="Ofertas" titleStyle={styles.title} />
       <PremiumGate />
     </SafeAreaView>
   );
@@ -185,7 +186,7 @@ export default function OfertasScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <Text style={styles.title}>Ofertas</Text>
+        <LogoTitle title="Ofertas" titleStyle={styles.title} />
         <View style={styles.premiumBadge}>
           <Ionicons name="star" size={12} color="#f59e0b" />
           <Text style={styles.premiumBadgeText}>Premium</Text>

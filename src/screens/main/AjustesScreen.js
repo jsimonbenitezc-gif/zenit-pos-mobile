@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api/client';
 import { colors, spacing, radius, font } from '../../theme';
+import LogoTitle from '../../components/LogoTitle';
 import { friendlyError } from '../../utils/errors';
 import { createSSE } from '../../utils/sse';
 import {
@@ -599,7 +600,7 @@ export default function AjustesScreen({ navigation }) {
     return (
       <SafeAreaView style={styles.safe}>
         <ScrollView contentContainerStyle={styles.scroll}>
-          <Text style={styles.title}>Ajustes</Text>
+          <LogoTitle title="Ajustes" titleStyle={styles.title} />
 
           <View style={styles.profileCard}>
             <View style={styles.avatar}>
@@ -721,7 +722,7 @@ export default function AjustesScreen({ navigation }) {
         contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadAll(true)} />}
       >
-        <Text style={styles.title}>Ajustes</Text>
+        <LogoTitle title="Ajustes" titleStyle={styles.title} />
 
         {/* ── Tarjeta de perfil ─────────────────────────────────────── */}
         <View style={styles.profileCard}>
