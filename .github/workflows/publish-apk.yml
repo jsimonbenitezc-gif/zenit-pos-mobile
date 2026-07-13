@@ -1,0 +1,62 @@
+name: Compilar y publicar APK
+
+# Disparo MANUAL: desde la pestaña Actions del repo → "Compilar y publicar APK" → Run workflow.
+# Compila el APK en EAS (perfil preview) y lo sube como Zenit.apk a la release de zenit-pos,
+# para que la web de descargas (descargas.js) sirva siempre el APK más reciente.
+#
+# Requiere DOS secrets en el repo (Settings → Secrets and variables → Actions):
+#   - EXPO_TOKEN          : token de acceso de Expo (expo.dev → Account settings → Access tokens)
+#   - RELEASE_UPLOAD_TOKEN: GitHub PAT con permiso de escritura (Contents: Read and write) sobre
+#                           el repo jsimonbenitezc-gif/zenit-pos (el token por defecto NO alcanza
+#                           porque es otro repo).
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Tag de la release de zenit-pos donde subir Zenit.apk (vacío = la última publicada)"
+        required: false
+        default: ""
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Compilar APK en EAS (espera a que termine)
+        run: eas build --platform android --profile preview --non-interactive --wait
+
+      - name: Obtener la URL del APK y descargarlo
+        run: |
+          APK_URL=$(eas build:list --platform android --limit 1 --status finished --json --non-interactive \
+            | jq -r '.[0].artifacts.applicationArchiveUrl')
+          echo "APK_URL=$APK_URL"
+          if [ -z "$APK_URL" ] || [ "$APK_URL" = "null" ]; then
+            echo "::error::No se encontró la URL del APK del último build de EAS"; exit 1
+          fi
+          curl -sSL -o Zenit.apk "$APK_URL"
+          ls -lh Zenit.apk
+
+      - name: Subir Zenit.apk a la release de zenit-pos
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_UPLOAD_TOKEN }}
+        run: |
+          TAG="${{ github.event.inputs.release_tag }}"
+          if [ -z "$TAG" ]; then
+            TAG=$(gh release list --repo jsimonbenitezc-gif/zenit-pos --limit 1 --json tagName --jq '.[0].tagName')
+          fi
+          echo "Subiendo Zenit.apk a la release $TAG de zenit-pos"
+          gh release upload "$TAG" Zenit.apk --repo jsimonbenitezc-gif/zenit-pos --clobber
