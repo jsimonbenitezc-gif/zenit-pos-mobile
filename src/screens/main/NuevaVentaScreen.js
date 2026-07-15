@@ -12,8 +12,11 @@ import SvgIcon from '../../components/SvgIcon';
 import * as SecureStore from 'expo-secure-store';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
+import { useNetwork } from '../../context/NetworkContext';
+import { obtenerCatalogo, obtenerClientes, registrarVenta, sincronizarVentasPendientes } from '../../offline/ventasOffline';
 import { colors, spacing, radius, font } from '../../theme';
 import LogoTitle from '../../components/LogoTitle';
+import OfflineIndicator from '../../components/OfflineIndicator';
 import { createSSE } from '../../utils/sse';
 import { formatMoney } from '../../utils/money';
 import { friendlyError } from '../../utils/errors';
@@ -89,6 +92,7 @@ function CartItem({ item, onDelete, onEditNota, currency }) {
 
 export default function NuevaVentaScreen() {
   const { settings, user, isPremium, refreshSettings, sucursalId, nombreActivo, rolActivo, permisosRolesEfectivos } = useAuth();
+  const { online, refrescarPendientes } = useNetwork();
   const currency = settings?.currency_symbol || '$';
 
   const [categories, setCategories] = useState([]);
@@ -226,14 +230,16 @@ export default function NuevaVentaScreen() {
   const load = useCallback(async () => {
     try {
       const [grouped, clts] = await Promise.all([
-        api.getProductsGrouped(),
-        api.getCustomers(),
+        obtenerCatalogo(),   // online: backend + cachea; offline: caché local
+        obtenerClientes(),   // online: backend + cachea; offline: caché local
       ]);
       const cats = grouped.map(g => ({ id: g.id, name: g.name, emoji: g.emoji }));
       const all  = grouped.flatMap(g => (g.products || []).map(p => ({ ...p, category_id: g.id })));
       setCategories([{ id: null, name: 'Todos', emoji: 'svg:search' }, ...cats]);
       setProductos(all);
       setClientes(clts);
+      // Aprovechar que estamos autenticados para subir ventas pendientes de sesiones previas.
+      sincronizarVentasPendientes().then(() => refrescarPendientes?.()).catch(() => {});
     } catch {
       Alert.alert('Error', 'No se pudo cargar el catálogo.');
     } finally {
@@ -509,8 +515,10 @@ export default function NuevaVentaScreen() {
         discount_amount: (descuento + descuentoPuntos) || 0,
       };
 
-      // Puntos de fidelidad: se envían al backend para que se procesen en la misma transacción
-      if (clienteSeleccionado?.id && clienteEnFidelidad && loyaltyEnabled) {
+      // Puntos de fidelidad: se procesan en la transacción del backend, así que
+      // SOLO se aplican estando online. Offline la venta se registra sin puntos
+      // (evita saldos inconsistentes; ver PLAN_OFFLINE_MOBILE §7).
+      if (online && clienteSeleccionado?.id && clienteEnFidelidad && loyaltyEnabled) {
         if (puntosUsados && puntosDisponibles > 0) {
           orderBody.loyalty_points_used = puntosDisponibles;
         } else if (puntosAGanar > 0) {
@@ -518,7 +526,10 @@ export default function NuevaVentaScreen() {
         }
       }
 
-      await api.createOrder(orderBody);
+      // Online: intento directo (feedback inmediato). Offline o si se cae la red:
+      // se encola localmente y se sube al reconectar (nunca se pierde la venta).
+      const res = await registrarVenta(orderBody, online);
+      refrescarPendientes?.();
 
       // Limpiar todo
       setCarrito([]);
@@ -532,12 +543,16 @@ export default function NuevaVentaScreen() {
       setDomNombre('');
       setDomDireccion('');
 
-      // Refrescar stock inmediatamente (sin esperar SSE)
+      // Refrescar stock inmediatamente (sin esperar SSE) — solo aplica online
       if (mostrarStock) {
         api.getProductsStock(sucursalId).then(map => setStockMap(map)).catch(() => {});
       }
 
-      Alert.alert('Venta registrada', `Total: ${formatMoney(totalFinal, currency)}`);
+      Alert.alert(
+        'Venta registrada',
+        `Total: ${formatMoney(totalFinal, currency)}` +
+          (res.modo === 'offline' ? '\n\nSin conexión: se subirá automáticamente al reconectar.' : '')
+      );
     } catch (e) {
       Alert.alert('Error al registrar', friendlyError(e));
     } finally {
@@ -556,6 +571,7 @@ export default function NuevaVentaScreen() {
       {/* Header */}
       <View style={styles.header}>
         <LogoTitle title="Nueva Venta" titleStyle={styles.title} />
+        <OfflineIndicator />
         {carrito.length > 0 && (
           <TouchableOpacity style={styles.carritoBtn} onPress={openCartPanel}>
             <Ionicons name="cart" size={16} color="#fff" />
