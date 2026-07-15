@@ -13,6 +13,7 @@ import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
 import LogoTitle from '../../components/LogoTitle';
+import VerificacionBanner from '../../components/VerificacionBanner';
 import { formatMoney, formatMoneyCompact } from '../../utils/money';
 import { createSSE } from '../../utils/sse';
 
@@ -339,6 +340,11 @@ export default function DashboardScreen() {
         <View style={styles.header}>
           <LogoTitle title="Resumen" titleStyle={styles.title} />
           <Text style={styles.date}>{dateStr}</Text>
+        </View>
+
+        {/* ── Aviso suave: confirmar correo (solo dueño no verificado) ── */}
+        <View style={{ paddingHorizontal: spacing.lg }}>
+          <VerificacionBanner />
         </View>
 
         {/* ── Tabs de sucursales (solo si hay más de 1) ── */}

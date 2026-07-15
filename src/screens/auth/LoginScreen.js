@@ -4,6 +4,7 @@ import {
   ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Alert, Image,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
+import { api } from '../../api/client';
 import { colors, spacing, radius, font } from '../../theme';
 import { friendlyError } from '../../utils/errors';
 
@@ -13,6 +14,7 @@ export default function LoginScreen({ navigation }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading]   = useState(false);
+  const [enviandoReset, setEnviandoReset] = useState(false);
 
   async function handleLogin() {
     if (!username.trim() || !password) {
@@ -26,6 +28,26 @@ export default function LoginScreen({ navigation }) {
       Alert.alert('Error al iniciar sesión', friendlyError(e) || 'Verifica tus credenciales.');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleForgot() {
+    const email = username.trim();
+    if (!email) {
+      Alert.alert('Escribe tu correo', 'Ingresa tu correo electrónico arriba y vuelve a pulsar "¿Olvidaste tu contraseña?".');
+      return;
+    }
+    setEnviandoReset(true);
+    try {
+      const r = await api.forgotPassword(email);
+      Alert.alert(
+        'Revisa tu correo',
+        (r && r.message) || 'Si existe una cuenta con ese correo, te enviamos un enlace para restablecer tu contraseña.'
+      );
+    } catch (e) {
+      Alert.alert('No se pudo enviar', friendlyError(e) || 'Intenta de nuevo en unos minutos.');
+    } finally {
+      setEnviandoReset(false);
     }
   }
 
@@ -72,6 +94,12 @@ export default function LoginScreen({ navigation }) {
             {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnLoginText}>Entrar</Text>}
           </TouchableOpacity>
 
+          <TouchableOpacity style={styles.forgotLink} onPress={handleForgot} disabled={loading || enviandoReset}>
+            {enviandoReset
+              ? <ActivityIndicator size="small" color={colors.primary} />
+              : <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>}
+          </TouchableOpacity>
+
           <TouchableOpacity style={styles.registerLink} onPress={() => navigation.navigate('Register')} disabled={loading}>
             <Text style={styles.registerText}>¿No tienes cuenta? <Text style={styles.registerStrong}>Crear cuenta</Text></Text>
           </TouchableOpacity>
@@ -94,6 +122,8 @@ const styles = StyleSheet.create({
   input:            { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.md, color: colors.textPrimary, backgroundColor: colors.background },
   btnLogin:         { backgroundColor: colors.primary, borderRadius: radius.md, padding: spacing.md + 2, alignItems: 'center', marginTop: spacing.xl },
   btnLoginText:     { color: '#fff', fontSize: font.lg, fontWeight: '700' },
+  forgotLink:       { alignItems: 'center', marginTop: spacing.md, minHeight: 20, justifyContent: 'center' },
+  forgotText:       { color: colors.primary, fontSize: font.sm, fontWeight: '600' },
   registerLink:     { alignItems: 'center', marginTop: spacing.lg },
   registerText:     { color: colors.textSecondary, fontSize: font.md },
   registerStrong:   { color: colors.primary, fontWeight: '700' },

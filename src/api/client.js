@@ -247,6 +247,16 @@ class ApiClient {
     return this.request('/auth/me');
   }
 
+  // Reenviar el correo de confirmación de cuenta (política suave)
+  resendVerification() {
+    return this.request('/auth/resend-verification', { method: 'POST' });
+  }
+
+  // Solicitar correo de recuperación de contraseña (respuesta genérica anti-enumeración)
+  forgotPassword(email) {
+    return this.request('/auth/forgot-password', { method: 'POST', body: { email } });
+  }
+
   // ─── Productos ───────────────────────────────────────────────────────────
   getProducts() {
     return this._getAllPaginated('/products');
