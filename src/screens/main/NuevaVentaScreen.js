@@ -240,7 +240,8 @@ export default function NuevaVentaScreen() {
       setClientes(clts);
       // Aprovechar que estamos autenticados para subir ventas pendientes de sesiones previas.
       sincronizarVentasPendientes().then(() => refrescarPendientes?.()).catch(() => {});
-    } catch {
+    } catch (e) {
+      console.warn('[NuevaVenta] load error:', e);
       Alert.alert('Error', 'No se pudo cargar el catálogo.');
     } finally {
       setLoading(false);
@@ -528,7 +529,14 @@ export default function NuevaVentaScreen() {
 
       // Online: intento directo (feedback inmediato). Offline o si se cae la red:
       // se encola localmente y se sube al reconectar (nunca se pierde la venta).
-      const res = await registrarVenta(orderBody, online);
+      // meta = datos para mostrar la venta en Pedidos sin depender del backend.
+      const res = await registrarVenta(orderBody, online, {
+        total: totalFinal,
+        resumen: {
+          payment_method: metodoPago,
+          items: carrito.map(i => ({ name: i.nombre, quantity: 1 })),
+        },
+      });
       refrescarPendientes?.();
 
       // Limpiar todo

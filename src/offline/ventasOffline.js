@@ -12,7 +12,11 @@ import {
   guardarCatalogo, leerCatalogo, hayCatalogoCacheado,
   guardarClientes, leerClientes,
   encolarVenta, obtenerVentas, marcarVenta, limpiarVentasSubidas,
+  obtenerVentasParaMostrar,
 } from './db';
+
+// Re-exportado para que la pantalla de Pedidos muestre las ventas offline pendientes.
+export { obtenerVentasParaMostrar };
 
 const MAX_INTENTOS = 5; // tras estos intentos con error del servidor, marcar para revisión
 
@@ -62,11 +66,11 @@ function generarUuid() {
  * plano. No falla por falta de red. La venta queda registrada al instante.
  * @returns {{ client_uuid: string }}
  */
-export async function crearVenta(orderBody) {
+export async function crearVenta(orderBody, meta = {}) {
   const client_uuid = orderBody.client_uuid || generarUuid();
   const payload = { ...orderBody, client_uuid };
-  await encolarVenta(client_uuid, payload);       // ← la venta queda registrada
-  sincronizarVentasPendientes().catch(() => {});  // ← sube en segundo plano si hay red
+  await encolarVenta(client_uuid, payload, meta);  // ← la venta queda registrada (con datos de display)
+  sincronizarVentasPendientes().catch(() => {});   // ← sube en segundo plano si hay red
   return { client_uuid };
 }
 
@@ -79,9 +83,10 @@ export async function crearVenta(orderBody) {
  * - OFFLINE: se encola directo.
  * @param {object} orderBody  Cuerpo del pedido (SIN loyalty si está offline; ver pantalla)
  * @param {boolean} online    Estado de conectividad actual
+ * @param {object} meta        Datos de display para la cola: { total, resumen }
  * @returns {Promise<{ modo: 'online' | 'offline' }>}
  */
-export async function registrarVenta(orderBody, online) {
+export async function registrarVenta(orderBody, online, meta = {}) {
   // Un solo client_uuid para ambos caminos: si el envío online expira pero el
   // pedido SÍ se creó, la cola reintenta con el mismo uuid y el backend deduplica.
   const body = { ...orderBody, client_uuid: orderBody.client_uuid || generarUuid() };
@@ -94,7 +99,7 @@ export async function registrarVenta(orderBody, online) {
       // Se cayó la red al enviar: caemos a la cola local para no perder la venta.
     }
   }
-  await crearVenta(body); // body ya trae client_uuid → crearVenta lo reutiliza
+  await crearVenta(body, meta); // body ya trae client_uuid → crearVenta lo reutiliza
   return { modo: 'offline' };
 }
 

@@ -96,7 +96,8 @@ export default function ProductosScreen() {
       const [prods, cats] = await Promise.all([api.getProducts(), api.getCategories()]);
       setProductos(prods);
       setCategorias(cats);
-    } catch {
+    } catch (e) {
+      console.warn('[ProductosScreen] load error:', e);
       Alert.alert('Error', 'No se pudo cargar la información.');
     } finally {
       setLoading(false);

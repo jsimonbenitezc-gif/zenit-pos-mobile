@@ -7,8 +7,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
+import { useNetwork } from '../../context/NetworkContext';
+import { obtenerVentasParaMostrar } from '../../offline/ventasOffline';
 import { colors, spacing, radius, font } from '../../theme';
 import LogoTitle from '../../components/LogoTitle';
+import OfflineIndicator from '../../components/OfflineIndicator';
 import { formatMoney } from '../../utils/money';
 import { friendlyError } from '../../utils/errors';
 
@@ -25,6 +28,8 @@ const ESTADO_COLOR = {
   completado: colors.primary,
   entregado:  colors.success,
   cancelado:  colors.danger,
+  'por subir': '#f59e0b',   // venta offline aún no sincronizada
+  error:       colors.danger,
 };
 
 const PAGO_LABEL = { efectivo: 'Efectivo', tarjeta: 'Tarjeta', transferencia: 'Transferencia' };
@@ -38,7 +43,14 @@ function PedidoCard({ pedido, onCambiarEstado, currency }) {
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <View>
-          <Text style={styles.pedidoId}>#{pedido.id}</Text>
+          {pedido._offline ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+              <Ionicons name="cloud-upload-outline" size={13} color="#f59e0b" />
+              <Text style={[styles.pedidoId, { color: '#b45309' }]}>Sin subir</Text>
+            </View>
+          ) : (
+            <Text style={styles.pedidoId}>#{pedido.id}</Text>
+          )}
           <View style={styles.pedidoFechaRow}>
             <Text style={styles.pedidoFecha}>{fecha} · </Text>
             <Ionicons name={PAGO_ICON[pedido.payment_method] || 'cash-outline'} size={12} color={colors.textMuted} />
@@ -108,7 +120,9 @@ const PAGE_SIZE = 30;
 
 export default function PedidosScreen() {
   const { settings, sucursalId, nombreActivo, rolActivo, permisosRolesEfectivos } = useAuth();
+  const { online } = useNetwork();
   const currency = settings?.currency_symbol || '$';
+  const prevOnline = useRef(true);
   const [pedidos, setPedidos]       = useState([]);
   const [filtro, setFiltro]         = useState(null);
   const [loading, setLoading]       = useState(true);
@@ -127,16 +141,20 @@ export default function PedidosScreen() {
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     pageRef.current = 1;
+    // Ventas offline aún sin subir. Solo se muestran en "Todos" (no tienen estado del backend).
+    const offline = filtro ? [] : await obtenerVentasParaMostrar().catch(() => []);
     try {
       const params = { limit: PAGE_SIZE, page: 1 };
       if (filtro) params.status = filtro;
       if (sucursalId) params.branch_id = sucursalId;
       const data = await api.getOrders(params);
       const rows = data.data || [];
-      setPedidos(rows);
+      setPedidos([...offline, ...rows]);   // ventas offline (recientes) arriba
       setHasMore(rows.length >= PAGE_SIZE);
     } catch (e) {
-      Alert.alert('Error', 'No se pudieron cargar los pedidos.');
+      // Sin conexión: mostrar al menos las ventas offline pendientes, sin alertar.
+      setPedidos(offline);
+      setHasMore(false);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -161,6 +179,17 @@ export default function PedidosScreen() {
   }, [filtro, sucursalId, loadingMore, hasMore]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Al reconectar, las ventas offline se suben (App onReconnect); refrescar para que
+  // pasen de "Sin subir" a pedidos reales del backend. Pequeño retraso para dar tiempo al sync.
+  useEffect(() => {
+    if (online && !prevOnline.current) {
+      const t = setTimeout(() => load(true), 2500);
+      prevOnline.current = online;
+      return () => clearTimeout(t);
+    }
+    prevOnline.current = online;
+  }, [online, load]);
 
   async function cambiarEstado(id, status) {
     if (status === 'cancelado') {
@@ -220,8 +249,9 @@ export default function PedidosScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
+      <View style={[styles.header, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
         <LogoTitle title="Pedidos" titleStyle={styles.title} />
+        <OfflineIndicator />
       </View>
 
       {/* Filtros — ScrollView (no FlatList) con flexGrow:0 para que la fila no se

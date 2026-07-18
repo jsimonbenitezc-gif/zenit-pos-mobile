@@ -50,9 +50,15 @@ async function _abrir() {
       estado       TEXT NOT NULL DEFAULT 'pendiente',   -- pendiente | subida | error
       creada_en    TEXT NOT NULL,
       intentos     INTEGER NOT NULL DEFAULT 0,
-      ultimo_error TEXT
+      ultimo_error TEXT,
+      total        REAL,
+      resumen_json TEXT
     );
   `);
+  // Migración para BDs ya creadas antes de agregar estas columnas de display.
+  for (const col of ['total REAL', 'resumen_json TEXT']) {
+    try { await db.execAsync(`ALTER TABLE ventas_pendientes ADD COLUMN ${col};`); } catch { /* ya existe */ }
+  }
   return db;
 }
 
@@ -188,13 +194,49 @@ export async function leerClientes() {
 
 // ─── COLA DE VENTAS PENDIENTES ──────────────────────────────────────────────
 
-/** Encola una venta (payload = el orderBody que se manda a POST /api/orders). */
-export async function encolarVenta(clientUuid, payload) {
+/**
+ * Encola una venta (payload = el orderBody que se manda a POST /api/orders).
+ * @param {object} meta  Datos para mostrar en Pedidos sin depender del backend:
+ *                       { total, resumen: { items: [{name, quantity}], payment_method } }
+ */
+export async function encolarVenta(clientUuid, payload, meta = {}) {
   const db = await initDB();
   await db.runAsync(
-    'INSERT OR REPLACE INTO ventas_pendientes (client_uuid, payload_json, estado, creada_en, intentos) VALUES (?, ?, ?, ?, 0)',
-    [clientUuid, JSON.stringify(payload), 'pendiente', new Date().toISOString()]
+    'INSERT OR REPLACE INTO ventas_pendientes (client_uuid, payload_json, estado, creada_en, intentos, total, resumen_json) VALUES (?, ?, ?, ?, 0, ?, ?)',
+    [
+      clientUuid,
+      JSON.stringify(payload),
+      'pendiente',
+      new Date().toISOString(),
+      meta.total == null ? null : Number(meta.total),
+      meta.resumen ? JSON.stringify(meta.resumen) : null,
+    ]
   );
+}
+
+/**
+ * Devuelve las ventas offline aún NO subidas (pendiente/error) como objetos con
+ * forma de "pedido", listos para mostrar en la pantalla de Pedidos.
+ */
+export async function obtenerVentasParaMostrar() {
+  const db = await initDB();
+  const rows = await db.getAllAsync(
+    "SELECT * FROM ventas_pendientes WHERE estado IN ('pendiente','error') ORDER BY creada_en DESC"
+  );
+  return rows.map((r) => {
+    const resumen = _parse(r.resumen_json) || {};
+    const payload = _parse(r.payload_json) || {};
+    const items = Array.isArray(resumen.items) ? resumen.items : [];
+    return {
+      id: 'off-' + String(r.client_uuid).slice(0, 8),
+      createdAt: r.creada_en,
+      payment_method: resumen.payment_method || payload.payment_method || 'efectivo',
+      status: r.estado === 'error' ? 'error' : 'por subir',
+      total: r.total != null ? r.total : 0,
+      items: items.map((it, i) => ({ id: 'i' + i, quantity: it.quantity || 1, product: { name: it.name || 'Producto' } })),
+      _offline: true,
+    };
+  });
 }
 
 /** Devuelve las ventas en un estado dado (por defecto, las pendientes de subir). */
