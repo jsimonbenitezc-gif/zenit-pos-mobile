@@ -311,6 +311,13 @@ class ApiClient {
     return this.request(`/orders/${id}/status`, { method: 'PUT', body: { status } });
   }
 
+  // Token acotado para abrir el KDS en otro dispositivo (QR). Dura 12h y el backend
+  // solo lo acepta para leer la cola de cocina (`middleware/auth.js`).
+  // NUNCA metas el token de sesión en el QR: da acceso completo a la cuenta.
+  getKdsToken(branchId = null) {
+    return this.request('/kds/token', { method: 'POST', body: { branch_id: branchId } });
+  }
+
   // ─── Clientes ────────────────────────────────────────────────────────────
   getCustomers() {
     return this._getAllPaginated('/customers');

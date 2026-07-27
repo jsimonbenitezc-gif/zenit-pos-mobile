@@ -13,11 +13,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  ActivityIndicator, RefreshControl, StatusBar, Modal, Image,
+  ActivityIndicator, RefreshControl, StatusBar, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as SecureStore from 'expo-secure-store';
+import QRCode from 'react-native-qrcode-svg';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 
@@ -137,16 +137,28 @@ export default function KDSScreen({ navigation }) {
   const [lastUpdate, setLastUpdate] = useState(null);
   const [showQR, setShowQR]       = useState(false);
   const [qrUrl, setQrUrl]         = useState(null);
+  const [qrError, setQrError]     = useState(null);
   const intervalRef = useRef(null);
 
+  // El QR lleva un token ACOTADO al KDS (12h, solo lectura de la cola de cocina).
+  // Antes llevaba el token de SESIÓN, lo que tenía dos problemas graves:
+  //   1. La página /kds exige `purpose:'kds'` y rechazaba ese token → el QR no servía.
+  //   2. Quien fotografiara el código obtenía una credencial completa de la cuenta.
+  // Además el QR se dibuja aquí mismo: antes se pedía a un servicio externo
+  // (api.qrserver.com) pasándole el token dentro de la URL, así que la credencial
+  // terminaba en los registros de un tercero.
   async function abrirQR() {
-    const token = await SecureStore.getItemAsync('zenit_token');
-    if (!token) return;
-    const branchParam = sucursalId ? `&branch_id=${sucursalId}` : '';
-    const kdsUrl = `${KDS_WEB_BASE}?token=${encodeURIComponent(token)}${branchParam}`;
-    const qrSrc  = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(kdsUrl)}`;
-    setQrUrl(qrSrc);
+    setQrUrl(null);
+    setQrError(null);
     setShowQR(true);
+    try {
+      const { kdsToken } = await api.getKdsToken(sucursalId ?? null);
+      if (!kdsToken) throw new Error('respuesta sin kdsToken');
+      const branchParam = sucursalId ? `&branch_id=${sucursalId}` : '';
+      setQrUrl(`${KDS_WEB_BASE}?token=${encodeURIComponent(kdsToken)}${branchParam}`);
+    } catch {
+      setQrError('No se pudo generar el código. Revisa tu conexión e inténtalo de nuevo.');
+    }
   }
 
   // ── Carga de pedidos ────────────────────────────────────────────────────
@@ -230,7 +242,11 @@ export default function KDSScreen({ navigation }) {
             <Text style={styles.qrTitle}>Abrir KDS en otro dispositivo</Text>
             <Text style={styles.qrSub}>Escanea con la cámara. La página se actualiza sola cada 15 segundos.</Text>
             {qrUrl ? (
-              <Image source={{ uri: qrUrl }} style={styles.qrImage} />
+              <View style={styles.qrImage}>
+                <QRCode value={qrUrl} size={200} backgroundColor="#fff" />
+              </View>
+            ) : qrError ? (
+              <Text style={styles.qrError}>{qrError}</Text>
             ) : (
               <ActivityIndicator color={KDS.indigo} style={{ marginVertical: 40 }} />
             )}
@@ -324,7 +340,8 @@ const styles = StyleSheet.create({
   qrBox:       { backgroundColor: '#1f2937', borderRadius: 16, padding: 24, alignItems: 'center', width: 300, borderWidth: 1, borderColor: KDS.border },
   qrTitle:     { fontSize: 16, fontWeight: '800', color: KDS.text, textAlign: 'center', marginBottom: 6 },
   qrSub:       { fontSize: 12, color: KDS.textSub, textAlign: 'center', marginBottom: 20, lineHeight: 18 },
-  qrImage:     { width: 220, height: 220, borderRadius: 10, backgroundColor: '#fff' },
+  qrImage:     { width: 220, height: 220, borderRadius: 10, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  qrError:     { color: KDS.red, textAlign: 'center', marginVertical: 40, paddingHorizontal: 12, lineHeight: 20 },
   qrCloseBtn:  { marginTop: 20, borderWidth: 1, borderColor: KDS.border, borderRadius: 8, paddingHorizontal: 32, paddingVertical: 10 },
   qrCloseBtnText: { color: KDS.textSub, fontWeight: '700' },
 
