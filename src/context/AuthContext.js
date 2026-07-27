@@ -4,6 +4,7 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform, Alert } from 'react-native';
 import { api } from '../api/client';
+import { zonaDelDispositivo } from '../utils/tz';
 
 // Configurar cómo se muestran las notificaciones cuando la app está en primer plano
 // (solo funciona en APK/build, no en Expo Go SDK 53+)
@@ -193,7 +194,9 @@ export function AuthProvider({ children }) {
   // Crea una cuenta nueva de dueño y deja la sesión iniciada (el backend devuelve
   // token + refreshToken, igual que login).
   async function registerOwner(name, email, password) {
-    const data = await api.register(name, email, password);
+    // La zona del dispositivo viaja en el registro para que el dashboard corte el
+    // día en hora local desde el primer día (se puede cambiar luego en Ajustes).
+    const data = await api.register(name, email, password, zonaDelDispositivo());
     await SecureStore.setItemAsync('zenit_token', data.token);
     if (data.refreshToken) await SecureStore.setItemAsync('zenit_refresh_token', data.refreshToken);
     await SecureStore.setItemAsync('zenit_session_email', email);

@@ -16,6 +16,7 @@ import { colors, spacing, radius, font } from '../../theme';
 import LogoTitle from '../../components/LogoTitle';
 import { friendlyError } from '../../utils/errors';
 import { createSSE } from '../../utils/sse';
+import { zonaDelDispositivo, etiquetaZona, opcionesZona } from '../../utils/tz';
 import {
   isPrinterAvailable,
   getPairedDevices,
@@ -56,6 +57,10 @@ export default function AjustesScreen({ navigation }) {
   const [direccion, setDireccion]     = useState('');
   const [tipo, setTipo]               = useState('');
   const [savingNegocio, setSavingNegocio] = useState(false);
+
+  // ── Estado: zona horaria del negocio ───────────────────────────────────
+  const [zonaHoraria, setZonaHoraria]     = useState(zonaDelDispositivo());
+  const [modalZona, setModalZona]         = useState(false);
 
   // ── Estado: ticket ─────────────────────────────────────────────────────
   const [moneda, setMoneda]               = useState('$');
@@ -135,6 +140,7 @@ export default function AjustesScreen({ navigation }) {
         setDireccion(s.business_address || '');
         setTipo(s.business_tipo || '');
         setMoneda(s.currency_symbol || '$');
+        setZonaHoraria(s.tz || zonaDelDispositivo());
         setShowPhone(!!(s.show_phone === true || s.show_phone === 'true' || s.show_phone === undefined));
         setShowAddress(!!(s.show_direccion === true || s.show_direccion === 'true' || (s.show_direccion === undefined && s.show_address === undefined) || s.show_address === true || s.show_address === 'true'));
         setShowEmail(!!(s.show_email === true || s.show_email === 'true'));
@@ -295,6 +301,21 @@ export default function AjustesScreen({ navigation }) {
   async function cambiarMoneda(m) {
     setMoneda(m);
     try { await api.updateSettings({ currency_symbol: m }); await refreshSettings(); } catch {}
+  }
+
+  // Zona horaria: define a qué hora corta el día el backend (dashboard, reportes,
+  // resúmenes automáticos). Si falla el guardado, revertimos para no mentirle al usuario.
+  async function cambiarZonaHoraria(tz) {
+    const anterior = zonaHoraria;
+    setZonaHoraria(tz);
+    setModalZona(false);
+    try {
+      await api.updateSettings({ tz });
+      await refreshSettings();
+    } catch (e) {
+      setZonaHoraria(anterior);
+      Alert.alert('No se pudo guardar', friendlyError(e));
+    }
   }
 
   async function toggleShowPhone(val) {
@@ -963,6 +984,11 @@ export default function AjustesScreen({ navigation }) {
         <SectionTitle label="Ajustes Generales" />
         <SectionCard>
           <MenuItem
+            label="Zona horaria del negocio"
+            sub={etiquetaZona(zonaHoraria)}
+            onPress={() => setModalZona(true)}
+          />
+          <MenuItem
             label="Impresora predeterminada"
             sub={printerName || 'Sin impresora configurada'}
             onPress={abrirBusquedaImpresoras}
@@ -1249,6 +1275,41 @@ export default function AjustesScreen({ navigation }) {
               Solo muestra dispositivos ya emparejados.{'\n'}
               Empareja tu impresora primero desde Bluetooth en Ajustes del sistema.
             </Text>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* ════════════════════════════════════════════════════════════════
+          MODAL: Zona horaria del negocio
+          Define a qué hora corta el día el backend (que corre en UTC).
+      ════════════════════════════════════════════════════════════════ */}
+      <Modal visible={modalZona} animationType="slide" presentationStyle="pageSheet">
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Zona horaria</Text>
+            <TouchableOpacity onPress={() => setModalZona(false)}>
+              <Text style={styles.linkText}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
+            <Text style={[styles.menuSub, { marginBottom: spacing.lg }]}>
+              Define a qué hora empieza y termina el día para el dashboard, los reportes
+              y los resúmenes automáticos. Elige la zona donde está tu negocio.
+            </Text>
+
+            <SectionCard>
+              {opcionesZona(zonaHoraria).map(([id, etiqueta], i, lista) => (
+                <MenuItem
+                  key={id}
+                  label={etiqueta}
+                  sub={id}
+                  rightText={id === zonaHoraria ? '✓' : ' '}
+                  onPress={() => cambiarZonaHoraria(id)}
+                  last={i === lista.length - 1}
+                />
+              ))}
+            </SectionCard>
           </ScrollView>
         </SafeAreaView>
       </Modal>

@@ -235,8 +235,10 @@ class ApiClient {
     return this.request('/auth/login', { method: 'POST', body: { username, password } });
   }
 
-  register(name, email, password) {
-    return this.request('/auth/register', { method: 'POST', body: { name, email, password } });
+  // `tz`: zona horaria IANA del dispositivo. El backend la guarda en settings.tz y la
+  // usa para cortar el día en stats y en los resúmenes automáticos.
+  register(name, email, password, tz) {
+    return this.request('/auth/register', { method: 'POST', body: { name, email, password, ...(tz ? { tz } : {}) } });
   }
 
   staffLogin(username, password) {

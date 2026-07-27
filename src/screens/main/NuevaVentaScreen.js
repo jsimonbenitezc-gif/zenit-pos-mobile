@@ -128,8 +128,10 @@ export default function NuevaVentaScreen() {
   const [domNombre, setDomNombre]         = useState('');
   const [domDireccion, setDomDireccion]   = useState('');
 
-  // Descuentos
+  // Descuentos. El id viaja con la venta: es la autorización que el backend exige
+  // para aceptar el monto (el canje de puntos va aparte y no requiere autorización).
   const [descuento, setDescuento]         = useState(0);
+  const [descuentoId, setDescuentoId]     = useState(null);
   const [descuentoNombre, setDescuentoNombre] = useState('');
   const [descuentos, setDescuentos]       = useState([]);
   const [cargandoDesc, setCargandoDesc]   = useState(false);
@@ -369,8 +371,10 @@ export default function NuevaVentaScreen() {
   const bonoPorPedido      = parseInt(settings?.puntos_bono_pedido || '0', 10);
   const valorPuntosDisp    = parseFloat((puntosDisponibles * valorPunto).toFixed(2));
 
-  // El descuento en pesos que generan los puntos (capped al total después del descuento regular)
-  const descuentoPuntos = puntosUsados
+  // El descuento en pesos que generan los puntos (capped al total después del descuento regular).
+  // Requiere `online`: si se cae la red con los puntos ya activados, el canje deja de
+  // aplicarse al total — así nunca se cobra de menos algo que el backend no registrará.
+  const descuentoPuntos = (puntosUsados && online)
     ? Math.min(valorPuntosDisp, Math.max(0, subtotal - descuento))
     : 0;
 
@@ -420,6 +424,7 @@ export default function NuevaVentaScreen() {
       ? parseFloat((subtotal * parseFloat(d.value) / 100).toFixed(2))
       : parseFloat(d.value);
     setDescuento(Math.min(monto, subtotal));
+    setDescuentoId(d.id);
     setDescuentoNombre(d.name);
     setShowDescuentoModal(false);
   }
@@ -470,6 +475,7 @@ export default function NuevaVentaScreen() {
 
   function quitarDescuento() {
     setDescuento(0);
+    setDescuentoId(null);
     setDescuentoNombre('');
   }
 
@@ -513,7 +519,11 @@ export default function NuevaVentaScreen() {
           ? JSON.stringify({ name: domNombre })
           : null,
         branch_id: sucursalId || null,
-        discount_amount: (descuento + descuentoPuntos) || 0,
+        // Descuento de promoción + su autorización (discount_id). Va SEPARADO del
+        // canje de puntos: el backend exige autorización para el primero, no para
+        // el segundo (el cliente gasta puntos que ya ganó).
+        discount_amount: descuento || 0,
+        discount_id: descuentoId || null,
       };
 
       // Puntos de fidelidad: se procesan en la transacción del backend, así que
@@ -522,6 +532,9 @@ export default function NuevaVentaScreen() {
       if (online && clienteSeleccionado?.id && clienteEnFidelidad && loyaltyEnabled) {
         if (puntosUsados && puntosDisponibles > 0) {
           orderBody.loyalty_points_used = puntosDisponibles;
+          // Monto en pesos del canje. El backend lo topa a puntos × puntos_valor,
+          // así que no puede usarse para regalar dinero sin gastar puntos.
+          orderBody.loyalty_discount_amount = descuentoPuntos || 0;
         } else if (puntosAGanar > 0) {
           orderBody.loyalty_points_earned = puntosAGanar;
         }
@@ -990,8 +1003,11 @@ export default function NuevaVentaScreen() {
                 </View>
               )}
 
-              {/* Puntos de fidelidad */}
-              {loyaltyEnabled && clienteEnFidelidad && (
+              {/* Puntos de fidelidad — solo online: el canje se procesa en la
+                  transacción del backend (ver PLAN_OFFLINE_MOBILE §7). Sin este
+                  gate, offline se podía descontar del total un canje que nunca
+                  llegaba al backend y la venta quedaba descuadrada. */}
+              {online && loyaltyEnabled && clienteEnFidelidad && (
                 <View style={styles.puntosBox}>
                   <View style={styles.puntosHeader}>
                     <View style={{ flex: 1 }}>
