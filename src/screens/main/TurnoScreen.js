@@ -22,7 +22,7 @@ function InfoRow({ label, value, valueColor }) {
 }
 
 export default function TurnoScreen() {
-  const { settings, user, sucursalId, nombreActivo, rolActivo } = useAuth();
+  const { settings, user, sucursalId, puedeRegistrarEnSucursal, nombreActivo, rolActivo } = useAuth();
   const currency = settings?.currency_symbol || '$';
   const [turno, setTurno]           = useState(null);
   const [totales, setTotales]       = useState(null);
@@ -61,6 +61,14 @@ export default function TurnoScreen() {
   }, [cargarTurno]);
 
   async function abrirTurno() {
+    // Un turno sin sucursal descuadra el cierre de caja. Ver CLAUDE.md §24.
+    if (!puedeRegistrarEnSucursal()) {
+      Alert.alert(
+        'Falta elegir la sucursal',
+        'Este equipo todavía no tiene una sucursal asignada. Ve a Ajustes → Sucursal y elige en cuál registra este equipo.'
+      );
+      return;
+    }
     const fondo = parseFloat(fondoInicial) || 0;
     setSaving(true);
     try {

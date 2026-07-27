@@ -12,6 +12,7 @@ import { obtenerVentasParaMostrar } from '../../offline/ventasOffline';
 import { colors, spacing, radius, font } from '../../theme';
 import LogoTitle from '../../components/LogoTitle';
 import OfflineIndicator from '../../components/OfflineIndicator';
+import SelectorSucursal from '../../components/SelectorSucursal';
 import { formatMoney } from '../../utils/money';
 import { friendlyError } from '../../utils/errors';
 
@@ -130,6 +131,9 @@ export default function PedidosScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore]         = useState(true);
   const pageRef = useRef(1);
+  // Sucursal que se está MIRANDO (por defecto la del equipo). Solo lectura.
+  const [sucursalVista, setSucursalVista] = useState(sucursalId || null);
+  useEffect(() => { setSucursalVista(sucursalId || null); }, [sucursalId]);
 
   // Estado del modal de PIN para cancelación
   const [pinModal, setPinModal]         = useState({ visible: false, pedidoId: null });
@@ -146,7 +150,7 @@ export default function PedidosScreen() {
     try {
       const params = { limit: PAGE_SIZE, page: 1 };
       if (filtro) params.status = filtro;
-      if (sucursalId) params.branch_id = sucursalId;
+      if (sucursalVista) params.branch_id = sucursalVista;
       const data = await api.getOrders(params);
       const rows = data.data || [];
       setPedidos([...offline, ...rows]);   // ventas offline (recientes) arriba
@@ -159,7 +163,7 @@ export default function PedidosScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [filtro, sucursalId]);
+  }, [filtro, sucursalVista]);
 
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore) return;
@@ -168,7 +172,7 @@ export default function PedidosScreen() {
     try {
       const params = { limit: PAGE_SIZE, page: nextPage };
       if (filtro) params.status = filtro;
-      if (sucursalId) params.branch_id = sucursalId;
+      if (sucursalVista) params.branch_id = sucursalVista;
       const data = await api.getOrders(params);
       const rows = data.data || [];
       setPedidos(prev => [...prev, ...rows]);
@@ -253,6 +257,9 @@ export default function PedidosScreen() {
         <LogoTitle title="Pedidos" titleStyle={styles.title} />
         <OfflineIndicator />
       </View>
+
+      {/* Ver los pedidos de otra sucursal (solo lectura) */}
+      <SelectorSucursal value={sucursalVista} onChange={setSucursalVista} />
 
       {/* Filtros — ScrollView (no FlatList) con flexGrow:0 para que la fila no se
           estire verticalmente. minHeight + alignItems:center dan aire arriba/abajo

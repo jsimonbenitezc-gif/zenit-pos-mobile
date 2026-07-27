@@ -16,12 +16,19 @@ export function SeccionSucursales({
   branches,
   setBranches,
   sucursalId,
-  setSucursalId,
+  cambiarSucursalDispositivo,
+  verificarPasswordAdmin,
   onRefresh,
   styles,
 }) {
   // ── Own state ───────────────────────────────────────────────────────────
   const [savingSucursal, setSavingSucursal] = useState(false);
+  // Confirmación con contraseña de administrador para cambiar la sucursal del equipo
+  const [modalPassword, setModalPassword]   = useState(false);
+  const [pendienteId, setPendienteId]       = useState(null);
+  const [adminPassword, setAdminPassword]   = useState('');
+  const [adminError, setAdminError]         = useState('');
+  const [verificando, setVerificando]       = useState(false);
   const [modalSucursal, setModalSucursal]           = useState(false);
   const [modalNuevaSucursal, setModalNuevaSucursal] = useState(false);
   const [modalEditarSucursal, setModalEditarSucursal] = useState(false);
@@ -41,16 +48,47 @@ export function SeccionSucursales({
   const sucursalActual = branches.find(b => b.id === sucursalId);
 
   // ── Functions ───────────────────────────────────────────────────────────
-  async function seleccionarSucursal(id) {
-    setSucursalId(id);
+  // Cambiar la sucursal del equipo mueve TODOS sus registros futuros: es configuración,
+  // no una acción de operación. Por eso se explica la consecuencia y se pide la
+  // contraseña de administrador (no el PIN de empleado). Ver CLAUDE.md §24.
+  function seleccionarSucursal(id) {
     setModalSucursal(false);
-    setSavingSucursal(true);
+    if (id === sucursalId) return;
+
+    const nombre = branches.find(b => b.id === id)?.name;
+    const mensaje = id
+      ? `Todos los registros de este equipo (ventas, turnos, mesas e inventario) pasarán a "${nombre}".`
+      : 'Este equipo quedará sin sucursal asignada y no podrá registrar ventas si tu negocio tiene varias sucursales.';
+
+    Alert.alert('Cambiar la sucursal de este equipo', mensaje, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Continuar', onPress: () => {
+        setPendienteId(id);
+        setAdminPassword('');
+        setAdminError('');
+        setModalPassword(true);
+      }},
+    ]);
+  }
+
+  async function confirmarCambioSucursal() {
+    if (!adminPassword) return;
+    setVerificando(true);
+    setAdminError('');
     try {
-      await api.updateSettings({ sucursal_id: id });
+      await verificarPasswordAdmin(adminPassword);
+      await cambiarSucursalDispositivo(pendienteId);
+      setModalPassword(false);
+      setSavingSucursal(true);
       await onRefresh();
     } catch (e) {
-      Alert.alert('Error', friendlyError(e));
+      const msg = String(e?.message || '');
+      setAdminError(msg.includes('401') || msg.toLowerCase().includes('invalid')
+        ? 'Contraseña incorrecta.'
+        : friendlyError(e));
+      setAdminPassword('');
     } finally {
+      setVerificando(false);
       setSavingSucursal(false);
     }
   }
@@ -128,10 +166,9 @@ export function SeccionSucursales({
         try {
           await api.deleteBranch(branch.id);
           setBranches(prev => prev.filter(b => b.id !== branch.id));
-          if (sucursalId === branch.id) {
-            setSucursalId(null);
-            try { await api.updateSettings({ sucursal_id: null }); } catch {}
-          }
+          // Si el equipo registraba en la sucursal borrada, queda sin asignar (sin pedir
+          // contraseña: es consecuencia de una acción que el dueño ya autorizó).
+          if (sucursalId === branch.id) await cambiarSucursalDispositivo(null);
           await onRefresh();
         } catch (e) { Alert.alert('Error', friendlyError(e)); }
       }},
@@ -158,7 +195,9 @@ export function SeccionSucursales({
           <>
             <MenuItem
               label="Sucursal de este dispositivo"
-              sub={savingSucursal ? 'Guardando...' : (sucursalActual?.name || 'Sin sucursal asignada')}
+              sub={savingSucursal
+                ? 'Guardando...'
+                : `${sucursalActual?.name || 'Sin sucursal asignada'} · cambiarla pide contraseña`}
               onPress={() => setModalSucursal(true)}
             />
             {branches.length === 0 ? (
@@ -334,18 +373,11 @@ export function SeccionSucursales({
           </View>
           <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
             <Text style={[styles.menuSub, { marginBottom: spacing.lg }]}>
-              Elige la sucursal que corresponde a este dispositivo.
+              Elige la sucursal en la que registra este dispositivo. Solo afecta a este
+              equipo: otros celulares o tablets conservan la suya.
             </Text>
-            {/* Sin sucursal */}
-            <TouchableOpacity
-              style={[styles.deviceRow, !sucursalId && { borderColor: colors.primary }]}
-              onPress={() => seleccionarSucursal(null)}
-            >
-              <Text style={[styles.menuLabel, !sucursalId && { color: colors.primary }]}>
-                Sin sucursal asignada
-              </Text>
-              {!sucursalId && <Text style={{ color: colors.primary }}>{'\u2713'}</Text>}
-            </TouchableOpacity>
+            {/* "Sin sucursal" no es elegible: una vez que el negocio tiene sucursales,
+                registrar sin ninguna solo produce datos hu\u00e9rfanos (ver CLAUDE.md \u00a724). */}
             {branches.map(b => (
               <TouchableOpacity
                 key={b.id}
@@ -363,6 +395,56 @@ export function SeccionSucursales({
             ))}
           </ScrollView>
         </SafeAreaView>
+      </Modal>
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          MODAL: Contraseña de administrador para cambiar la sucursal
+      ═══════════════════════════════════════════════════════════════════ */}
+      <Modal visible={modalPassword} animationType="fade" transparent>
+        <KeyboardAvoidingView
+          style={{ flex: 1, backgroundColor: 'rgba(17,24,39,0.55)', justifyContent: 'center', padding: spacing.xl }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={{ backgroundColor: colors.surface, borderRadius: 14, padding: spacing.xl }}>
+            <Text style={[styles.modalTitle, { marginBottom: spacing.sm }]}>Contraseña de administrador</Text>
+            <Text style={[styles.menuSub, { marginBottom: spacing.lg }]}>
+              Cambiar la sucursal de un equipo afecta a dónde se registran todas sus ventas.
+              Ingresa la contraseña de administrador para confirmar.
+            </Text>
+            <TextInput
+              style={styles.input}
+              value={adminPassword}
+              onChangeText={setAdminPassword}
+              placeholder="Contraseña"
+              placeholderTextColor={colors.textMuted}
+              secureTextEntry
+              autoFocus
+              onSubmitEditing={confirmarCambioSucursal}
+            />
+            {adminError ? (
+              <Text style={{ color: colors.danger, marginTop: spacing.sm, fontSize: font.sm }}>{adminError}</Text>
+            ) : null}
+            <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xl }}>
+              <TouchableOpacity
+                style={[styles.btnSave, { flex: 1, backgroundColor: colors.border }]}
+                onPress={() => setModalPassword(false)}
+                disabled={verificando}
+              >
+                <Text style={[styles.btnSaveText, { color: colors.textPrimary }]}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.btnSave, { flex: 1 }, verificando && { opacity: 0.7 }]}
+                onPress={confirmarCambioSucursal}
+                disabled={verificando}
+              >
+                {verificando
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={styles.btnSaveText}>Confirmar</Text>
+                }
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </>
   );

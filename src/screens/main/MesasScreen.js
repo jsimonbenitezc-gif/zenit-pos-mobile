@@ -14,6 +14,7 @@ import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
 import LogoTitle from '../../components/LogoTitle';
+import SelectorSucursal from '../../components/SelectorSucursal';
 import { formatMoney } from '../../utils/money';
 import { createSSE } from '../../utils/sse';
 import { friendlyError } from '../../utils/errors';
@@ -72,7 +73,7 @@ function MesaCard({ mesa, onPress, currency }) {
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 
 export default function MesasScreen() {
-  const { isOwner, settings, sucursalId } = useAuth();
+  const { isOwner, settings, sucursalId, puedeRegistrarEnSucursal } = useAuth();
   const currency = settings?.currency_symbol || '$';
 
   const [mesas, setMesas]         = useState([]);
@@ -139,6 +140,11 @@ export default function MesasScreen() {
 
   // Toast de confirmación
   const [toast, setToast]                    = useState('');
+  // Sucursal que se está MIRANDO. Abrir mesas sigue registrando en la del equipo,
+  // así que mirar otra es solo lectura (ver `bloqueada` más abajo).
+  const [sucursalVista, setSucursalVista]    = useState(sucursalId || null);
+  useEffect(() => { setSucursalVista(sucursalId || null); }, [sucursalId]);
+
   function showToast(msg) {
     setToast(msg);
     setTimeout(() => setToast(''), 2500);
@@ -149,7 +155,7 @@ export default function MesasScreen() {
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefresh(true);
     try {
-      const data = await api.getTables();
+      const data = await api.getTables(sucursalVista);
       setMesas(data);
     } catch (err) {
       Alert.alert('Error', err?.message || 'No se pudieron cargar las mesas.');
@@ -157,7 +163,7 @@ export default function MesasScreen() {
       setLoading(false);
       setRefresh(false);
     }
-  }, []);
+  }, [sucursalVista]);
 
   // Cargar al entrar a la pantalla, SSE en tiempo real + intervalo de respaldo
   useFocusEffect(
@@ -260,6 +266,23 @@ export default function MesasScreen() {
       quantity: qty,
     }));
     if (items.length === 0) return;
+    // Mirando otra sucursal la vista es SOLO LECTURA: abrir una mesa de Norte con
+    // una venta que se guarda en Centro cruzaría los datos de las dos.
+    if (sucursalVista !== sucursalId) {
+      Alert.alert(
+        'Solo lectura',
+        'Estás viendo las mesas de otra sucursal. Para registrar aquí, vuelve a la sucursal de este equipo en las pestañas de arriba.'
+      );
+      return;
+    }
+    // Abrir mesa crea un pedido: aplica la misma regla de sucursal que una venta
+    if (!ordenActiva && !puedeRegistrarEnSucursal()) {
+      Alert.alert(
+        'Falta elegir la sucursal',
+        'Este equipo todavía no tiene una sucursal asignada. Ve a Ajustes → Sucursal y elige en cuál registra este equipo.'
+      );
+      return;
+    }
 
     setAgregando(true);
     try {
@@ -341,6 +364,8 @@ export default function MesasScreen() {
         name: nuevaNombre.trim(),
         zone: nuevaZona.trim() || 'General',
         capacity: parseInt(nuevaCapacidad) || 4,
+        // La mesa nace en la sucursal de ESTE equipo, no en la que se esté mirando
+        branch_id: sucursalId || undefined,
       });
       setModalCrear(false);
       setNuevaNombre(''); setNuevaZona(''); setNuevaCapacidad('4');
@@ -381,6 +406,9 @@ export default function MesasScreen() {
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Ver las mesas de otra sucursal (solo lectura) */}
+      <SelectorSucursal value={sucursalVista} onChange={setSucursalVista} />
 
       {/* Leyenda */}
       <View style={styles.leyenda}>

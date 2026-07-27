@@ -438,8 +438,10 @@ class ApiClient {
   }
 
   // ─── Mesas ───────────────────────────────────────────────────────────────
-  getTables() {
-    return this.request('/tables');
+  // branchId opcional: las mesas viven en una sucursal (las creadas antes de esa
+  // regla no tienen y se ven siempre).
+  getTables(branchId) {
+    return this.request(branchId ? `/tables?branch_id=${branchId}` : '/tables');
   }
 
   createTable(data) {

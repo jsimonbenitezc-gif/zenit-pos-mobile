@@ -13,6 +13,7 @@ import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
 import LogoTitle from '../../components/LogoTitle';
+import SelectorSucursal from '../../components/SelectorSucursal';
 import { createSSE } from '../../utils/sse';
 import { friendlyError } from '../../utils/errors';
 
@@ -287,6 +288,11 @@ function IngSelector({ ingredients, preparations, selected, onSelect, includePre
 export default function InventarioScreen() {
   const { user, isPremium, sucursalId, nombreActivo, rolActivo, permisosRolesEfectivos } = useAuth();
 
+  // Sucursal que se está MIRANDO. Los movimientos siguen registrándose en la del
+  // equipo (`sucursalId`): mirar otra sucursal es solo lectura.
+  const [sucursalVista, setSucursalVista] = useState(sucursalId || null);
+  useEffect(() => { setSucursalVista(sucursalId || null); }, [sucursalId]);
+
   const [tab, setTab]                   = useState('insumos');
   const [ingredients, setIngredients]   = useState([]);
   const [preparations, setPreparations] = useState([]);
@@ -339,7 +345,7 @@ export default function InventarioScreen() {
     if (isRefresh) setRefresh(true);
     try {
       const [ings, preps, recipes, prods, movs] = await Promise.allSettled([
-        api.getIngredients(sucursalId),
+        api.getIngredients(sucursalVista),
         api.getPreparations(),
         api.getAllRecipes(),
         api.getProducts(),
@@ -354,7 +360,7 @@ export default function InventarioScreen() {
       setLoading(false);
       setRefresh(false);
     }
-  }, [isPremium, sucursalId]);
+  }, [isPremium, sucursalVista]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -689,6 +695,9 @@ export default function InventarioScreen() {
           )}
         </View>
       </View>
+
+      {/* Ver el inventario de otra sucursal (solo lectura) */}
+      <SelectorSucursal value={sucursalVista} onChange={setSucursalVista} />
 
       {/* Stock bajo */}
       {stockBajo.length > 0 && tab === 'insumos' && (

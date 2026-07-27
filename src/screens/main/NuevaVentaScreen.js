@@ -91,7 +91,7 @@ function CartItem({ item, onDelete, onEditNota, currency }) {
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 
 export default function NuevaVentaScreen() {
-  const { settings, user, isPremium, refreshSettings, sucursalId, nombreActivo, rolActivo, permisosRolesEfectivos } = useAuth();
+  const { settings, user, isPremium, refreshSettings, sucursalId, puedeRegistrarEnSucursal, nombreActivo, rolActivo, permisosRolesEfectivos } = useAuth();
   const { online, refrescarPendientes } = useNetwork();
   const currency = settings?.currency_symbol || '$';
 
@@ -489,6 +489,16 @@ export default function NuevaVentaScreen() {
 
   async function cobrar() {
     if (carrito.length === 0) return;
+    // Sin sucursal la venta quedaría huérfana: el backend la rechaza y, si se
+    // registró sin internet, se quedaría atorada en la cola. Ver CLAUDE.md §24.
+    if (!puedeRegistrarEnSucursal()) {
+      Alert.alert(
+        'Falta elegir la sucursal',
+        'Este equipo todavía no tiene una sucursal asignada, y tu negocio tiene varias. ' +
+        'Ve a Ajustes → Sucursal y elige en cuál registra este equipo.'
+      );
+      return;
+    }
     if (metodoPago === 'efectivo' && recibido < totalFinal) {
       Alert.alert('Efectivo insuficiente', 'El monto recibido es menor al total a cobrar.');
       return;

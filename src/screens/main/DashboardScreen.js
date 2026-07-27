@@ -14,6 +14,7 @@ import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
 import LogoTitle from '../../components/LogoTitle';
 import VerificacionBanner from '../../components/VerificacionBanner';
+import SelectorSucursal from '../../components/SelectorSucursal';
 import { formatMoney, formatMoneyCompact } from '../../utils/money';
 import { createSSE } from '../../utils/sse';
 
@@ -238,9 +239,8 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Sucursales — tabs de filtro
-  const [branches, setBranches] = useState([]);
-  const [selectedBranch, setSelectedBranch] = useState(sucursalId || null); // inicia en la sucursal activa del dispositivo
+  // Sucursal que se está MIRANDO (solo lectura; los registros van a la del equipo)
+  const [selectedBranch, setSelectedBranch] = useState(sucursalId || null);
 
   // Audit logs
   const [auditLogs, setAuditLogs] = useState([]);
@@ -284,12 +284,14 @@ export default function DashboardScreen() {
     }, [isOwner, loadAudit])
   );
 
-  // Cargar sucursales al montar (solo si hay más de una)
+  // Si cambia la sucursal del equipo (Ajustes), la vista la sigue: no dejar al
+  // usuario mirando una sucursal ajena justo después de mudar el equipo.
   useEffect(() => {
-    api.getBranches().then(bs => {
-      if (Array.isArray(bs) && bs.length > 1) setBranches(bs);
-    }).catch(() => {});
-  }, []);
+    setSelectedBranch(sucursalId || null);
+    load(false, sucursalId || null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sucursalId]);
+
 
   if (loading) {
     return (
@@ -347,40 +349,11 @@ export default function DashboardScreen() {
           <VerificacionBanner />
         </View>
 
-        {/* ── Tabs de sucursales (solo si hay más de 1) ── */}
-        {branches.length > 1 && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.branchTabsScroll}
-            contentContainerStyle={styles.branchTabsContent}
-          >
-            {/* Sucursal activa primero, luego las demás, "Todas" al final */}
-            {[...branches].sort((a, b) => {
-              if (a.id === sucursalId) return -1;
-              if (b.id === sucursalId) return 1;
-              return 0;
-            }).map(b => (
-              <TouchableOpacity
-                key={b.id}
-                style={[styles.branchTab, selectedBranch === b.id && styles.branchTabActive]}
-                onPress={() => { setSelectedBranch(b.id); load(false, b.id); }}
-              >
-                <Text style={[styles.branchTabText, selectedBranch === b.id && styles.branchTabTextActive]}>
-                  {b.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-            <TouchableOpacity
-              style={[styles.branchTab, selectedBranch === null && styles.branchTabActive]}
-              onPress={() => { setSelectedBranch(null); load(false, null); }}
-            >
-              <Text style={[styles.branchTabText, selectedBranch === null && styles.branchTabTextActive]}>
-                Todas
-              </Text>
-            </TouchableOpacity>
-          </ScrollView>
-        )}
+        {/* ── Ver otra sucursal (solo lectura) ── */}
+        <SelectorSucursal
+          value={selectedBranch}
+          onChange={(id) => { setSelectedBranch(id); load(false, id); }}
+        />
 
         {/* ── Ventas de hoy ── */}
         <SectionTitle icon="today-outline">Ventas de hoy</SectionTitle>
@@ -678,19 +651,8 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: font.xxl, fontWeight: '800', color: colors.textPrimary },
 
-  branchTabsScroll: { marginBottom: spacing.xs },
-  branchTabsContent: { paddingHorizontal: spacing.lg, gap: spacing.xs },
-  branchTab: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  branchTabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  branchTabText: { fontSize: font.sm, fontWeight: '600', color: colors.textSecondary },
-  branchTabTextActive: { color: '#fff' },
+  // Las tabs de sucursal viven en components/SelectorSucursal.js (compartidas
+  // con Pedidos, Inventario y Mesas)
   date: {
     fontSize: font.sm,
     color: colors.textSecondary,

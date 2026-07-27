@@ -29,6 +29,12 @@ export function AuthProvider({ children }) {
   const [nombreActivo, setNombreActivo] = useState('');
   const [profileReady, setProfileReady] = useState(false);
   const [sessionEmail, setSessionEmail] = useState('');
+  // Sucursal de ESTE dispositivo (BLOQUE 4). Antes vivía en los ajustes del negocio
+  // (`settings.sucursal_id`), así que era compartida por todos los equipos: dos tablets
+  // en sucursales distintas eran imposibles. Ahora es local, como en el desktop.
+  const [sucursalId, setSucursalIdState] = useState(null);
+  // Cuántas sucursales tiene el negocio (cacheado para poder validar sin internet)
+  const [sucursalesCount, setSucursalesCount] = useState(1);
   const pushTokenRef = useRef(null);
 
   useEffect(() => {
@@ -73,12 +79,74 @@ export function AuthProvider({ children }) {
     try { const s = await api.getSettings(); setSettings(s || {}); return s; } catch { return null; }
   }
 
+  // ── Sucursal del dispositivo ────────────────────────────────────────────
+  // Lee la sucursal local. La PRIMERA vez hereda la que estuviera en los ajustes del
+  // negocio, para no dejar a los equipos ya instalados sin sucursal tras actualizar.
+  async function _cargarSucursalDispositivo(s) {
+    let guardada = null;
+    try { guardada = await SecureStore.getItemAsync('zenit_sucursal_id'); } catch {}
+    if (guardada == null && s?.sucursal_id) {
+      guardada = String(s.sucursal_id);
+      try { await SecureStore.setItemAsync('zenit_sucursal_id', guardada); } catch {}
+    }
+    const id = parseInt(guardada) || null;
+    setSucursalIdState(id);
+
+    try {
+      const cache = await SecureStore.getItemAsync('zenit_sucursales_count');
+      if (cache) setSucursalesCount(parseInt(cache) || 1);
+    } catch {}
+
+    _sincronizarSucursales(id); // sin await: refresca el caché en segundo plano
+    return id;
+  }
+
+  // Refresca el conteo de sucursales y auto-asigna la única que haya.
+  async function _sincronizarSucursales(idActual) {
+    try {
+      const branches = await api.getBranches();
+      if (!Array.isArray(branches) || branches.length === 0) return;
+
+      setSucursalesCount(branches.length);
+      try { await SecureStore.setItemAsync('zenit_sucursales_count', String(branches.length)); } catch {}
+
+      // Negocio de un solo local: la sucursal se asigna sola y es invisible.
+      if (branches.length === 1 && !idActual) {
+        setSucursalIdState(branches[0].id);
+        try { await SecureStore.setItemAsync('zenit_sucursal_id', String(branches[0].id)); } catch {}
+        return;
+      }
+      // La sucursal guardada ya no existe (la borraron): dejar el equipo sin asignar
+      // para que el usuario elija una en vez de registrar contra una sucursal muerta.
+      if (idActual && !branches.some(b => b.id === idActual)) {
+        setSucursalIdState(null);
+        try { await SecureStore.deleteItemAsync('zenit_sucursal_id'); } catch {}
+      }
+    } catch {}
+  }
+
+  // Cambia la sucursal de este equipo. La pantalla de Ajustes exige la contraseña de
+  // administrador ANTES de llamar aquí (es configuración, no una acción de operación).
+  async function cambiarSucursalDispositivo(id) {
+    const valor = id ? parseInt(id) : null;
+    if (valor) await SecureStore.setItemAsync('zenit_sucursal_id', String(valor));
+    else await SecureStore.deleteItemAsync('zenit_sucursal_id');
+    setSucursalIdState(valor);
+  }
+
+  // Portero de registros: sin sucursal elegida y con varias sucursales, este equipo
+  // no puede vender ni abrir turno (el backend lo rechazaría y una venta offline se
+  // quedaría atorada en la cola).
+  function puedeRegistrarEnSucursal() {
+    return !!sucursalId || sucursalesCount <= 1;
+  }
+
   // Extrae los permisos efectivos para la sucursal activa.
   // Si hay config específica de la sucursal (__b_ID), la usa.
   // Si hay sucursal pero sin config propia, devuelve solo los defaults de los puestos base (sin heredar custom roles de otras sucursales).
   // Si no hay sucursal, usa la config global.
-  function _permisosEfectivos(s) {
-    const sucId = s?.sucursal_id || null;
+  function _permisosEfectivos(s, sucursalDispositivo) {
+    const sucId = sucursalDispositivo || null;
     const all = s?.permisos_roles || {};
     if (sucId) {
       if (all[`__b_${sucId}`]) return all[`__b_${sucId}`];
@@ -93,8 +161,8 @@ export function AuthProvider({ children }) {
   // Si no hay puestos pero "pedir contraseña" está activo → también mostrar pantalla
   // de perfiles para que el admin ingrese su contraseña ahí.
   // Si no hay puestos y no se pide contraseña → auto-seleccionar admin.
-  async function _resolverPerfil(s) {
-    const permisos = _permisosEfectivos(s);
+  async function _resolverPerfil(s, sucursalDispositivo) {
+    const permisos = _permisosEfectivos(s, sucursalDispositivo);
     const hayPuestosActivos = Object.values(permisos).some(p => p?.enabled === true);
     if (hayPuestosActivos) {
       setProfileReady(false); // PerfilScreen se encarga
@@ -126,7 +194,8 @@ export function AuthProvider({ children }) {
         const email = await SecureStore.getItemAsync('zenit_session_email') || '';
         setSessionEmail(email);
         const s = await refreshSettings();
-        await _resolverPerfil(s);
+        const sucId = await _cargarSucursalDispositivo(s);
+        await _resolverPerfil(s, sucId);
         registrarPushToken(); // sin await
       }
     } catch {
@@ -186,7 +255,8 @@ export function AuthProvider({ children }) {
     setUser(data.user);
     setSessionEmail(username);
     const s = await refreshSettings();
-    await _resolverPerfil(s);
+    const sucId = await _cargarSucursalDispositivo(s);
+    await _resolverPerfil(s, sucId);
     registrarPushToken(); // sin await — no bloquea el login
     return data.user;
   }
@@ -206,7 +276,8 @@ export function AuthProvider({ children }) {
     setUser(data.user);
     setSessionEmail(email);
     const s = await refreshSettings();
-    await _resolverPerfil(s);
+    const sucId = await _cargarSucursalDispositivo(s);
+    await _resolverPerfil(s, sucId);
     registrarPushToken(); // sin await
     return data.user;
   }
@@ -246,6 +317,13 @@ export function AuthProvider({ children }) {
     await SecureStore.deleteItemAsync('zenit_token');
     await SecureStore.deleteItemAsync('zenit_refresh_token');
     await SecureStore.deleteItemAsync('zenit_push_token');
+    // La sucursal es del dispositivo, pero está atada a ESTE negocio: si se inicia
+    // sesión con otra cuenta el id no significaría nada. Se vuelve a resolver al entrar
+    // (se auto-asigna sola si el negocio tiene una única sucursal).
+    await SecureStore.deleteItemAsync('zenit_sucursal_id').catch(() => {});
+    await SecureStore.deleteItemAsync('zenit_sucursales_count').catch(() => {});
+    setSucursalIdState(null);
+    setSucursalesCount(1);
     pushTokenRef.current = null;
     api.clearToken();
     api.clearRefreshToken();
@@ -258,8 +336,8 @@ export function AuthProvider({ children }) {
   }
 
   const isOwner = user?.role === 'owner';
-  const sucursalId = settings?.sucursal_id || null;
-  const permisosRolesEfectivos = _permisosEfectivos(settings);
+  // sucursalId viene del estado local del dispositivo (no de settings del negocio)
+  const permisosRolesEfectivos = _permisosEfectivos(settings, sucursalId);
 
   // Premium activo: misma regla que el backend (middleware/checkPlan.js) —
   // el plan debe ser premium o trial Y la fecha de vencimiento debe estar en el futuro.
@@ -273,6 +351,7 @@ export function AuthProvider({ children }) {
   return (
     <AuthContext.Provider value={{
       user, settings, loading, isOwner, isPremium, sucursalId, permisosRolesEfectivos,
+      sucursalesCount, cambiarSucursalDispositivo, puedeRegistrarEnSucursal,
       rolActivo, nombreActivo, profileReady, sessionEmail,
       loginOwner, registerOwner, logout,
       verificarPasswordAdmin,

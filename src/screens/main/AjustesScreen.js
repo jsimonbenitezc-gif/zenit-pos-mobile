@@ -37,7 +37,13 @@ import { SeccionSucursales } from './ajustes/SeccionSucursales';
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 
 export default function AjustesScreen({ navigation }) {
-  const { user, settings, isOwner, isPremium, logout, refreshUser, refreshSettings, rolActivo, nombreActivo, cambiarPerfil } = useAuth();
+  const {
+    user, settings, isOwner, isPremium, logout, refreshUser, refreshSettings,
+    rolActivo, nombreActivo, cambiarPerfil,
+    // La sucursal es de ESTE dispositivo y vive en el contexto (SecureStore), no en
+    // los ajustes del negocio: dos equipos pueden estar en sucursales distintas.
+    sucursalId, cambiarSucursalDispositivo, verificarPasswordAdmin,
+  } = useAuth();
   const plan      = user?.plan || 'free';
 
   // ── Estado: carga ──────────────────────────────────────────────────────
@@ -92,9 +98,10 @@ export default function AjustesScreen({ navigation }) {
   const [puntosValor, setPuntosValor]       = useState('0.10');
   const [savingPuntos, setSavingPuntos]     = useState(false);
 
-  // ── Estado: sucursal (backend) ────────────────────────────────────────
+  // ── Estado: sucursal ──────────────────────────────────────────────────
+  // La lista de sucursales viene del backend; cuál usa ESTE equipo lo decide el
+  // contexto (almacenamiento local del dispositivo).
   const [branches, setBranches]   = useState([]);
-  const [sucursalId, setSucursalId] = useState(null);
 
   // ── Estado: impresora Bluetooth ───────────────────────────────────────
   const [printerAddress, setPrinterAddress] = useState('');
@@ -122,6 +129,9 @@ export default function AjustesScreen({ navigation }) {
 
   const loadAll = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
+
+    // Sucursal de este dispositivo (permisos por sucursal, teléfono y dirección)
+    const sucId = sucursalId;
 
     // Ajustes del backend
     let _cloudVentaSinTurno = undefined; // undefined = no disponible en nube
@@ -154,8 +164,6 @@ export default function AjustesScreen({ navigation }) {
         setPuntosPorPeso(String(s.puntos_por_peso ?? '0.1'));
         setPuntosBono(String(s.puntos_bono_pedido ?? '0'));
         setPuntosValor(String(s.puntos_valor ?? '0.10'));
-        const sucId = s.sucursal_id || null;
-        setSucursalId(sucId);
         // venta_sin_turno desde nube (fuente de verdad compartida)
         if (s.venta_sin_turno !== undefined) {
           _cloudVentaSinTurno = !(s.venta_sin_turno === false || s.venta_sin_turno === 'false');
@@ -225,7 +233,7 @@ export default function AjustesScreen({ navigation }) {
 
     setLoading(false);
     setRefreshing(false);
-  }, [isOwner, plan]);
+  }, [isOwner, plan, sucursalId]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
@@ -1132,7 +1140,8 @@ export default function AjustesScreen({ navigation }) {
             branches={branches}
             setBranches={setBranches}
             sucursalId={sucursalId}
-            setSucursalId={setSucursalId}
+            cambiarSucursalDispositivo={cambiarSucursalDispositivo}
+            verificarPasswordAdmin={verificarPasswordAdmin}
             onRefresh={() => loadAll(true)}
             styles={styles}
           />
