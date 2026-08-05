@@ -6,8 +6,8 @@
 //     instante; sincroniza en segundo plano.
 //   - Sync: sube las ventas pendientes; el backend deduplica por client_uuid.
 // ============================================================================
-import * as Crypto from 'expo-crypto';
 import { api } from '../api/client';
+import { generarUuid } from '../utils/uuid';
 import {
   guardarCatalogo, leerCatalogo, hayCatalogoCacheado,
   guardarClientes, leerClientes,
@@ -52,15 +52,6 @@ export async function obtenerClientes() {
 
 // ─── Venta instantánea ────────────────────────────────────────────────────────
 
-function generarUuid() {
-  if (typeof Crypto.randomUUID === 'function') return Crypto.randomUUID();
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
-
 /**
  * Encola una venta local (siempre lleva client_uuid) y dispara el sync en segundo
  * plano. No falla por falta de red. La venta queda registrada al instante.
@@ -68,7 +59,10 @@ function generarUuid() {
  */
 export async function crearVenta(orderBody, meta = {}) {
   const client_uuid = orderBody.client_uuid || generarUuid();
-  const payload = { ...orderBody, client_uuid };
+  // sold_at = hora REAL de la venta. La cola puede subirse horas después (o al
+  // día siguiente): sin este dato el backend fecharía la venta cuando volvió el
+  // internet, metiéndola en el turno y en el día equivocados.
+  const payload = { ...orderBody, client_uuid, sold_at: orderBody.sold_at || new Date().toISOString() };
   await encolarVenta(client_uuid, payload, meta);  // ← la venta queda registrada (con datos de display)
   sincronizarVentasPendientes().catch(() => {});   // ← sube en segundo plano si hay red
   return { client_uuid };
@@ -90,8 +84,12 @@ export async function registrarVenta(orderBody, online, meta = {}) {
   // Un solo client_uuid para ambos caminos: si el envío online expira pero el
   // pedido SÍ se creó, la cola reintenta con el mismo uuid y el backend deduplica.
   const body = { ...orderBody, client_uuid: orderBody.client_uuid || generarUuid() };
+  // Se fija AHORA, no al encolar: si el intento online agota el timeout, la venta
+  // sigue siendo de este momento, no de 30 segundos después.
+  const soldAt = new Date().toISOString();
   if (online) {
     try {
+      // Sin sold_at: online manda la hora del servidor, como siempre.
       await api.createOrder(body);
       return { modo: 'online' };
     } catch (e) {
@@ -99,7 +97,7 @@ export async function registrarVenta(orderBody, online, meta = {}) {
       // Se cayó la red al enviar: caemos a la cola local para no perder la venta.
     }
   }
-  await crearVenta(body, meta); // body ya trae client_uuid → crearVenta lo reutiliza
+  await crearVenta({ ...body, sold_at: soldAt }, meta); // client_uuid ya viene: crearVenta lo reutiliza
   return { modo: 'offline' };
 }
 
@@ -134,7 +132,10 @@ export async function sincronizarVentasPendientes() {
     const ventas = await obtenerVentas('pendiente');
     for (const v of ventas) {
       try {
-        await api.createOrder(v.payload); // el backend deduplica por client_uuid
+        // sold_at: las ventas encoladas por una versión anterior de la app no lo
+        // traen en el payload, pero la cola sí guarda cuándo se registraron.
+        const payload = { ...v.payload, sold_at: v.payload.sold_at || v.creadaEn };
+        await api.createOrder(payload); // el backend deduplica por client_uuid
         await marcarVenta(v.clientUuid, 'subida');
         subidas++;
       } catch (e) {

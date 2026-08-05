@@ -520,7 +520,12 @@ export default function NuevaVentaScreen() {
     setEnviando(true);
     try {
       const orderBody = {
-        items: carrito.map(i => ({ product_id: i.product_id, quantity: 1, notes: i.nota || undefined })),
+        // unit_price = precio que el cliente REALMENTE pagó. El backend solo lo
+        // respeta en ventas diferidas (las que suben con sold_at desde la cola
+        // offline); en una venta online sigue mandando el precio del catálogo.
+        // Sin esto, una venta guardada sin internet se recalculaba con el precio
+        // vigente al momento de subirla.
+        items: carrito.map(i => ({ product_id: i.product_id, quantity: 1, unit_price: i.precio, notes: i.nota || undefined })),
         payment_method: metodoPago,
         order_type: tipoPedido,
         customer_id: clienteSeleccionado?.id || null,

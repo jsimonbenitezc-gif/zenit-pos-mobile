@@ -452,8 +452,13 @@ class ApiClient {
     return this.request(`/tables/${id}`, { method: 'DELETE' });
   }
 
-  addItemsToOrder(orderId, items) {
-    return this.request(`/orders/${orderId}/items`, { method: 'POST', body: { items } });
+  // clientUuid identifica el ENVÍO completo: un reenvío (doble tap, red débil) no
+  // vuelve a agregar los productos a la mesa ni a descontar los insumos otra vez.
+  addItemsToOrder(orderId, items, clientUuid) {
+    return this.request(`/orders/${orderId}/items`, {
+      method: 'POST',
+      body: { items, client_uuid: clientUuid || null },
+    });
   }
 
   // ─── Ajustes ─────────────────────────────────────────────────────────────

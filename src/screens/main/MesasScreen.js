@@ -18,6 +18,7 @@ import SelectorSucursal from '../../components/SelectorSucursal';
 import { formatMoney } from '../../utils/money';
 import { createSSE } from '../../utils/sse';
 import { friendlyError } from '../../utils/errors';
+import { generarUuid } from '../../utils/uuid';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -99,6 +100,9 @@ export default function MesasScreen() {
   const [carritoAgregar, setCarritoAgregar]      = useState({});
   const [loadingProductos, setLoadingProductos]  = useState(false);
   const [agregando, setAgregando]                = useState(false);
+  // Idempotencia del envío en curso (abrir mesa / agregar productos). Es un ref y
+  // no estado: cambiarlo no debe re-renderizar, y debe sobrevivir a los reintentos.
+  const uuidEnvioRef                             = useRef(null);
   const [busquedaP, setBusquedaP]                = useState('');
 
   // Modal: cobrar
@@ -214,6 +218,7 @@ export default function MesasScreen() {
   async function cargarProductos() {
     setLoadingProductos(true);
     setCarritoAgregar({});
+    uuidEnvioRef.current = null; // carrito nuevo = envío nuevo
     setBusquedaP('');
     try {
       const grouped = await api.getProductsGrouped();
@@ -242,6 +247,7 @@ export default function MesasScreen() {
   // ── Carrito de agregar ───────────────────────────────────────────────────────
 
   function incrementar(producto) {
+    uuidEnvioRef.current = null; // el envío cambió: ya no es el mismo lote
     setCarritoAgregar(prev => ({
       ...prev,
       [producto.id]: { producto, qty: (prev[producto.id]?.qty || 0) + 1 },
@@ -249,6 +255,7 @@ export default function MesasScreen() {
   }
 
   function decrementar(productoId) {
+    uuidEnvioRef.current = null;
     setCarritoAgregar(prev => {
       const qty = (prev[productoId]?.qty || 0) - 1;
       if (qty <= 0) {
@@ -284,6 +291,13 @@ export default function MesasScreen() {
       return;
     }
 
+    if (agregando) return; // doble tap: la primera comanda ya va en camino
+
+    // Un uuid por LOTE, estable mientras el carrito no cambie. Si la respuesta se
+    // pierde con red débil pero el backend SÍ guardó el envío, el reintento
+    // devuelve la mesa tal cual está en vez de duplicar los productos y volver a
+    // descontar los insumos.
+    if (!uuidEnvioRef.current) uuidEnvioRef.current = generarUuid();
     setAgregando(true);
     try {
       if (!ordenActiva) {
@@ -294,16 +308,18 @@ export default function MesasScreen() {
           table_id: mesaSel?.id,
           guests: parseInt(comensales) || mesaSel?.capacity || 1,
           branch_id: sucursalId || null,
+          client_uuid: uuidEnvioRef.current,
         });
         setOrdenActiva(order);
         setModalAgregar(false);
         setModalDetalle(true);
       } else {
         // Mesa ocupada: agregar a pedido existente
-        const updated = await api.addItemsToOrder(ordenActiva.id, items);
+        const updated = await api.addItemsToOrder(ordenActiva.id, items, uuidEnvioRef.current);
         setOrdenActiva(updated);
         setModalAgregar(false);
       }
+      uuidEnvioRef.current = null; // lote cerrado: el próximo envío es otro
       load();
       // Refrescar stock inmediatamente (sin esperar SSE)
       if (mostrarStock) {
