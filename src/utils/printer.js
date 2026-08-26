@@ -206,6 +206,10 @@ const TIPO   = { local: 'Comer aqui', llevar: 'Para llevar', domicilio: 'Domicil
  * @param {Array}   opts.items             - [{name, qty, price, notes?}]
  * @param {number}  opts.total
  * @param {number}  [opts.discount]
+ * @param {number}  [opts.tax]             - Impuesto cobrado (BLOQUE 8)
+ * @param {string}  [opts.taxName]         - Nombre del impuesto (IVA, ITBIS…)
+ * @param {number}  [opts.taxRate]         - Tasa con la que se cobró
+ * @param {boolean} [opts.taxIncluded]     - true = el precio ya lo incluía
  * @param {string}  [opts.paymentMethod]
  * @param {string}  [opts.orderType]
  * @param {string|number} [opts.orderId]
@@ -225,6 +229,10 @@ export async function printReceipt(address, opts = {}) {
     items         = [],
     total         = 0,
     discount      = 0,
+    tax           = 0,
+    taxName       = 'IVA',
+    taxRate       = 0,
+    taxIncluded   = false,
     paymentMethod = 'efectivo',
     orderType,
     orderId,
@@ -265,11 +273,22 @@ export async function printReceipt(address, opts = {}) {
   }
   ticket.separator();
 
-  // Totales
+  // Totales.
+  // "Subtotal" = lo que suman los productos, que es lo que el cliente puede
+  // verificar con los renglones de arriba (BLOQUE 8):
+  //   AGREGADO: subtotal − descuento + impuesto = TOTAL
+  //   INCLUIDO: subtotal − descuento = TOTAL, y el impuesto es informativo
+  const impuesto = parseFloat(tax) || 0;
+  if (discount > 0 || impuesto > 0) {
+    const sumaProductos = taxIncluded ? total + discount : total - impuesto + discount;
+    ticket.right(`Subtotal: ${currency}${sumaProductos.toFixed(2)}`);
+  }
   if (discount > 0) {
-    const subtotal = total + discount;
-    ticket.right(`Subtotal: ${currency}${subtotal.toFixed(2)}`);
     ticket.right(`Descuento: -${currency}${discount.toFixed(2)}`);
+  }
+  if (impuesto > 0) {
+    const etiqueta = `${taxName}${taxRate ? ` (${taxRate}%)` : ''}${taxIncluded ? ' incl.' : ''}`;
+    ticket.right(`${etiqueta}: ${currency}${impuesto.toFixed(2)}`);
   }
   ticket
     .cmd(CMD.BOLD_ON)

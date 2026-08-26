@@ -17,6 +17,7 @@ import VerificacionBanner from '../../components/VerificacionBanner';
 import SelectorSucursal from '../../components/SelectorSucursal';
 import { formatMoney, formatMoneyCompact } from '../../utils/money';
 import { createSSE } from '../../utils/sse';
+import { configImpuesto } from '../../utils/impuestos';
 
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const MEDAL_COLORS = ['#ca8a04', '#94a3b8', '#b45309'];
@@ -370,6 +371,23 @@ export default function DashboardScreen() {
           <StatCard label="Ticket promedio" value={fmt(hoy.ticket_promedio, currency)} color={colors.warning} />
           <StatCard label="Clientes únicos" value={fmtNum(clientesHoy)} color="#8b5cf6" />
         </View>
+        {/* Impuesto recaudado hoy (BLOQUE 8). Solo aparece si el negocio cobra
+            impuesto. "Total" arriba sigue siendo lo COBRADO: aquí se ve cuánto de
+            eso es del negocio y cuánto le corresponde al fisco. */}
+        {(parseFloat(hoy.impuesto_total) || 0) > 0 && (
+          <View style={styles.row}>
+            <StatCard
+              label={`${configImpuesto(settings).nombre} recaudado`}
+              value={fmt(hoy.impuesto_total, currency)}
+              color={colors.textMuted}
+            />
+            <StatCard
+              label="Ventas netas"
+              value={fmt(hoy.monto_neto ?? (montoHoy - (parseFloat(hoy.impuesto_total) || 0)), currency)}
+              color={colors.success}
+            />
+          </View>
+        )}
         <View style={styles.row}>
           <StatCard label="Items vendidos" value={fmtNum(itemsVendidos)} color="#06b6d4" />
           <StatCard

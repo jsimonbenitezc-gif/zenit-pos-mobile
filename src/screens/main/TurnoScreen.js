@@ -12,6 +12,7 @@ import LogoTitle from '../../components/LogoTitle';
 import { formatMoney } from '../../utils/money';
 import { friendlyError } from '../../utils/errors';
 import { generarUuid } from '../../utils/uuid';
+import { configImpuesto } from '../../utils/impuestos';
 
 function InfoRow({ label, value, valueColor }) {
   return (
@@ -285,6 +286,24 @@ export default function TurnoScreen() {
                 )}
                 {(totales.total_transferencia || 0) > 0 && (
                   <InfoRow label="Transferencia" value={formatMoney(totales.total_transferencia, currency)} />
+                )}
+                {/* Impuesto recaudado (BLOQUE 8). Va DENTRO del total cobrado, así
+                    que no cambia el efectivo esperado: es informativo para el
+                    administrador, que es a quien le sirve saberlo. */}
+                {(totales.total_impuesto || 0) > 0 && (
+                  <>
+                    <InfoRow
+                      label={`${configImpuesto(settings).nombre} recaudado`}
+                      value={formatMoney(totales.total_impuesto, currency)}
+                    />
+                    <InfoRow
+                      label="Ventas netas"
+                      value={formatMoney(
+                        (parseFloat(totales.total_ventas) || 0) - (parseFloat(totales.total_impuesto) || 0),
+                        currency
+                      )}
+                    />
+                  </>
                 )}
               </View>
             )}

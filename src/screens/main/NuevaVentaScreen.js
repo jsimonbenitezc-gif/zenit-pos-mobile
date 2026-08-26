@@ -20,6 +20,7 @@ import OfflineIndicator from '../../components/OfflineIndicator';
 import { createSSE } from '../../utils/sse';
 import { formatMoney } from '../../utils/money';
 import { friendlyError } from '../../utils/errors';
+import { configImpuesto, desglosarImpuesto, hayImpuesto, etiquetaImpuesto } from '../../utils/impuestos';
 
 // ─── Quick tags para notas ────────────────────────────────────────────────────
 
@@ -378,7 +379,13 @@ export default function NuevaVentaScreen() {
     ? Math.min(valorPuntosDisp, Math.max(0, subtotal - descuento))
     : 0;
 
-  const totalFinal = Math.max(0, subtotal - descuento - descuentoPuntos);
+  // Impuesto (BLOQUE 8). El descuento y el canje de puntos bajan la BASE
+  // GRAVABLE: se descuentan primero y el impuesto se calcula sobre lo que
+  // realmente se cobra. Con tasa 0 (el default) el total es el de siempre.
+  const impCfg = configImpuesto(settings);
+  const baseGravable = Math.max(0, subtotal - descuento - descuentoPuntos);
+  const desglose = desglosarImpuesto(baseGravable, impCfg);
+  const totalFinal = desglose.total;
 
   // Puntos que ganaría con esta compra (solo si no está usando puntos)
   const puntosAGanar = (!puntosUsados && loyaltyEnabled && clienteEnFidelidad)
@@ -539,6 +546,12 @@ export default function NuevaVentaScreen() {
         // el segundo (el cliente gasta puntos que ya ganó).
         discount_amount: descuento || 0,
         discount_id: descuentoId || null,
+        // Impuesto CONGELADO de la venta (BLOQUE 8): la tasa con la que se cobró
+        // este ticket. El backend solo la respeta si la venta llega diferida
+        // (desde la cola offline) y SIEMPRE recalcula el monto — nunca se le cree
+        // el importe al cliente.
+        tax_rate: impCfg.tasa || 0,
+        tax_included: !!impCfg.incluido,
       };
 
       // Puntos de fidelidad: se procesan en la transacción del backend, así que
@@ -611,7 +624,7 @@ export default function NuevaVentaScreen() {
         {carrito.length > 0 && (
           <TouchableOpacity style={styles.carritoBtn} onPress={openCartPanel}>
             <Ionicons name="cart" size={16} color="#fff" />
-            <Text style={styles.carritoBtnText}> {totalItems}  ·  {formatMoney(subtotal, currency)}</Text>
+            <Text style={styles.carritoBtnText}> {totalItems}  ·  {formatMoney(totalFinal, currency)}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -799,9 +812,18 @@ export default function NuevaVentaScreen() {
 
             {carrito.length > 0 && (
               <View style={styles.carritoFooter}>
+                {/* Con impuesto AGREGADO el total a cobrar no es la suma de los
+                    productos: se muestra el desglose para que el cajero cobre lo
+                    mismo que dirá el ticket. */}
+                {desglose.impuesto > 0 && (
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.xs }}>
+                    <Text style={styles.totalDesgloseLabel}>{etiquetaImpuesto(impCfg)}</Text>
+                    <Text style={styles.totalDesgloseValor}>{formatMoney(desglose.impuesto, currency)}</Text>
+                  </View>
+                )}
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md }}>
                   <Text style={styles.totalLabel}>{tipoActivo?.label}  ·  {totalItems} {totalItems === 1 ? 'producto' : 'productos'}</Text>
-                  <Text style={styles.totalValue}>{formatMoney(subtotal, currency)}</Text>
+                  <Text style={styles.totalValue}>{formatMoney(totalFinal, currency)}</Text>
                 </View>
                 <TouchableOpacity style={styles.btnCobrar} onPress={() => closeCartPanel(() => { setCobrandoModal(true); refreshSettings(); })}>
                   <Text style={styles.btnCobrarText}>Cobrar</Text>
@@ -895,7 +917,7 @@ export default function NuevaVentaScreen() {
 
               {/* Resumen de total */}
               <Text style={styles.totalLabel}>Total a cobrar</Text>
-              {descuento > 0 || descuentoPuntos > 0 ? (
+              {descuento > 0 || descuentoPuntos > 0 || desglose.impuesto > 0 ? (
                 <View style={styles.totalDesglose}>
                   <View style={styles.totalDesgloseRow}>
                     <Text style={styles.totalDesgloseLabel}>Subtotal</Text>
@@ -918,6 +940,16 @@ export default function NuevaVentaScreen() {
                       </Text>
                       <Text style={[styles.totalDesgloseValor, { color: '#7c3aed' }]}>
                         -{formatMoney(descuentoPuntos, currency)}
+                      </Text>
+                    </View>
+                  )}
+                  {/* El impuesto va DESPUÉS del descuento: se descuenta primero y
+                      el impuesto se calcula sobre lo que realmente se cobra. */}
+                  {desglose.impuesto > 0 && (
+                    <View style={styles.totalDesgloseRow}>
+                      <Text style={styles.totalDesgloseLabel}>{etiquetaImpuesto(impCfg)}</Text>
+                      <Text style={styles.totalDesgloseValor}>
+                        {formatMoney(desglose.impuesto, currency)}
                       </Text>
                     </View>
                   )}

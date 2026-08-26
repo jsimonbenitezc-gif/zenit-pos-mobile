@@ -76,7 +76,43 @@ export function AuthProvider({ children }) {
   }
 
   async function refreshSettings() {
-    try { const s = await api.getSettings(); setSettings(s || {}); return s; } catch { return null; }
+    try {
+      const s = await api.getSettings();
+      setSettings(s || {});
+      _guardarImpuestoLocal(s);
+      return s;
+    } catch {
+      // Sin red no hay settings frescos: se recupera al menos la config de
+      // impuesto guardada, o la venta offline cobraría sin impuesto y el ticket
+      // no coincidiría con lo que registra el backend (BLOQUE 8).
+      const cache = await _leerImpuestoLocal();
+      if (cache) setSettings(prev => ({ ...cache, ...prev }));
+      return null;
+    }
+  }
+
+  // ── Config de impuesto para vender SIN internet (BLOQUE 8) ────────────────
+  // Solo se cachean estas tres claves: `settings` completo incluye `logo_base64`
+  // y no cabe en SecureStore (advierte arriba de ~2KB).
+  async function _guardarImpuestoLocal(s) {
+    if (!s) return;
+    try {
+      await SecureStore.setItemAsync('zenit_impuesto', JSON.stringify({
+        tax_enabled: s.tax_enabled === true || s.tax_enabled === 'true',
+        tax_rate: s.tax_rate ?? 0,
+        // Se guarda tal cual (puede venir ausente): el default lo resuelve
+        // `configImpuesto`, que es el único lugar que conoce el modo por defecto.
+        tax_included: s.tax_included,
+        tax_name: s.tax_name || 'IVA',
+      }));
+    } catch {}
+  }
+
+  async function _leerImpuestoLocal() {
+    try {
+      const raw = await SecureStore.getItemAsync('zenit_impuesto');
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
   }
 
   // ── Sucursal del dispositivo ────────────────────────────────────────────
@@ -198,11 +234,21 @@ export function AuthProvider({ children }) {
         await _resolverPerfil(s, sucId);
         registrarPushToken(); // sin await
       }
-    } catch {
-      await SecureStore.deleteItemAsync('zenit_token');
-      await SecureStore.deleteItemAsync('zenit_refresh_token');
-      api.clearToken();
-      api.clearRefreshToken();
+    } catch (e) {
+      // Un fallo de RED al validar la sesión NO cierra la sesión: la app tiene que
+      // arrancar sin internet para poder vender offline (Fase 1). Antes cualquier
+      // error borraba el token, así que abrir la app sin señal deslogueaba al
+      // cajero y lo dejaba sin caja. Mismo criterio que el desktop (CLAUDE.md §7).
+      const esFalloDeRed = /Sin conexión|tardó mucho|Network request failed/i.test(e?.message || '');
+      if (esFalloDeRed) {
+        const cache = await _leerImpuestoLocal();
+        if (cache) setSettings(prev => ({ ...cache, ...prev }));
+      } else {
+        await SecureStore.deleteItemAsync('zenit_token');
+        await SecureStore.deleteItemAsync('zenit_refresh_token');
+        api.clearToken();
+        api.clearRefreshToken();
+      }
     } finally {
       setLoading(false);
     }
@@ -324,6 +370,9 @@ export function AuthProvider({ children }) {
     await SecureStore.deleteItemAsync('zenit_sucursales_count').catch(() => {});
     setSucursalIdState(null);
     setSucursalesCount(1);
+    // La config de impuesto es del negocio que se acaba de cerrar: no significa
+    // nada en otra cuenta (mismo criterio que la sucursal del equipo, §24).
+    SecureStore.deleteItemAsync('zenit_impuesto').catch(() => {});
     pushTokenRef.current = null;
     api.clearToken();
     api.clearRefreshToken();

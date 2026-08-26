@@ -19,6 +19,7 @@ import { formatMoney } from '../../utils/money';
 import { createSSE } from '../../utils/sse';
 import { friendlyError } from '../../utils/errors';
 import { generarUuid } from '../../utils/uuid';
+import { desgloseDePedido, etiquetaImpuesto } from '../../utils/impuestos';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -518,6 +519,19 @@ export default function MesasScreen() {
             ))}
             {(!ordenActiva?.items || ordenActiva.items.length === 0) && (
               <Text style={styles.emptyItems}>Sin productos aún</Text>
+            )}
+            {/* Desglose del impuesto de la mesa (BLOQUE 8). Sale del pedido, que
+                lo trae congelado con la tasa que tenía al abrirse: si el dueño la
+                cambia a media comida, la cuenta que el cliente ya vio no se mueve. */}
+            {(parseFloat(ordenActiva?.tax_amount) || 0) > 0 && (
+              <View style={[styles.totalRow, { paddingVertical: spacing.xs, marginTop: 0 }]}>
+                <Text style={styles.itemNota}>
+                  {etiquetaImpuesto(desgloseDePedido(ordenActiva, settings))}
+                </Text>
+                <Text style={styles.itemNota}>
+                  {formatMoney(parseFloat(ordenActiva.tax_amount), currency)}
+                </Text>
+              </View>
             )}
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Total</Text>

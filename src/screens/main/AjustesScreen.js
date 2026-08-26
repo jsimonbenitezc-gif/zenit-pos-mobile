@@ -32,6 +32,7 @@ import { SeccionPuestos } from './ajustes/SeccionPuestos';
 import { SeccionPlan } from './ajustes/SeccionPlan';
 import { SeccionNotificaciones } from './ajustes/SeccionNotificaciones';
 import { SeccionSucursales } from './ajustes/SeccionSucursales';
+import { SeccionImpuestos } from './ajustes/SeccionImpuestos';
 
 
 // ─── Pantalla principal ───────────────────────────────────────────────────────
@@ -1206,6 +1207,18 @@ export default function AjustesScreen({ navigation }) {
           />
         )}
 
+
+        {/* ── Impuestos (BLOQUE 8) ─── */}
+        {/* Solo el dueño: cambia lo que se le COBRA al cliente, y el backend
+            responde 403 si lo manda cualquier otro puesto. */}
+        {isOwner && (
+          <SeccionImpuestos
+            settings={settings}
+            currency={moneda}
+            onSaved={refreshSettings}
+            styles={styles}
+          />
+        )}
 
         {/* ── Mi Plan ─── */}
         {isOwner && <SeccionPlan plan={plan} user={user} refreshUser={refreshUser} styles={styles} />}
