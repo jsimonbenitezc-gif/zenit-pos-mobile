@@ -88,6 +88,8 @@ export default function AjustesScreen({ navigation }) {
   const [mostrarStock, setMostrarStock]                   = useState(false);
   const [ventaSinTurno, setVentaSinTurno]                 = useState(true);
   const [requierePinDesc, setRequierePinDesc]             = useState(false);
+  // PIN en movimientos de caja (BLOQUE 7) — default encendido
+  const [movCajaPin, setMovCajaPin]                       = useState(true);
   const [pinDescuentos, setPinDescuentos]                 = useState('');
   const [pedirPasswordInicio, setPedirPasswordInicio]     = useState(true); // default activo
 
@@ -164,6 +166,9 @@ export default function AjustesScreen({ navigation }) {
         setPuntosPorPeso(String(s.puntos_por_peso ?? '0.1'));
         setPuntosBono(String(s.puntos_bono_pedido ?? '0'));
         setPuntosValor(String(s.puntos_valor ?? '0.10'));
+        // PIN en movimientos de caja (ajuste del NEGOCIO: lo decide el dueño y
+        // aplica a todos los equipos). Default: encendido.
+        setMovCajaPin(!(s.movimientos_caja_pin === false || s.movimientos_caja_pin === 'false'));
         // venta_sin_turno desde nube (fuente de verdad compartida)
         if (s.venta_sin_turno !== undefined) {
           _cloudVentaSinTurno = !(s.venta_sin_turno === false || s.venta_sin_turno === 'false');
@@ -446,6 +451,18 @@ export default function AjustesScreen({ navigation }) {
     setVentaSinTurno(val);
     await SecureStore.setItemAsync('venta_sin_turno', val ? 'true' : 'false');
     api.updateSettings({ venta_sin_turno: val }).catch(() => {});
+  }
+
+  // Solo el dueño puede cambiarlo; el backend además responde 403 si lo intenta
+  // otro puesto (ver routes/settings.js).
+  async function toggleMovCajaPin(val) {
+    setMovCajaPin(val);
+    try {
+      await api.updateSettings({ movimientos_caja_pin: val });
+    } catch (e) {
+      setMovCajaPin(!val); // revertir: el ajuste no quedó guardado
+      Alert.alert('No se pudo guardar', friendlyError(e) || 'Intenta de nuevo');
+    }
   }
 
   async function toggleRequierePinDesc(val) {
@@ -1019,6 +1036,14 @@ export default function AjustesScreen({ navigation }) {
             value={ventaSinTurno}
             onChange={toggleVentaSinTurno}
           />
+          {isOwner && (
+            <SwitchRow
+              label="PIN en movimientos de caja"
+              sub="Pide el PIN del puesto para registrar retiros y gastos"
+              value={movCajaPin}
+              onChange={toggleMovCajaPin}
+            />
+          )}
           <SwitchRow
             label="PIN para aplicar descuentos"
             sub="Evita que cajeros apliquen descuentos solos"

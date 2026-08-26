@@ -11,6 +11,7 @@ import { colors, spacing, radius, font } from '../../theme';
 import LogoTitle from '../../components/LogoTitle';
 import { formatMoney } from '../../utils/money';
 import { friendlyError } from '../../utils/errors';
+import { generarUuid } from '../../utils/uuid';
 
 function InfoRow({ label, value, valueColor }) {
   return (
@@ -20,6 +21,16 @@ function InfoRow({ label, value, valueColor }) {
     </View>
   );
 }
+
+// Movimientos de caja (BLOQUE 7): dinero que entra o sale del cajón por fuera de
+// las ventas. Sin esto el cierre nunca cuadraba — cada gasto del turno aparecía
+// como un faltante.
+const MOV_TIPOS = [
+  { tipo: 'retiro',   label: 'Retiro',   sub: 'Sale dinero de la caja', icon: 'arrow-up-outline' },
+  { tipo: 'gasto',    label: 'Gasto',    sub: 'Pago de algo',           icon: 'receipt-outline' },
+  { tipo: 'deposito', label: 'Depósito', sub: 'Entra dinero',           icon: 'arrow-down-outline' },
+];
+const MOV_LABEL = { retiro: 'Retiro', gasto: 'Gasto', deposito: 'Depósito' };
 
 export default function TurnoScreen() {
   const { settings, user, sucursalId, puedeRegistrarEnSucursal, nombreActivo, rolActivo } = useAuth();
@@ -38,6 +49,24 @@ export default function TurnoScreen() {
   const [efectivoCierre, setEfectivo] = useState('');
   const [notasCierre, setNotas]       = useState('');
 
+  // Movimientos de caja
+  const [movimientos, setMovimientos] = useState([]);
+  const [movTotales, setMovTotales]   = useState({});
+  const [modalMov, setModalMov]       = useState(false);
+  const [movTipo, setMovTipo]         = useState('retiro');
+  const [movMonto, setMovMonto]       = useState('');
+  const [movMotivo, setMovMotivo]     = useState('');
+  const [movPin, setMovPin]           = useState('');
+  const [movError, setMovError]       = useState('');
+  const [modalAnular, setModalAnular] = useState(null); // id del movimiento
+  const [anularPin, setAnularPin]     = useState('');
+  const [anularMotivo, setAnularMotivo] = useState('');
+
+  // El PIN para sacar dinero lo decide el dueño (ajuste del negocio). Los
+  // depósitos nunca lo piden: meter dinero a la caja no es un riesgo.
+  const pinMovimientos = settings?.movimientos_caja_pin !== false;
+  const pinRequerido = (tipo) => tipo !== 'deposito' && pinMovimientos;
+
   const cargarTurno = useCallback(async () => {
     try {
       const t = await api.getTurnoActivo(sucursalId);
@@ -45,12 +74,19 @@ export default function TurnoScreen() {
       if (t) {
         const tots = await api.getTurnoTotales(t.id).catch(() => null);
         setTotales(tots);
+        const movs = await api.getMovimientosCaja(t.id).catch(() => null);
+        setMovimientos(movs?.movimientos || []);
+        setMovTotales(movs?.totales || {});
       } else {
         setTotales(null);
+        setMovimientos([]);
+        setMovTotales({});
       }
     } catch {
       setTurno(null);
       setTotales(null);
+      setMovimientos([]);
+      setMovTotales({});
     } finally {
       setLoading(false);
     }
@@ -85,15 +121,99 @@ export default function TurnoScreen() {
     }
   }
 
+  /**
+   * Efectivo que debe haber en el cajón:
+   *   fondo_inicial + ventas_efectivo + depósitos − retiros − gastos
+   * Misma fórmula que utils/cashMovements.js en el backend (ver CLAUDE.md §28).
+   */
+  function efectivoEsperado() {
+    return (parseFloat(turno?.fondo_inicial) || 0)
+         + (totales?.total_efectivo || 0)
+         + (movTotales?.total_depositos || 0)
+         - (movTotales?.total_retiros || 0)
+         - (movTotales?.total_gastos || 0);
+  }
+
+  function abrirModalMovimiento() {
+    if (!puedeRegistrarEnSucursal()) {
+      Alert.alert(
+        'Falta elegir la sucursal',
+        'Este equipo todavía no tiene una sucursal asignada. Ve a Ajustes → Sucursal y elige en cuál registra este equipo.'
+      );
+      return;
+    }
+    setMovTipo('retiro');
+    setMovMonto('');
+    setMovMotivo('');
+    setMovPin('');
+    setMovError('');
+    setModalMov(true);
+  }
+
+  async function registrarMovimiento() {
+    const monto = parseFloat(movMonto);
+    if (isNaN(monto) || monto <= 0) {
+      setMovError('Ingresa un monto mayor a cero');
+      return;
+    }
+    if (pinRequerido(movTipo) && !movPin) {
+      setMovError('Ingresa el PIN de tu puesto');
+      return;
+    }
+    setSaving(true);
+    setMovError('');
+    try {
+      await api.registrarMovimientoCaja(turno.id, {
+        tipo: movTipo,
+        monto,
+        motivo: movMotivo.trim() || null,
+        role: rolActivo || null,
+        pin: pinRequerido(movTipo) ? movPin : undefined,
+        employee_name: nombreActivo || user?.name || '',
+        // Idempotencia: un reintento por timeout no saca el dinero dos veces.
+        client_uuid: generarUuid(),
+      });
+      setModalMov(false);
+      await cargarTurno();
+    } catch (e) {
+      setMovError(friendlyError(e) || 'No se pudo registrar el movimiento');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function anularMovimiento() {
+    if (pinRequerido('retiro') && !anularPin) {
+      setMovError('Ingresa el PIN de tu puesto');
+      return;
+    }
+    setSaving(true);
+    setMovError('');
+    try {
+      await api.anularMovimientoCaja(turno.id, modalAnular, {
+        role: rolActivo || null,
+        pin: pinRequerido('retiro') ? anularPin : undefined,
+        employee_name: nombreActivo || user?.name || '',
+        motivo: anularMotivo.trim() || null,
+      });
+      setModalAnular(null);
+      setAnularPin('');
+      setAnularMotivo('');
+      await cargarTurno();
+    } catch (e) {
+      setMovError(friendlyError(e) || 'No se pudo anular el movimiento');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function cerrarTurno() {
     const efectivo = parseFloat(efectivoCierre) || 0;
-    const fondo    = parseFloat(turno?.fondo_inicial) || 0;
-    const efectivoVentas = totales?.total_efectivo || 0;
-    const diferencia = efectivo - fondo - efectivoVentas;
+    const diferencia = efectivo - efectivoEsperado();
 
     Alert.alert(
       'Confirmar cierre de turno',
-      `Efectivo contado: ${formatMoney(efectivo, currency)}\nFondo inicial: ${formatMoney(fondo, currency)}\nDiferencia: ${diferencia >= 0 ? '+' : ''}${formatMoney(Math.abs(diferencia), currency)}`,
+      `Efectivo contado: ${formatMoney(efectivo, currency)}\nEfectivo esperado: ${formatMoney(efectivoEsperado(), currency)}\nDiferencia: ${diferencia >= 0 ? '+' : ''}${formatMoney(Math.abs(diferencia), currency)}`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -168,6 +288,63 @@ export default function TurnoScreen() {
                 )}
               </View>
             )}
+
+            {/* Movimientos de caja: dinero que entra o sale por fuera de las ventas */}
+            <View style={styles.totalesCard}>
+              <View style={styles.movHeader}>
+                <Text style={styles.totalesTitle}>Movimientos de caja</Text>
+                <TouchableOpacity style={styles.btnMovAgregar} onPress={abrirModalMovimiento}>
+                  <Ionicons name="add" size={16} color={colors.primary} />
+                  <Text style={styles.btnMovAgregarText}>Registrar</Text>
+                </TouchableOpacity>
+              </View>
+
+              {(movTotales.total_depositos > 0 || movTotales.total_retiros > 0 || movTotales.total_gastos > 0) && (
+                <>
+                  {movTotales.total_depositos > 0 && (
+                    <InfoRow label="Depósitos" value={`+${formatMoney(movTotales.total_depositos, currency)}`} valueColor={colors.success} />
+                  )}
+                  {movTotales.total_retiros > 0 && (
+                    <InfoRow label="Retiros" value={`−${formatMoney(movTotales.total_retiros, currency)}`} valueColor={colors.danger} />
+                  )}
+                  {movTotales.total_gastos > 0 && (
+                    <InfoRow label="Gastos" value={`−${formatMoney(movTotales.total_gastos, currency)}`} valueColor={colors.danger} />
+                  )}
+                </>
+              )}
+
+              {movimientos.length === 0 ? (
+                <Text style={styles.movVacio}>Sin movimientos en este turno.</Text>
+              ) : (
+                movimientos.map(m => (
+                  <View key={m.id} style={[styles.movItem, m.anulado && styles.movItemAnulado]}>
+                    <View style={styles.movBadge}>
+                      <Text style={styles.movBadgeText}>{MOV_LABEL[m.tipo] || m.tipo}</Text>
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={styles.movMotivo} numberOfLines={1}>{m.motivo || 'Sin motivo'}</Text>
+                      <Text style={styles.movMeta} numberOfLines={1}>
+                        {m.createdAt ? new Date(m.createdAt).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }) : ''}
+                        {m.employee_name ? ` · ${m.employee_name}` : ''}
+                        {m.anulado ? ` · Anulado${m.anulado_por_nombre ? ' por ' + m.anulado_por_nombre : ''}` : ''}
+                      </Text>
+                    </View>
+                    <Text style={[
+                      styles.movMonto,
+                      { color: m.tipo === 'deposito' ? colors.success : colors.danger },
+                      m.anulado && styles.movMontoAnulado,
+                    ]}>
+                      {m.tipo === 'deposito' ? '+' : '−'}{formatMoney(m.monto, currency)}
+                    </Text>
+                    {!m.anulado && (
+                      <TouchableOpacity onPress={() => { setMovError(''); setModalAnular(m.id); }} hitSlop={8}>
+                        <Ionicons name="close-circle-outline" size={20} color={colors.textMuted} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ))
+              )}
+            </View>
 
             <TouchableOpacity style={styles.btnRefrescar} onPress={cargarTurno}>
               <Ionicons name="refresh-outline" size={18} color={colors.primary} />
@@ -248,6 +425,18 @@ export default function TurnoScreen() {
             <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
               <InfoRow label="Fondo inicial"    value={formatMoney(parseFloat(turno?.fondo_inicial || 0), currency)} />
               <InfoRow label="Ventas efectivo"  value={formatMoney(totales?.total_efectivo || 0, currency)} />
+              {/* Las filas de movimientos solo aparecen si hubo: un turno sin
+                  retiros ni gastos ve el mismo cierre de siempre. */}
+              {(movTotales?.total_depositos || 0) > 0 && (
+                <InfoRow label="+ Depósitos" value={formatMoney(movTotales.total_depositos, currency)} valueColor={colors.success} />
+              )}
+              {(movTotales?.total_retiros || 0) > 0 && (
+                <InfoRow label="− Retiros" value={formatMoney(movTotales.total_retiros, currency)} valueColor={colors.danger} />
+              )}
+              {(movTotales?.total_gastos || 0) > 0 && (
+                <InfoRow label="− Gastos" value={formatMoney(movTotales.total_gastos, currency)} valueColor={colors.danger} />
+              )}
+              <InfoRow label="Efectivo esperado" value={formatMoney(efectivoEsperado(), currency)} />
               <InfoRow label="Duración"         value={duracion(turno?.apertura)} />
 
               <Text style={[styles.label, { marginTop: spacing.lg }]}>Efectivo contado en caja</Text>
@@ -267,13 +456,13 @@ export default function TurnoScreen() {
                   <Text style={[
                     styles.diferenciaValue,
                     {
-                      color: ((parseFloat(efectivoCierre) || 0) - parseFloat(turno?.fondo_inicial || 0) - (totales?.total_efectivo || 0)) >= 0
+                      color: ((parseFloat(efectivoCierre) || 0) - efectivoEsperado()) >= 0
                         ? colors.success
                         : colors.danger
                     }
                   ]}>
                     {(() => {
-                      const dif = (parseFloat(efectivoCierre) || 0) - parseFloat(turno?.fondo_inicial || 0) - (totales?.total_efectivo || 0);
+                      const dif = (parseFloat(efectivoCierre) || 0) - efectivoEsperado();
                       return `${dif >= 0 ? '+' : ''}${formatMoney(Math.abs(dif), currency)}`;
                     })()}
                   </Text>
@@ -299,6 +488,145 @@ export default function TurnoScreen() {
                   ? <ActivityIndicator size="small" color="#fff" />
                   : <Ionicons name="lock-closed-outline" size={20} color="#fff" />}
                 <Text style={styles.btnCerrarText}>Confirmar cierre</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </Modal>
+      {/* Modal registrar movimiento */}
+      <Modal visible={modalMov} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModalMov(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+          <View style={styles.dragHandleWrap}><View style={styles.dragHandle} /></View>
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{MOV_LABEL[movTipo]}</Text>
+              <TouchableOpacity onPress={() => setModalMov(false)}>
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
+              <View style={styles.movTipoRow}>
+                {MOV_TIPOS.map(t => (
+                  <TouchableOpacity
+                    key={t.tipo}
+                    style={[styles.movTipoBtn, movTipo === t.tipo && styles.movTipoBtnActivo]}
+                    onPress={() => { setMovTipo(t.tipo); setMovError(''); }}
+                  >
+                    <Ionicons name={t.icon} size={20} color={movTipo === t.tipo ? colors.primary : colors.textMuted} />
+                    <Text style={[styles.movTipoLbl, movTipo === t.tipo && { color: colors.primary }]}>{t.label}</Text>
+                    <Text style={styles.movTipoSub}>{t.sub}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={[styles.label, { marginTop: spacing.lg }]}>Monto</Text>
+              <TextInput
+                style={styles.input}
+                value={movMonto}
+                onChangeText={setMovMonto}
+                placeholder={`${currency}0.00`}
+                keyboardType="decimal-pad"
+                placeholderTextColor={colors.textMuted}
+              />
+
+              <Text style={[styles.label, { marginTop: spacing.md }]}>Motivo</Text>
+              <TextInput
+                style={[styles.input, { fontSize: font.md, fontWeight: '500' }]}
+                value={movMotivo}
+                onChangeText={setMovMotivo}
+                placeholder="Ej: Compra de cilantro"
+                placeholderTextColor={colors.textMuted}
+                maxLength={120}
+              />
+
+              {pinRequerido(movTipo) && (
+                <>
+                  <Text style={[styles.label, { marginTop: spacing.md }]}>PIN de tu puesto</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={movPin}
+                    onChangeText={setMovPin}
+                    placeholder="••••"
+                    keyboardType="number-pad"
+                    maxLength={8}
+                    secureTextEntry
+                    placeholderTextColor={colors.textMuted}
+                  />
+                  <Text style={styles.hint}>Sacar dinero de la caja queda registrado a tu nombre.</Text>
+                </>
+              )}
+
+              {movError ? <Text style={styles.movError}>{movError}</Text> : null}
+
+              <TouchableOpacity
+                style={[styles.btnAbrir, { marginTop: spacing.xl, opacity: saving ? 0.6 : 1 }]}
+                onPress={registrarMovimiento}
+                disabled={saving}
+              >
+                {saving
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <Ionicons name="checkmark" size={20} color="#fff" />}
+                <Text style={styles.btnAbrirText}>Registrar {MOV_LABEL[movTipo].toLowerCase()}</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Modal anular movimiento — nunca se borra, se marca */}
+      <Modal visible={!!modalAnular} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModalAnular(null)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+          <View style={styles.dragHandleWrap}><View style={styles.dragHandle} /></View>
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Anular movimiento</Text>
+              <TouchableOpacity onPress={() => setModalAnular(null)}>
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
+              <Text style={styles.hint}>
+                El movimiento quedará marcado como anulado y dejará de contar en el cierre.
+                No se borra: seguirá visible con el motivo.
+              </Text>
+
+              {pinRequerido('retiro') && (
+                <>
+                  <Text style={[styles.label, { marginTop: spacing.lg }]}>PIN de tu puesto</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={anularPin}
+                    onChangeText={setAnularPin}
+                    placeholder="••••"
+                    keyboardType="number-pad"
+                    maxLength={8}
+                    secureTextEntry
+                    placeholderTextColor={colors.textMuted}
+                  />
+                </>
+              )}
+
+              <Text style={[styles.label, { marginTop: spacing.md }]}>Motivo (opcional)</Text>
+              <TextInput
+                style={[styles.input, { fontSize: font.md, fontWeight: '500' }]}
+                value={anularMotivo}
+                onChangeText={setAnularMotivo}
+                placeholder="Ej: Monto equivocado"
+                placeholderTextColor={colors.textMuted}
+                maxLength={120}
+              />
+
+              {movError ? <Text style={styles.movError}>{movError}</Text> : null}
+
+              <TouchableOpacity
+                style={[styles.btnCerrar, { marginTop: spacing.xl, opacity: saving ? 0.6 : 1 }]}
+                onPress={anularMovimiento}
+                disabled={saving}
+              >
+                {saving
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <Ionicons name="close-circle-outline" size={20} color="#fff" />}
+                <Text style={styles.btnCerrarText}>Anular movimiento</Text>
               </TouchableOpacity>
             </ScrollView>
           </KeyboardAvoidingView>
@@ -340,4 +668,24 @@ const styles = StyleSheet.create({
   diferenciaCard:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.md, marginTop: spacing.md, borderWidth: 1, borderColor: colors.border },
   diferenciaLabel:  { fontSize: font.md, fontWeight: '600', color: colors.textSecondary },
   diferenciaValue:  { fontSize: font.xl, fontWeight: '800' },
+
+  // Movimientos de caja
+  movHeader:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
+  btnMovAgregar:    { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  btnMovAgregarText:{ color: colors.primary, fontSize: font.sm, fontWeight: '700' },
+  movVacio:         { color: colors.textMuted, fontSize: font.sm, textAlign: 'center', paddingVertical: spacing.md },
+  movItem:          { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
+  movItemAnulado:   { opacity: 0.55 },
+  movBadge:         { backgroundColor: colors.background, borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 2 },
+  movBadgeText:     { fontSize: font.sm - 2, fontWeight: '700', color: colors.textSecondary },
+  movMotivo:        { fontSize: font.sm, color: colors.textPrimary, fontWeight: '600' },
+  movMeta:          { fontSize: font.sm - 2, color: colors.textMuted },
+  movMonto:         { fontSize: font.sm, fontWeight: '700' },
+  movMontoAnulado:  { textDecorationLine: 'line-through' },
+  movError:         { color: colors.danger, fontSize: font.sm, marginTop: spacing.md },
+  movTipoRow:       { flexDirection: 'row', gap: spacing.sm },
+  movTipoBtn:       { flex: 1, alignItems: 'center', gap: 2, paddingVertical: spacing.md, borderWidth: 2, borderColor: colors.border, borderRadius: radius.md },
+  movTipoBtnActivo: { borderColor: colors.primary },
+  movTipoLbl:       { fontSize: font.sm, fontWeight: '700', color: colors.textSecondary },
+  movTipoSub:       { fontSize: font.sm - 3, color: colors.textMuted, textAlign: 'center', paddingHorizontal: 2 },
 });

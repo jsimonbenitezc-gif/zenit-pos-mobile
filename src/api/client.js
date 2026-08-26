@@ -545,6 +545,19 @@ class ApiClient {
     return this.request(`/turnos/${turnoId}/totales`);
   }
 
+  // ── Movimientos de caja (BLOQUE 7) ──────────────────────────────────
+  getMovimientosCaja(turnoId) {
+    return this.request(`/turnos/${turnoId}/movimientos`);
+  }
+
+  registrarMovimientoCaja(turnoId, datos) {
+    return this.request(`/turnos/${turnoId}/movimientos`, { method: 'POST', body: datos });
+  }
+
+  anularMovimientoCaja(turnoId, movId, datos) {
+    return this.request(`/turnos/${turnoId}/movimientos/${movId}/anular`, { method: 'POST', body: datos });
+  }
+
   getHistorialTurnos(branchId) {
     const q = branchId ? `?branch_id=${branchId}` : '';
     return this.request(`/turnos/historial${q}`);
