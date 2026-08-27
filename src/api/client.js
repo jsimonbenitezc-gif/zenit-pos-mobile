@@ -307,8 +307,12 @@ class ApiClient {
     return this.request('/orders', { method: 'POST', body: data });
   }
 
-  updateOrderStatus(id, status) {
-    return this.request(`/orders/${id}/status`, { method: 'PUT', body: { status } });
+  // `extra` lleva lo que se decide AL COBRAR una mesa: el método de pago y la
+  // propina (BLOQUE 9). ⚠️ El método de pago no se mandaba: la app dejaba elegir
+  // "tarjeta" y la venta se guardaba como efectivo, así que el cierre de turno le
+  // exigía al cajero un efectivo que nunca entró al cajón.
+  updateOrderStatus(id, status, extra = {}) {
+    return this.request(`/orders/${id}/status`, { method: 'PUT', body: { status, ...extra } });
   }
 
   // Token acotado para abrir el KDS en otro dispositivo (QR). Dura 12h y el backend

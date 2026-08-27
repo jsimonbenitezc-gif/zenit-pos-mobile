@@ -33,6 +33,7 @@ import { SeccionPlan } from './ajustes/SeccionPlan';
 import { SeccionNotificaciones } from './ajustes/SeccionNotificaciones';
 import { SeccionSucursales } from './ajustes/SeccionSucursales';
 import { SeccionImpuestos } from './ajustes/SeccionImpuestos';
+import { SeccionPropinas } from './ajustes/SeccionPropinas';
 
 
 // ─── Pantalla principal ───────────────────────────────────────────────────────
@@ -1213,6 +1214,18 @@ export default function AjustesScreen({ navigation }) {
             responde 403 si lo manda cualquier otro puesto. */}
         {isOwner && (
           <SeccionImpuestos
+            settings={settings}
+            currency={moneda}
+            onSaved={refreshSettings}
+            styles={styles}
+          />
+        )}
+
+        {/* ── Propinas (BLOQUE 9) ─── */}
+        {/* Solo el dueño, igual que el impuesto: cambia lo que se le PIDE al
+            cliente y lo que el corte le exige al cajero en el cajón. */}
+        {isOwner && (
+          <SeccionPropinas
             settings={settings}
             currency={moneda}
             onSaved={refreshSettings}

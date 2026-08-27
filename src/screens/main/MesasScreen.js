@@ -20,6 +20,7 @@ import { createSSE } from '../../utils/sse';
 import { friendlyError } from '../../utils/errors';
 import { generarUuid } from '../../utils/uuid';
 import { desgloseDePedido, etiquetaImpuesto } from '../../utils/impuestos';
+import { configPropina, hayPropinas, normalizarPropina, normalizarMetodo as normalizarMetodoPropina, propinaPorPorcentaje, totalConPropina } from '../../utils/propinas';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -77,6 +78,9 @@ function MesaCard({ mesa, onPress, currency }) {
 export default function MesasScreen() {
   const { isOwner, settings, sucursalId, puedeRegistrarEnSucursal } = useAuth();
   const currency = settings?.currency_symbol || '$';
+  // Config de propinas (BLOQUE 9). Se declara arriba porque la usan tanto el
+  // cobro como el render del modal.
+  const propCfg = configPropina(settings);
 
   const [mesas, setMesas]         = useState([]);
   const [loading, setLoading]     = useState(true);
@@ -109,6 +113,11 @@ export default function MesasScreen() {
   // Modal: cobrar
   const [modalCobrarVisible, setModalCobrar] = useState(false);
   const [metodoPago, setMetodoPago]          = useState('efectivo');
+  // Propina de la mesa (BLOQUE 9). Se decide AL COBRAR, no al abrir la mesa.
+  // NO entra en la cuenta: es lo que el cliente deja de más.
+  const [propina, setPropina]                = useState(0);
+  const [propinaTexto, setPropinaTexto]      = useState('');
+  const [propinaMetodo, setPropinaMetodo]    = useState(null);
   const [cobrando, setCobrando]              = useState(false);
 
   // Fidelidad en cobro de mesa
@@ -340,7 +349,15 @@ export default function MesasScreen() {
     if (!ordenActiva) return;
     setCobrando(true);
     try {
-      await api.updateOrderStatus(ordenActiva.id, 'completado');
+      // El método de pago y la propina se mandan AQUÍ, al cobrar (BLOQUE 9).
+      // ⚠️ `payment_method` no se mandaba: la mesa cobrada con tarjeta quedaba
+      // guardada como efectivo y descuadraba el corte de caja.
+      const propinaFinal = hayPropinas(propCfg) ? propina : 0;
+      await api.updateOrderStatus(ordenActiva.id, 'completado', {
+        payment_method: metodoPago,
+        tip_amount: propinaFinal,
+        tip_method: propinaFinal > 0 ? normalizarMetodoPropina(propinaMetodo, metodoPago) : null,
+      });
 
       // Otorgar puntos si hay cliente seleccionado con fidelidad activa
       if (clienteSelec) {
@@ -359,6 +376,10 @@ export default function MesasScreen() {
         } catch { /* los puntos no son críticos */ }
       }
 
+      // La propina no se hereda a la siguiente mesa que se cobre.
+      setPropina(0);
+      setPropinaTexto('');
+      setPropinaMetodo(null);
       setModalCobrar(false);
       setModalDetalle(false);
       setOrdenActiva(null);
@@ -699,6 +720,85 @@ export default function MesasScreen() {
                 <Text style={[styles.metodoPagoText, metodoPago === m.key && { color: '#fff' }]}>{m.label}</Text>
               </TouchableOpacity>
             ))}
+            {/* PROPINA (BLOQUE 9). Va después del método de pago: el porcentaje
+                se calcula sobre la cuenta y la propina puede cobrarse por otro
+                método. No entra en el total: la mesa consumió lo que consumió. */}
+            {hayPropinas(propCfg) && (
+              <View style={styles.propinaBox}>
+                <View style={styles.propinaHeader}>
+                  <Text style={styles.fieldLabel}>Propina</Text>
+                  <Text style={styles.propinaMonto}>
+                    {formatMoney(hayPropinas(propCfg) ? propina : 0, currency)}
+                  </Text>
+                </View>
+                <View style={styles.propinaBotones}>
+                  {(propCfg.sugerencias || []).map(pct => {
+                    const monto  = propinaPorPorcentaje(totalOrden, pct);
+                    const activo = propina > 0 && Math.abs(propina - monto) < 0.005;
+                    return (
+                      <TouchableOpacity
+                        key={pct}
+                        style={[styles.propinaBtn, activo && styles.propinaBtnActive]}
+                        onPress={() => { setPropina(monto); setPropinaTexto(monto > 0 ? monto.toFixed(2) : ''); }}
+                      >
+                        <Text style={[styles.propinaBtnPct, activo && { color: '#fff' }]}>{pct}%</Text>
+                        <Text style={[styles.propinaBtnMonto, activo && { color: '#fff' }]}>
+                          {formatMoney(monto, currency)}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                  <TouchableOpacity
+                    style={[styles.propinaBtn, propina <= 0 && styles.propinaBtnNinguna]}
+                    onPress={() => { setPropina(0); setPropinaTexto(''); setPropinaMetodo(null); }}
+                  >
+                    <Text style={[styles.propinaBtnPct, propina <= 0 && { color: '#fff' }]}>Sin</Text>
+                    <Text style={[styles.propinaBtnMonto, propina <= 0 && { color: '#fff' }]}>propina</Text>
+                  </TouchableOpacity>
+                </View>
+                <TextInput
+                  style={styles.propinaInput}
+                  value={propinaTexto}
+                  onChangeText={(t) => {
+                    const limpio = t.replace(/[^\d.]/g, '');
+                    setPropinaTexto(limpio);
+                    setPropina(normalizarPropina(limpio));
+                  }}
+                  placeholder="Otro monto"
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="decimal-pad"
+                />
+                {propina > 0 && (
+                  <>
+                    <View style={styles.propinaMetodoRow}>
+                      {['efectivo', 'tarjeta', 'transferencia'].map(m => {
+                        const activo = normalizarMetodoPropina(propinaMetodo, metodoPago) === m;
+                        return (
+                          <TouchableOpacity
+                            key={m}
+                            style={[styles.propinaMetodoBtn, activo && styles.propinaMetodoBtnActive]}
+                            onPress={() => setPropinaMetodo(m)}
+                          >
+                            <Text style={[styles.propinaMetodoText, activo && { color: '#fff' }]}>
+                              en {m === 'transferencia' ? 'transf.' : m}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                    {/* Lo que el cliente entrega. La cuenta de la mesa sigue
+                        siendo el total de arriba. */}
+                    <View style={styles.propinaEntregaRow}>
+                      <Text style={styles.propinaEntregaLabel}>El cliente entrega</Text>
+                      <Text style={styles.propinaEntregaValor}>
+                        {formatMoney(totalConPropina(totalOrden, propina), currency)}
+                      </Text>
+                    </View>
+                  </>
+                )}
+              </View>
+            )}
+
             <TouchableOpacity
               style={[styles.btnPrimary, { marginTop: spacing.xl }, cobrando && styles.btnDisabled]}
               onPress={confirmarCobrar}
@@ -839,6 +939,26 @@ const styles = StyleSheet.create({
 
   cobrarMesa:       { fontSize: font.lg, fontWeight: '700', color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.xs },
   cobrarTotal:      { fontSize: 48, fontWeight: '800', color: colors.textPrimary, textAlign: 'center', marginBottom: spacing.md },
+  // Propina (BLOQUE 9) — en verde para distinguirla del dinero de la venta:
+  // no es ingreso del negocio, es del empleado.
+  propinaBox:        { backgroundColor: colors.success + '10', borderRadius: radius.md, borderWidth: 1, borderColor: colors.success + '55', padding: spacing.md, marginTop: spacing.lg },
+  propinaHeader:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
+  propinaMonto:      { fontSize: font.lg, fontWeight: '800', color: colors.success },
+  propinaBotones:    { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.sm },
+  propinaBtn:        { flex: 1, minWidth: 64, alignItems: 'center', paddingVertical: spacing.sm, borderRadius: radius.md, borderWidth: 2, borderColor: colors.border, backgroundColor: colors.surface },
+  propinaBtnActive:  { borderColor: colors.success, backgroundColor: colors.success },
+  propinaBtnNinguna: { borderColor: colors.textSecondary, backgroundColor: colors.textSecondary },
+  propinaBtnPct:     { fontSize: font.sm, fontWeight: '700', color: colors.textPrimary },
+  propinaBtnMonto:   { fontSize: 11, fontWeight: '500', color: colors.textSecondary },
+  propinaInput:      { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.md, color: colors.textPrimary, backgroundColor: colors.background },
+  propinaMetodoRow:  { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm },
+  propinaMetodoBtn:  { flex: 1, alignItems: 'center', paddingVertical: spacing.sm, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  propinaMetodoBtnActive: { borderColor: colors.success, backgroundColor: colors.success },
+  propinaMetodoText: { fontSize: 11, fontWeight: '600', color: colors.textSecondary },
+  propinaEntregaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.success + '55' },
+  propinaEntregaLabel: { fontSize: font.sm, fontWeight: '700', color: colors.success },
+  propinaEntregaValor: { fontSize: font.lg, fontWeight: '800', color: colors.success },
+
   metodoPagoBtn:    { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm, backgroundColor: colors.surface },
   metodoPagoBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   metodoPagoText:   { fontSize: font.md, fontWeight: '600', color: colors.textPrimary },

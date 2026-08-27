@@ -5,6 +5,7 @@ import * as Device from 'expo-device';
 import { Platform, Alert } from 'react-native';
 import { api } from '../api/client';
 import { zonaDelDispositivo } from '../utils/tz';
+import { normalizarSugerencias } from '../utils/propinas';
 
 // Configurar cómo se muestran las notificaciones cuando la app está en primer plano
 // (solo funciona en APK/build, no en Expo Go SDK 53+)
@@ -80,12 +81,13 @@ export function AuthProvider({ children }) {
       const s = await api.getSettings();
       setSettings(s || {});
       _guardarImpuestoLocal(s);
+      _guardarPropinasLocal(s);
       return s;
     } catch {
       // Sin red no hay settings frescos: se recupera al menos la config de
       // impuesto guardada, o la venta offline cobraría sin impuesto y el ticket
       // no coincidiría con lo que registra el backend (BLOQUE 8).
-      const cache = await _leerImpuestoLocal();
+      const cache = await _leerConfigCobroLocal();
       if (cache) setSettings(prev => ({ ...cache, ...prev }));
       return null;
     }
@@ -113,6 +115,36 @@ export function AuthProvider({ children }) {
       const raw = await SecureStore.getItemAsync('zenit_impuesto');
       return raw ? JSON.parse(raw) : null;
     } catch { return null; }
+  }
+
+  // ── Config de propinas para cobrar SIN internet (BLOQUE 9) ────────────────
+  // Va en su PROPIA clave y no dentro de `zenit_impuesto`: así un equipo que se
+  // actualiza estando offline conserva su config de impuesto intacta en vez de
+  // perderla por un cambio de formato (y con ella, cobrar sin IVA todo el día).
+  // Mismo motivo que el impuesto para cachearla: sin esto, la caja sin señal
+  // dejaría de pedir propina y el efectivo del cajón no cuadraría con el corte.
+  async function _guardarPropinasLocal(s) {
+    if (!s) return;
+    try {
+      await SecureStore.setItemAsync('zenit_propinas', JSON.stringify({
+        propinas_activas: s.propinas_activas === true || s.propinas_activas === 'true',
+        propina_sugerencias: normalizarSugerencias(s.propina_sugerencias),
+      }));
+    } catch {}
+  }
+
+  async function _leerPropinasLocal() {
+    try {
+      const raw = await SecureStore.getItemAsync('zenit_propinas');
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  }
+
+  /** Lee de golpe lo que hace falta para cobrar sin red: impuesto + propinas. */
+  async function _leerConfigCobroLocal() {
+    const [imp, prop] = await Promise.all([_leerImpuestoLocal(), _leerPropinasLocal()]);
+    if (!imp && !prop) return null;
+    return { ...(imp || {}), ...(prop || {}) };
   }
 
   // ── Sucursal del dispositivo ────────────────────────────────────────────
@@ -241,7 +273,7 @@ export function AuthProvider({ children }) {
       // cajero y lo dejaba sin caja. Mismo criterio que el desktop (CLAUDE.md §7).
       const esFalloDeRed = /Sin conexión|tardó mucho|Network request failed/i.test(e?.message || '');
       if (esFalloDeRed) {
-        const cache = await _leerImpuestoLocal();
+        const cache = await _leerConfigCobroLocal();
         if (cache) setSettings(prev => ({ ...cache, ...prev }));
       } else {
         await SecureStore.deleteItemAsync('zenit_token');
@@ -373,6 +405,7 @@ export function AuthProvider({ children }) {
     // La config de impuesto es del negocio que se acaba de cerrar: no significa
     // nada en otra cuenta (mismo criterio que la sucursal del equipo, §24).
     SecureStore.deleteItemAsync('zenit_impuesto').catch(() => {});
+    SecureStore.deleteItemAsync('zenit_propinas').catch(() => {});
     pushTokenRef.current = null;
     api.clearToken();
     api.clearRefreshToken();

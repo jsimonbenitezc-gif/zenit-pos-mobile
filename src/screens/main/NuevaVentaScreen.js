@@ -21,6 +21,7 @@ import { createSSE } from '../../utils/sse';
 import { formatMoney } from '../../utils/money';
 import { friendlyError } from '../../utils/errors';
 import { configImpuesto, desglosarImpuesto, hayImpuesto, etiquetaImpuesto } from '../../utils/impuestos';
+import { configPropina, hayPropinas, normalizarPropina, normalizarMetodo as normalizarMetodoPropina, propinaPorPorcentaje, totalConPropina } from '../../utils/propinas';
 
 // ─── Quick tags para notas ────────────────────────────────────────────────────
 
@@ -118,6 +119,11 @@ export default function NuevaVentaScreen() {
   // Datos del pedido
   const [tipoPedido, setTipoPedido]       = useState('comer');
   const [metodoPago, setMetodoPago]       = useState('efectivo');
+  // PROPINA (BLOQUE 9). Vive aparte del total: `totalFinal` es lo que vendió el
+  // negocio y la propina es dinero del cliente para el empleado.
+  const [propina, setPropina]             = useState(0);
+  const [propinaTexto, setPropinaTexto]   = useState('');
+  const [propinaMetodo, setPropinaMetodo] = useState(null);
   const [clienteSeleccionado, setCliente] = useState(null);
   const [textoNota, setTextoNota]         = useState('');
   const [enviando, setEnviando]           = useState(false);
@@ -387,6 +393,13 @@ export default function NuevaVentaScreen() {
   const desglose = desglosarImpuesto(baseGravable, impCfg);
   const totalFinal = desglose.total;
 
+  // PROPINA (BLOQUE 9). Queda FUERA de la base gravable y de `totalFinal`: no es
+  // una venta y no paga impuesto. Lo que el cliente entrega es `totalAEntregar`,
+  // que solo se usa para pedir el dinero y calcular el cambio.
+  const propCfg = configPropina(settings);
+  const propinaEfectiva = hayPropinas(propCfg) ? propina : 0;
+  const totalAEntregar = totalConPropina(totalFinal, propinaEfectiva);
+
   // Puntos que ganaría con esta compra (solo si no está usando puntos)
   const puntosAGanar = (!puntosUsados && loyaltyEnabled && clienteEnFidelidad)
     ? Math.floor(totalFinal * ratePorPeso) + bonoPorPedido
@@ -394,9 +407,11 @@ export default function NuevaVentaScreen() {
 
   // Efectivo
   const recibido = parseFloat(efectivoRecibido.replace(/[^\d.]/g, '')) || 0;
-  const cambio   = recibido - totalFinal;
+  // El cambio y la validación del efectivo van sobre lo que el cliente ENTREGA
+  // (venta + propina), no sobre la venta sola: la propina también la paga él.
+  const cambio   = recibido - totalAEntregar;
 
-  const puedeConfirmar = metodoPago !== 'efectivo' || recibido >= totalFinal;
+  const puedeConfirmar = metodoPago !== 'efectivo' || recibido >= totalAEntregar;
 
   // ── Descuentos ────────────────────────────────────────────────────────────
 
@@ -506,7 +521,7 @@ export default function NuevaVentaScreen() {
       );
       return;
     }
-    if (metodoPago === 'efectivo' && recibido < totalFinal) {
+    if (metodoPago === 'efectivo' && recibido < totalAEntregar) {
       Alert.alert('Efectivo insuficiente', 'El monto recibido es menor al total a cobrar.');
       return;
     }
@@ -552,6 +567,11 @@ export default function NuevaVentaScreen() {
         // el importe al cliente.
         tax_rate: impCfg.tasa || 0,
         tax_included: !!impCfg.incluido,
+        // Propina (BLOQUE 9). Va APARTE del total: `total` es lo que vendió el
+        // negocio. El backend la descarta si las propinas están apagadas, y una
+        // propina inválida nunca tumba la venta (cae a 0 y se registra igual).
+        tip_amount: propinaEfectiva,
+        tip_method: propinaEfectiva > 0 ? normalizarMetodoPropina(propinaMetodo, metodoPago) : null,
       };
 
       // Puntos de fidelidad: se procesan en la transacción del backend, así que
@@ -588,6 +608,10 @@ export default function NuevaVentaScreen() {
       setDescuento(0);
       setDescuentoNombre('');
       setPuntosUsados(false);
+      // La propina no se hereda a la siguiente venta.
+      setPropina(0);
+      setPropinaTexto('');
+      setPropinaMetodo(null);
       setEfectivoRecibido('');
       setDomNombre('');
       setDomDireccion('');
@@ -982,6 +1006,85 @@ export default function NuevaVentaScreen() {
                 </TouchableOpacity>
               ))}
 
+              {/* PROPINA (BLOQUE 9). Va DESPUÉS del método de pago porque el
+                  porcentaje se calcula sobre el total y porque la propina puede
+                  cobrarse por otro método (cuenta con tarjeta, propina en
+                  efectivo). Toda la sección desaparece si están apagadas. */}
+              {hayPropinas(propCfg) && (
+                <View style={styles.propinaBox}>
+                  <View style={styles.propinaHeader}>
+                    <Text style={styles.sectionLabel}>Propina</Text>
+                    <Text style={styles.propinaMonto}>{formatMoney(propinaEfectiva, currency)}</Text>
+                  </View>
+                  <View style={styles.propinaBotones}>
+                    {(propCfg.sugerencias || []).map(pct => {
+                      const monto  = propinaPorPorcentaje(totalFinal, pct);
+                      const activo = propinaEfectiva > 0 && Math.abs(propinaEfectiva - monto) < 0.005;
+                      return (
+                        <TouchableOpacity
+                          key={pct}
+                          style={[styles.propinaBtn, activo && styles.propinaBtnActive]}
+                          onPress={() => { setPropina(monto); setPropinaTexto(monto > 0 ? monto.toFixed(2) : ''); }}
+                        >
+                          <Text style={[styles.propinaBtnPct, activo && { color: '#fff' }]}>{pct}%</Text>
+                          <Text style={[styles.propinaBtnMonto, activo && { color: '#fff' }]}>
+                            {formatMoney(monto, currency)}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                    <TouchableOpacity
+                      style={[styles.propinaBtn, propinaEfectiva <= 0 && styles.propinaBtnNinguna]}
+                      onPress={() => { setPropina(0); setPropinaTexto(''); setPropinaMetodo(null); }}
+                    >
+                      <Text style={[styles.propinaBtnPct, propinaEfectiva <= 0 && { color: '#fff' }]}>Sin</Text>
+                      <Text style={[styles.propinaBtnMonto, propinaEfectiva <= 0 && { color: '#fff' }]}>propina</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <TextInput
+                    style={styles.propinaInput}
+                    value={propinaTexto}
+                    onChangeText={(t) => {
+                      const limpio = t.replace(/[^\d.]/g, '');
+                      setPropinaTexto(limpio);
+                      setPropina(normalizarPropina(limpio));
+                    }}
+                    placeholder="Otro monto"
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="decimal-pad"
+                  />
+                  {/* El método de la propina solo importa si hay propina, y solo
+                      se ofrece cambiar cuando difiere del pago (el caso típico:
+                      cuenta con tarjeta, propina en efectivo). */}
+                  {propinaEfectiva > 0 && (
+                    <View style={styles.propinaMetodoRow}>
+                      {['efectivo', 'tarjeta', 'transferencia'].map(m => {
+                        const activo = normalizarMetodoPropina(propinaMetodo, metodoPago) === m;
+                        return (
+                          <TouchableOpacity
+                            key={m}
+                            style={[styles.propinaMetodoBtn, activo && styles.propinaMetodoBtnActive]}
+                            onPress={() => setPropinaMetodo(m)}
+                          >
+                            <Text style={[styles.propinaMetodoText, activo && { color: '#fff' }]}>
+                              en {m === 'transferencia' ? 'transf.' : m}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )}
+                  {/* Lo que el cliente ENTREGA. La venta del negocio sigue siendo
+                      el total de arriba: este número no se guarda como venta. */}
+                  {propinaEfectiva > 0 && (
+                    <View style={styles.propinaEntregaRow}>
+                      <Text style={styles.propinaEntregaLabel}>El cliente entrega</Text>
+                      <Text style={styles.propinaEntregaValor}>{formatMoney(totalAEntregar, currency)}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+
               {/* Calculadora de cambio (solo efectivo) */}
               {metodoPago === 'efectivo' && (
                 <View style={styles.efectivoBox}>
@@ -1311,6 +1414,26 @@ const styles = StyleSheet.create({
   cambioRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border },
   cambioLabel:    { fontSize: font.sm, fontWeight: '600', color: colors.textSecondary },
   cambioValor:    { fontSize: font.lg, fontWeight: '800' },
+
+  // Propina (BLOQUE 9) — en verde para distinguirla del dinero de la venta:
+  // no es ingreso del negocio, es del empleado.
+  propinaBox:        { backgroundColor: colors.success + '10', borderRadius: radius.md, borderWidth: 1, borderColor: colors.success + '55', padding: spacing.md, marginTop: spacing.lg, marginBottom: spacing.sm },
+  propinaHeader:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
+  propinaMonto:      { fontSize: font.lg, fontWeight: '800', color: colors.success },
+  propinaBotones:    { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.sm },
+  propinaBtn:        { flex: 1, minWidth: 64, alignItems: 'center', paddingVertical: spacing.sm, borderRadius: radius.md, borderWidth: 2, borderColor: colors.border, backgroundColor: colors.surface },
+  propinaBtnActive:  { borderColor: colors.success, backgroundColor: colors.success },
+  propinaBtnNinguna: { borderColor: colors.textSecondary, backgroundColor: colors.textSecondary },
+  propinaBtnPct:     { fontSize: font.sm, fontWeight: '700', color: colors.textPrimary },
+  propinaBtnMonto:   { fontSize: 11, fontWeight: '500', color: colors.textSecondary },
+  propinaInput:      { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.md, color: colors.textPrimary, backgroundColor: colors.background },
+  propinaMetodoRow:  { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm },
+  propinaMetodoBtn:  { flex: 1, alignItems: 'center', paddingVertical: spacing.sm, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  propinaMetodoBtnActive: { borderColor: colors.success, backgroundColor: colors.success },
+  propinaMetodoText: { fontSize: 11, fontWeight: '600', color: colors.textSecondary },
+  propinaEntregaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.success + '55' },
+  propinaEntregaLabel: { fontSize: font.sm, fontWeight: '700', color: colors.success },
+  propinaEntregaValor: { fontSize: font.lg, fontWeight: '800', color: colors.success },
 
   // Domicilio
   domicilioBox:   { backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginTop: spacing.lg, marginBottom: spacing.sm },

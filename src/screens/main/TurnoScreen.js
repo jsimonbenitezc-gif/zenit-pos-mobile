@@ -13,6 +13,7 @@ import { formatMoney } from '../../utils/money';
 import { friendlyError } from '../../utils/errors';
 import { generarUuid } from '../../utils/uuid';
 import { configImpuesto } from '../../utils/impuestos';
+import { efectivoEsperado as calcularEfectivoEsperado } from '../../utils/propinas';
 
 function InfoRow({ label, value, valueColor }) {
   return (
@@ -128,11 +129,18 @@ export default function TurnoScreen() {
    * Misma fórmula que utils/cashMovements.js en el backend (ver CLAUDE.md §28).
    */
   function efectivoEsperado() {
-    return (parseFloat(turno?.fondo_inicial) || 0)
-         + (totales?.total_efectivo || 0)
-         + (movTotales?.total_depositos || 0)
-         - (movTotales?.total_retiros || 0)
-         - (movTotales?.total_gastos || 0);
+    // ⚠️ La propina en EFECTIVO cuenta porque está en el cajón (BLOQUE 9): sin
+    // ella cada propina saldría como un SOBRANTE al contar el dinero. La de
+    // tarjeta no entra: llega en la liquidación del banco. La fórmula vive en
+    // utils/propinas.js, espejo de utils/cashMovements.js del backend.
+    return calcularEfectivoEsperado({
+      fondoInicial:     turno?.fondo_inicial,
+      ventasEfectivo:   totales?.total_efectivo,
+      propinasEfectivo: totales?.total_propinas_efectivo,
+      depositos:        movTotales?.total_depositos,
+      retiros:          movTotales?.total_retiros,
+      gastos:           movTotales?.total_gastos,
+    });
   }
 
   function abrirModalMovimiento() {
@@ -305,6 +313,24 @@ export default function TurnoScreen() {
                     />
                   </>
                 )}
+                {/* Propinas (BLOQUE 9). NO están dentro de "Total vendido": no son
+                    ingreso del negocio, son del empleado. Se separa la de efectivo
+                    porque es la única que está en el cajón. */}
+                {(totales.total_propinas || 0) > 0 && (
+                  <>
+                    <InfoRow
+                      label="Propinas (no son ventas)"
+                      value={formatMoney(totales.total_propinas, currency)}
+                      valueColor={colors.success}
+                    />
+                    {(totales.total_propinas_efectivo || 0) > 0 && (
+                      <InfoRow
+                        label="…en efectivo (está en el cajón)"
+                        value={formatMoney(totales.total_propinas_efectivo, currency)}
+                      />
+                    )}
+                  </>
+                )}
               </View>
             )}
 
@@ -444,6 +470,11 @@ export default function TurnoScreen() {
             <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
               <InfoRow label="Fondo inicial"    value={formatMoney(parseFloat(turno?.fondo_inicial || 0), currency)} />
               <InfoRow label="Ventas efectivo"  value={formatMoney(totales?.total_efectivo || 0, currency)} />
+              {/* La propina en efectivo entró al cajón, así que forma parte de lo
+                  que el cajero debe encontrar al contar (BLOQUE 9). */}
+              {(totales?.total_propinas_efectivo || 0) > 0 && (
+                <InfoRow label="+ Propinas en efectivo" value={formatMoney(totales.total_propinas_efectivo, currency)} valueColor={colors.success} />
+              )}
               {/* Las filas de movimientos solo aparecen si hubo: un turno sin
                   retiros ni gastos ve el mismo cierre de siempre. */}
               {(movTotales?.total_depositos || 0) > 0 && (

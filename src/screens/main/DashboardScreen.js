@@ -388,6 +388,18 @@ export default function DashboardScreen() {
             />
           </View>
         )}
+        {/* Propinas de hoy (BLOQUE 9). Aparte por una razón más fuerte que el
+            impuesto: la propina ni siquiera es del negocio, así que jamás está
+            dentro del "Total" de arriba. */}
+        {(parseFloat(hoy.propinas_total) || 0) > 0 && (
+          <View style={styles.row}>
+            <StatCard
+              label="Propinas (no son ventas)"
+              value={fmt(hoy.propinas_total, currency)}
+              color={colors.success}
+            />
+          </View>
+        )}
         <View style={styles.row}>
           <StatCard label="Items vendidos" value={fmtNum(itemsVendidos)} color="#06b6d4" />
           <StatCard
