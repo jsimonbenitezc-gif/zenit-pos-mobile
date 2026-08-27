@@ -21,6 +21,7 @@ import { friendlyError } from '../../utils/errors';
 import { generarUuid } from '../../utils/uuid';
 import { desgloseDePedido, etiquetaImpuesto } from '../../utils/impuestos';
 import { configPropina, hayPropinas, normalizarPropina, normalizarMetodo as normalizarMetodoPropina, propinaPorPorcentaje, totalConPropina } from '../../utils/propinas';
+import { dividirEnPartes, montoDeItems, cuadrarUltimoPago, faltantePago, pagosCuadran, validarPagos, metodoResumen as metodoResumenPagos, metodoDePago, PAGO_MAX } from '../../utils/pagos';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -118,6 +119,13 @@ export default function MesasScreen() {
   const [propina, setPropina]                = useState(0);
   const [propinaTexto, setPropinaTexto]      = useState('');
   const [propinaMetodo, setPropinaMetodo]    = useState(null);
+  // DIVIDIR LA CUENTA (BLOQUE 10). Dos formas: POR ITEMS (cada comensal paga lo
+  // que consumió — lo que más se pide) y PARTES IGUALES. En ambas los pagos
+  // REPARTEN el total: si no suman la cuenta, el backend rechaza el cobro.
+  const [dividirCuenta, setDividirCuenta]    = useState(false);
+  const [modoDivision, setModoDivision]      = useState('items');   // 'items' | 'partes'
+  const [pagosMesa, setPagosMesa]            = useState([]);
+  const [asignacion, setAsignacion]          = useState({});        // { itemId: indiceDePago }
   const [cobrando, setCobrando]              = useState(false);
 
   // Fidelidad en cobro de mesa
@@ -142,7 +150,118 @@ export default function MesasScreen() {
     setBusqCliente('');
     setSugerencias([]);
     setClienteSelec(null);
+    // La división no se hereda de la mesa anterior: un reparto viejo cobraría
+    // mal la cuenta nueva.
+    setDividirCuenta(false);
+    setModoDivision('items');
+    setPagosMesa([]);
+    setAsignacion({});
     setModalCobrar(true);
+  }
+
+  // ── Dividir la cuenta (BLOQUE 10) ────────────────────────────────────────
+  const itemsCuenta = (ordenActiva && ordenActiva.items) || [];
+  const totalCuenta = parseFloat((ordenActiva && ordenActiva.total) || 0);
+  const faltaCuenta = faltantePago(pagosMesa, totalCuenta);
+  const divisionCuadra = pagosMesa.length > 0 && pagosCuadran(pagosMesa, totalCuenta);
+
+  function alternarDivision() {
+    if (dividirCuenta) {
+      setDividirCuenta(false);
+      setPagosMesa([]);
+      setAsignacion({});
+      return;
+    }
+    // Se arranca con dos pagos y todos los items en el primero: el cajero solo
+    // mueve los que cambian de dueño.
+    const inicial = {};
+    for (const it of itemsCuenta) inicial[it.id] = 0;
+    setAsignacion(inicial);
+    setPagosMesa(_repartirPorItems(inicial, 2));
+    setDividirCuenta(true);
+  }
+
+  /** Reparte el total entre N pagos según qué items le tocó pagar a cada uno. */
+  function _repartirPorItems(asig, cuantosPagos, previos) {
+    const base = Array.from({ length: cuantosPagos }, (_, i) => ({
+      method: (previos && previos[i] && previos[i].method) || 'efectivo',
+      amount: 0,
+      tip_amount: (previos && previos[i] && previos[i].tip_amount) || 0,
+      tipTexto: (previos && previos[i] && previos[i].tipTexto) || '',
+      item_ids: [],
+    }));
+    for (let i = 0; i < base.length; i++) {
+      const ids = itemsCuenta.filter(it => (asig[it.id] || 0) === i).map(it => it.id);
+      base[i].item_ids = ids;
+      base[i].amount = montoDeItems(itemsCuenta, ids, totalCuenta);
+    }
+    // Las proporciones dejan centavos sueltos: se le cargan al último pago para
+    // que la suma dé exactamente la cuenta (el backend exige que cuadre).
+    cuadrarUltimoPago(base, totalCuenta);
+    return base;
+  }
+
+  function cambiarModoDivision(modo) {
+    setModoDivision(modo);
+    if (modo === 'items') setPagosMesa(_repartirPorItems(asignacion, Math.max(2, pagosMesa.length), pagosMesa));
+  }
+
+  function dividirMesaEnPartes(n) {
+    const montos = dividirEnPartes(totalCuenta, n);
+    setPagosMesa(montos.map(monto => ({
+      method: 'efectivo', amount: monto, texto: monto.toFixed(2), tip_amount: 0, tipTexto: '', item_ids: [],
+    })));
+    setAsignacion({});
+  }
+
+  function asignarItem(itemId, indice) {
+    const nueva = { ...asignacion, [itemId]: indice };
+    setAsignacion(nueva);
+    setPagosMesa(_repartirPorItems(nueva, pagosMesa.length, pagosMesa));
+  }
+
+  function agregarPagoMesa() {
+    if (pagosMesa.length >= PAGO_MAX) {
+      Alert.alert('Demasiados pagos', `Una cuenta admite como máximo ${PAGO_MAX} pagos.`);
+      return;
+    }
+    if (modoDivision === 'items') {
+      setPagosMesa(_repartirPorItems(asignacion, pagosMesa.length + 1, pagosMesa));
+      return;
+    }
+    const falta = faltantePago(pagosMesa, totalCuenta);
+    const monto = falta > 0 ? falta : 0;
+    setPagosMesa([...pagosMesa, {
+      method: 'efectivo', amount: monto, texto: monto ? monto.toFixed(2) : '', tip_amount: 0, tipTexto: '', item_ids: [],
+    }]);
+  }
+
+  function quitarPagoMesa(indice) {
+    if (pagosMesa.length <= 1) { alternarDivision(); return; }
+    // Los items que pagaba ese comensal pasan al primero, y los índices de los
+    // que estaban después se corren: si no, apuntarían al pago equivocado.
+    const nueva = {};
+    for (const id of Object.keys(asignacion)) {
+      const v = asignacion[id];
+      nueva[id] = v === indice ? 0 : (v > indice ? v - 1 : v);
+    }
+    setAsignacion(nueva);
+    const restantes = pagosMesa.filter((_, i) => i !== indice);
+    setPagosMesa(modoDivision === 'items'
+      ? _repartirPorItems(nueva, restantes.length, restantes)
+      : restantes);
+  }
+
+  function cambiarPagoMesa(indice, campo, valor) {
+    setPagosMesa(pagosMesa.map((pago, i) => {
+      if (i !== indice) return pago;
+      if (campo === 'method') return { ...pago, method: metodoDePago(valor) };
+      const limpio = String(valor || '').replace(/[^\d.]/g, '');
+      const num = parseFloat(limpio) || 0;
+      return campo === 'amount'
+        ? { ...pago, amount: num, texto: limpio }
+        : { ...pago, tip_amount: num, tipTexto: limpio };
+    }));
   }
 
   // Modal: crear mesa
@@ -347,16 +466,41 @@ export default function MesasScreen() {
 
   async function confirmarCobrar() {
     if (!ordenActiva) return;
+
+    // Con la cuenta dividida se valida ANTES de cobrar, para que el cajero vea
+    // el problema en la pantalla y no como un 400 del backend.
+    let pagosPayload = null;
+    if (dividirCuenta) {
+      const v = validarPagos(pagosMesa, totalCuenta);
+      if (!v.ok) { Alert.alert('La división no cuadra', v.error); return; }
+      pagosPayload = pagosMesa.map(pago => ({
+        method: pago.method,
+        amount: pago.amount,
+        tip_amount: pago.tip_amount || 0,
+        item_ids: pago.item_ids || [],
+      }));
+    }
+
     setCobrando(true);
     try {
       // El método de pago y la propina se mandan AQUÍ, al cobrar (BLOQUE 9).
       // ⚠️ `payment_method` no se mandaba: la mesa cobrada con tarjeta quedaba
       // guardada como efectivo y descuadraba el corte de caja.
-      const propinaFinal = hayPropinas(propCfg) ? propina : 0;
+      // Con la cuenta dividida la propina es la SUMA de las de cada pago y el
+      // método sale del reparto ('multiple' si hay varios).
+      const propinaFinal = hayPropinas(propCfg)
+        ? (dividirCuenta
+            ? parseFloat(pagosMesa.reduce((a, x) => a + (parseFloat(x.tip_amount) || 0), 0).toFixed(2))
+            : propina)
+        : 0;
+      const metodoFinal = dividirCuenta ? metodoResumenPagos(pagosMesa) : metodoPago;
       await api.updateOrderStatus(ordenActiva.id, 'completado', {
-        payment_method: metodoPago,
+        payment_method: metodoFinal,
         tip_amount: propinaFinal,
-        tip_method: propinaFinal > 0 ? normalizarMetodoPropina(propinaMetodo, metodoPago) : null,
+        tip_method: propinaFinal > 0 ? normalizarMetodoPropina(propinaMetodo, metodoFinal) : null,
+        // BLOQUE 10 — desglose de la cuenta dividida. Va solo si se dividió; en
+        // un cobro normal el backend hace lo de siempre (un método, sin filas).
+        ...(pagosPayload ? { payments: pagosPayload } : {}),
       });
 
       // Otorgar puntos si hay cliente seleccionado con fidelidad activa
@@ -720,6 +864,158 @@ export default function MesasScreen() {
                 <Text style={[styles.metodoPagoText, metodoPago === m.key && { color: '#fff' }]}>{m.label}</Text>
               </TouchableOpacity>
             ))}
+            {/* DIVIDIR LA CUENTA (BLOQUE 10). Es lo que más se pide en una mesa:
+                varios comensales que pagan cada quien lo suyo. Arranca cerrado
+                para no estorbarle a la mesa que paga de una sola forma. */}
+            <TouchableOpacity style={styles.dividirBtn} onPress={alternarDivision}>
+              <Ionicons
+                name={dividirCuenta ? 'close-circle-outline' : 'git-branch-outline'}
+                size={16}
+                color={colors.primary}
+              />
+              <Text style={styles.dividirBtnText}>
+                {dividirCuenta ? 'Cancelar la división' : 'Dividir la cuenta'}
+              </Text>
+            </TouchableOpacity>
+
+            {dividirCuenta && (
+              <View style={styles.pagosBox}>
+                <View style={styles.pagosHeader}>
+                  <Text style={styles.pagosTitulo}>División de la cuenta</Text>
+                  <Text style={[
+                    styles.pagosFaltante,
+                    divisionCuadra ? { color: colors.success } : (faltaCuenta < 0 ? { color: colors.danger } : null),
+                  ]}>
+                    {divisionCuadra
+                      ? 'Cuadra ✓'
+                      : (faltaCuenta > 0
+                          ? `Falta ${formatMoney(faltaCuenta, currency)}`
+                          : `Sobra ${formatMoney(Math.abs(faltaCuenta), currency)}`)}
+                  </Text>
+                </View>
+
+                {/* Dos formas de dividir. Por items es la principal. */}
+                <View style={styles.divisionTabs}>
+                  {[
+                    { key: 'items',  label: 'Por items' },
+                    { key: 'partes', label: 'Partes iguales' },
+                  ].map(t => (
+                    <TouchableOpacity
+                      key={t.key}
+                      style={[styles.divisionTab, modoDivision === t.key && styles.divisionTabActive]}
+                      onPress={() => cambiarModoDivision(t.key)}
+                    >
+                      <Text style={[styles.divisionTabText, modoDivision === t.key && { color: '#fff' }]}>
+                        {t.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {modoDivision === 'partes' && (
+                  <View style={styles.pagosPartesRow}>
+                    <Text style={styles.pagosPartesLabel}>Entre:</Text>
+                    {[2, 3, 4, 5].map(n => (
+                      <TouchableOpacity key={n} style={styles.pagosParteBtn} onPress={() => dividirMesaEnPartes(n)}>
+                        <Text style={styles.pagosParteBtnText}>{n}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+
+                {modoDivision === 'items' && (
+                  <View style={{ marginBottom: spacing.sm }}>
+                    <Text style={styles.divisionAyuda}>
+                      Toca el número para asignar cada producto a quien lo paga.
+                      Los montos se calculan solos.
+                    </Text>
+                    {itemsCuenta.map(it => (
+                      <View key={it.id} style={styles.divisionItemRow}>
+                        <Text style={styles.divisionItemNombre} numberOfLines={1}>
+                          {it.quantity}× {it.product ? it.product.name : 'Producto'}
+                        </Text>
+                        <View style={styles.divisionItemPagos}>
+                          {pagosMesa.map((_, i) => (
+                            <TouchableOpacity
+                              key={i}
+                              style={[
+                                styles.divisionItemChip,
+                                (asignacion[it.id] || 0) === i && styles.divisionItemChipActive,
+                              ]}
+                              onPress={() => asignarItem(it.id, i)}
+                            >
+                              <Text style={[
+                                styles.divisionItemChipText,
+                                (asignacion[it.id] || 0) === i && { color: '#fff' },
+                              ]}>{i + 1}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {pagosMesa.map((pago, i) => (
+                  <View key={i} style={styles.pagoRow}>
+                    <View style={styles.pagoMetodos}>
+                      {['efectivo', 'tarjeta', 'transferencia'].map(m => (
+                        <TouchableOpacity
+                          key={m}
+                          style={[styles.pagoMetodoChip, pago.method === m && styles.pagoMetodoChipActive]}
+                          onPress={() => cambiarPagoMesa(i, 'method', m)}
+                        >
+                          <Text style={[styles.pagoMetodoChipText, pago.method === m && { color: '#fff' }]}>
+                            {m === 'transferencia' ? 'Transf.' : (m === 'efectivo' ? 'Efectivo' : 'Tarjeta')}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    <View style={styles.pagoInputs}>
+                      <Text style={styles.pagoIndice}>Pago {i + 1}</Text>
+                      {/* En modo POR ITEMS el monto lo calcula la asignación: se
+                          muestra en solo lectura porque editarlo a mano
+                          descuadraría la división sin explicar por qué. */}
+                      {modoDivision === 'items' ? (
+                        <Text style={styles.pagoMontoFijo}>{formatMoney(pago.amount || 0, currency)}</Text>
+                      ) : (
+                        <TextInput
+                          style={styles.pagoInput}
+                          value={pago.texto}
+                          onChangeText={t => cambiarPagoMesa(i, 'amount', t)}
+                          placeholder="Monto"
+                          placeholderTextColor={colors.textMuted}
+                          keyboardType="decimal-pad"
+                        />
+                      )}
+                      {hayPropinas(propCfg) && (
+                        <TextInput
+                          style={[styles.pagoInput, styles.pagoInputPropina]}
+                          value={pago.tipTexto}
+                          onChangeText={t => cambiarPagoMesa(i, 'tip_amount', t)}
+                          placeholder="Propina"
+                          placeholderTextColor={colors.textMuted}
+                          keyboardType="decimal-pad"
+                        />
+                      )}
+                      <TouchableOpacity style={styles.pagoQuitar} onPress={() => quitarPagoMesa(i)}>
+                        <Ionicons name="close" size={16} color={colors.danger} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+
+                <TouchableOpacity style={styles.pagoAgregar} onPress={agregarPagoMesa}>
+                  <Text style={styles.pagoAgregarText}>+ Agregar otro pago</Text>
+                </TouchableOpacity>
+
+                <View style={styles.pagosTotalRow}>
+                  <Text style={styles.pagosTotalLabel}>Cuenta</Text>
+                  <Text style={styles.pagosTotalValor}>{formatMoney(totalCuenta, currency)}</Text>
+                </View>
+              </View>
+            )}
+
             {/* PROPINA (BLOQUE 9). Va después del método de pago: el porcentaje
                 se calcula sobre la cuenta y la propina puede cobrarse por otro
                 método. No entra en el total: la mesa consumió lo que consumió. */}
@@ -941,6 +1237,45 @@ const styles = StyleSheet.create({
   cobrarTotal:      { fontSize: 48, fontWeight: '800', color: colors.textPrimary, textAlign: 'center', marginBottom: spacing.md },
   // Propina (BLOQUE 9) — en verde para distinguirla del dinero de la venta:
   // no es ingreso del negocio, es del empleado.
+  // ── Dividir la cuenta (BLOQUE 10) ─────────────────────────────────────────
+  dividirBtn:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, paddingVertical: spacing.sm, marginTop: spacing.md, borderRadius: radius.md, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border, backgroundColor: colors.surface },
+  dividirBtnText:    { fontSize: font.sm, fontWeight: '700', color: colors.primary },
+  pagosBox:          { backgroundColor: colors.primary + '10', borderRadius: radius.md, borderWidth: 1, borderColor: colors.primary + '55', padding: spacing.md, marginTop: spacing.sm },
+  pagosHeader:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
+  pagosTitulo:       { fontSize: font.sm, fontWeight: '700', color: colors.primary },
+  pagosFaltante:     { fontSize: font.sm, fontWeight: '800', color: colors.primary },
+  divisionTabs:      { flexDirection: 'row', gap: 4, marginBottom: spacing.sm },
+  divisionTab:       { flex: 1, alignItems: 'center', paddingVertical: 7, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.primary + '55', backgroundColor: colors.surface },
+  divisionTabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  divisionTabText:   { fontSize: font.xs, fontWeight: '700', color: colors.primary },
+  divisionAyuda:     { fontSize: font.xs, color: colors.textSecondary, marginBottom: spacing.sm },
+  divisionItemRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, gap: spacing.sm },
+  divisionItemNombre:{ flex: 1, fontSize: font.xs, color: colors.text },
+  divisionItemPagos: { flexDirection: 'row', gap: 4 },
+  divisionItemChip:  { width: 26, height: 26, alignItems: 'center', justifyContent: 'center', borderRadius: 13, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  divisionItemChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  divisionItemChipText: { fontSize: font.xs, fontWeight: '700', color: colors.textSecondary },
+  pagosPartesRow:    { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginBottom: spacing.sm },
+  pagosPartesLabel:  { fontSize: font.xs, color: colors.textSecondary },
+  pagosParteBtn:     { paddingHorizontal: spacing.md, paddingVertical: 4, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.primary + '55', backgroundColor: colors.surface },
+  pagosParteBtnText: { fontSize: font.sm, fontWeight: '700', color: colors.primary },
+  pagoRow:           { marginBottom: spacing.sm, gap: 4 },
+  pagoMetodos:       { flexDirection: 'row', gap: 4 },
+  pagoMetodoChip:    { flex: 1, alignItems: 'center', paddingVertical: 6, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  pagoMetodoChipActive: { borderColor: colors.primary, backgroundColor: colors.primary },
+  pagoMetodoChipText:{ fontSize: font.xs, fontWeight: '600', color: colors.textSecondary },
+  pagoInputs:        { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  pagoIndice:        { fontSize: font.xs, color: colors.textSecondary, minWidth: 46 },
+  pagoMontoFijo:     { flex: 1, fontSize: font.sm, fontWeight: '700', color: colors.primary, textAlign: 'right' },
+  pagoInput:         { flex: 1, paddingHorizontal: spacing.sm, paddingVertical: 8, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, color: colors.text, fontSize: font.sm, textAlign: 'right' },
+  pagoInputPropina:  { borderColor: colors.success + '77', backgroundColor: colors.success + '10' },
+  pagoQuitar:        { padding: 8, borderRadius: radius.sm, backgroundColor: colors.danger + '20' },
+  pagoAgregar:       { paddingVertical: spacing.sm, alignItems: 'center', borderRadius: radius.sm, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.primary + '77', backgroundColor: colors.surface },
+  pagoAgregarText:   { fontSize: font.sm, fontWeight: '700', color: colors.primary },
+  pagosTotalRow:     { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.primary + '33' },
+  pagosTotalLabel:   { fontSize: font.xs, color: colors.primary },
+  pagosTotalValor:   { fontSize: font.xs, fontWeight: '700', color: colors.primary },
+
   propinaBox:        { backgroundColor: colors.success + '10', borderRadius: radius.md, borderWidth: 1, borderColor: colors.success + '55', padding: spacing.md, marginTop: spacing.lg },
   propinaHeader:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
   propinaMonto:      { fontSize: font.lg, fontWeight: '800', color: colors.success },

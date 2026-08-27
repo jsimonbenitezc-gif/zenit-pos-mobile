@@ -22,6 +22,7 @@ import { formatMoney } from '../../utils/money';
 import { friendlyError } from '../../utils/errors';
 import { configImpuesto, desglosarImpuesto, hayImpuesto, etiquetaImpuesto } from '../../utils/impuestos';
 import { configPropina, hayPropinas, normalizarPropina, normalizarMetodo as normalizarMetodoPropina, propinaPorPorcentaje, totalConPropina } from '../../utils/propinas';
+import { dividirEnPartes, faltantePago, pagosCuadran, validarPagos, metodoResumen as metodoResumenPagos, metodoDePago, PAGO_MAX, PAGO_TOLERANCIA } from '../../utils/pagos';
 
 // ─── Quick tags para notas ────────────────────────────────────────────────────
 
@@ -124,6 +125,11 @@ export default function NuevaVentaScreen() {
   const [propina, setPropina]             = useState(0);
   const [propinaTexto, setPropinaTexto]   = useState('');
   const [propinaMetodo, setPropinaMetodo] = useState(null);
+  // PAGO DIVIDIDO (BLOQUE 10). Los pagos REPARTEN el total, no lo aumentan:
+  // mientras la suma no cuadre con la cuenta, el botón de cobrar queda bloqueado.
+  // La propina de cada pago va aparte de su monto, así que NO cuenta al cuadrar.
+  const [pagoDividido, setPagoDividido] = useState(false);
+  const [pagos, setPagos]               = useState([]);   // [{ method, amount, tip_amount }]
   const [clienteSeleccionado, setCliente] = useState(null);
   const [textoNota, setTextoNota]         = useState('');
   const [enviando, setEnviando]           = useState(false);
@@ -397,8 +403,17 @@ export default function NuevaVentaScreen() {
   // una venta y no paga impuesto. Lo que el cliente entrega es `totalAEntregar`,
   // que solo se usa para pedir el dinero y calcular el cambio.
   const propCfg = configPropina(settings);
-  const propinaEfectiva = hayPropinas(propCfg) ? propina : 0;
+  // Con la cuenta dividida, la propina de la venta es la SUMA de las de cada
+  // pago (cada comensal deja la suya). Sin dividir, la del BLOQUE 9 tal cual.
+  const propinaDePagos = pagos.reduce((a, x) => a + (parseFloat(x.tip_amount) || 0), 0);
+  const propinaEfectiva = hayPropinas(propCfg)
+    ? (pagoDividido ? parseFloat(propinaDePagos.toFixed(2)) : propina)
+    : 0;
   const totalAEntregar = totalConPropina(totalFinal, propinaEfectiva);
+
+  // PAGO DIVIDIDO (BLOQUE 10): lo que falta por cubrir y si ya cuadra.
+  const faltaPorCubrir = faltantePago(pagos, totalFinal);
+  const divisionCuadra = pagos.length > 0 && pagosCuadran(pagos, totalFinal);
 
   // Puntos que ganaría con esta compra (solo si no está usando puntos)
   const puntosAGanar = (!puntosUsados && loyaltyEnabled && clienteEnFidelidad)
@@ -411,7 +426,67 @@ export default function NuevaVentaScreen() {
   // (venta + propina), no sobre la venta sola: la propina también la paga él.
   const cambio   = recibido - totalAEntregar;
 
-  const puedeConfirmar = metodoPago !== 'efectivo' || recibido >= totalAEntregar;
+  // Con pago dividido manda el cuadre (el backend rechaza un reparto que no
+  // sume el total); sin él, la regla de siempre.
+  const puedeConfirmar = pagoDividido
+    ? divisionCuadra
+    : (metodoPago !== 'efectivo' || recibido >= totalAEntregar);
+
+  // ── Acciones del pago dividido ────────────────────────────────────────────
+  function alternarPagoDividido() {
+    if (pagoDividido) {
+      setPagoDividido(false);
+      setPagos([]);
+      return;
+    }
+    // Se arranca en dos partes porque dividir en una sola no es dividir.
+    dividirCuentaEnPartes(2);
+    setPagoDividido(true);
+  }
+
+  function dividirCuentaEnPartes(n) {
+    const montos = dividirEnPartes(totalFinal, n);
+    // La primera parte hereda el método ya elegido; el resto arranca en efectivo
+    // para que el cajero solo cambie lo que de verdad cambió.
+    setPagos(montos.map((monto, i) => ({
+      method: i === 0 ? metodoPago : 'efectivo',
+      amount: monto,
+      texto: monto.toFixed(2),
+      tip_amount: 0,
+      tipTexto: '',
+    })));
+  }
+
+  function agregarPago() {
+    if (pagos.length >= PAGO_MAX) {
+      Alert.alert('Demasiados pagos', `Una venta admite como máximo ${PAGO_MAX} pagos.`);
+      return;
+    }
+    // El pago nuevo arranca con lo que falte: es lo que el cajero va a teclear.
+    const falta = faltantePago(pagos, totalFinal);
+    const monto = falta > 0 ? falta : 0;
+    setPagos([...pagos, {
+      method: 'efectivo', amount: monto, texto: monto ? monto.toFixed(2) : '', tip_amount: 0, tipTexto: '',
+    }]);
+  }
+
+  function quitarPago(indice) {
+    const restantes = pagos.filter((_, i) => i !== indice);
+    if (restantes.length === 0) { setPagoDividido(false); setPagos([]); return; }
+    setPagos(restantes);
+  }
+
+  function cambiarPago(indice, campo, valor) {
+    setPagos(pagos.map((pago, i) => {
+      if (i !== indice) return pago;
+      if (campo === 'method') return { ...pago, method: metodoDePago(valor) };
+      const limpio = String(valor || '').replace(/[^\d.]/g, '');
+      const num = parseFloat(limpio) || 0;
+      return campo === 'amount'
+        ? { ...pago, amount: num, texto: limpio }
+        : { ...pago, tip_amount: num, tipTexto: limpio };
+    }));
+  }
 
   // ── Descuentos ────────────────────────────────────────────────────────────
 
@@ -521,7 +596,13 @@ export default function NuevaVentaScreen() {
       );
       return;
     }
-    if (metodoPago === 'efectivo' && recibido < totalAEntregar) {
+    if (pagoDividido) {
+      // Se valida aquí para que el cajero vea el problema en la pantalla y no
+      // como un 400 del backend (que además nunca llegaría estando offline).
+      const v = validarPagos(pagos, totalFinal);
+      if (!v.ok) { Alert.alert('La división no cuadra', v.error); return; }
+    }
+    if (!pagoDividido && metodoPago === 'efectivo' && recibido < totalAEntregar) {
       Alert.alert('Efectivo insuficiente', 'El monto recibido es menor al total a cobrar.');
       return;
     }
@@ -548,7 +629,19 @@ export default function NuevaVentaScreen() {
         // Sin esto, una venta guardada sin internet se recalculaba con el precio
         // vigente al momento de subirla.
         items: carrito.map(i => ({ product_id: i.product_id, quantity: 1, unit_price: i.precio, notes: i.nota || undefined })),
-        payment_method: metodoPago,
+        // PAGOS DIVIDIDOS (BLOQUE 10). Con varios métodos el pedido se guarda
+        // como 'multiple' y el reparto real viaja en `payments`; con uno solo se
+        // guarda ese método y no se crea ninguna fila (venta de siempre).
+        // La cola offline guarda este mismo cuerpo, así que el reparto viaja
+        // solo cuando la venta se sube más tarde.
+        payment_method: pagoDividido ? metodoResumenPagos(pagos) : metodoPago,
+        ...(pagoDividido ? {
+          payments: pagos.map(pago => ({
+            method: pago.method,
+            amount: pago.amount,
+            tip_amount: pago.tip_amount || 0,
+          })),
+        } : {}),
         order_type: tipoPedido,
         customer_id: clienteSeleccionado?.id || null,
         delivery_address: tipoPedido === 'domicilio' ? (domDireccion || null) : null,
@@ -608,10 +701,13 @@ export default function NuevaVentaScreen() {
       setDescuento(0);
       setDescuentoNombre('');
       setPuntosUsados(false);
-      // La propina no se hereda a la siguiente venta.
+      // Ni la propina ni la división se heredan a la siguiente venta: un reparto
+      // viejo cobraría mal la venta nueva.
       setPropina(0);
       setPropinaTexto('');
       setPropinaMetodo(null);
+      setPagoDividido(false);
+      setPagos([]);
       setEfectivoRecibido('');
       setDomNombre('');
       setDomDireccion('');
@@ -1006,6 +1102,100 @@ export default function NuevaVentaScreen() {
                 </TouchableOpacity>
               ))}
 
+              {/* PAGO DIVIDIDO (BLOQUE 10). Va justo debajo de los métodos porque
+                  es una alternativa a elegir UNO: o se paga con un método, o se
+                  reparte. Arranca cerrado: la venta normal no cambia. */}
+              <TouchableOpacity style={styles.dividirBtn} onPress={alternarPagoDividido}>
+                <Ionicons
+                  name={pagoDividido ? 'close-circle-outline' : 'git-branch-outline'}
+                  size={16}
+                  color={colors.primary}
+                />
+                <Text style={styles.dividirBtnText}>
+                  {pagoDividido ? 'Cancelar el pago dividido' : 'Dividir el pago entre varios métodos'}
+                </Text>
+              </TouchableOpacity>
+
+              {pagoDividido && (
+                <View style={styles.pagosBox}>
+                  <View style={styles.pagosHeader}>
+                    <Text style={styles.pagosTitulo}>Pago dividido</Text>
+                    <Text style={[
+                      styles.pagosFaltante,
+                      divisionCuadra
+                        ? { color: colors.success }
+                        : (faltaPorCubrir < 0 ? { color: colors.danger } : null),
+                    ]}>
+                      {divisionCuadra
+                        ? 'Cuadra ✓'
+                        : (faltaPorCubrir > 0
+                            ? `Falta ${formatMoney(faltaPorCubrir, currency)}`
+                            : `Sobra ${formatMoney(Math.abs(faltaPorCubrir), currency)}`)}
+                    </Text>
+                  </View>
+
+                  {/* Atajo: partes iguales. Es lo que más se pide. */}
+                  <View style={styles.pagosPartesRow}>
+                    <Text style={styles.pagosPartesLabel}>Partes iguales:</Text>
+                    {[2, 3, 4].map(n => (
+                      <TouchableOpacity key={n} style={styles.pagosParteBtn} onPress={() => dividirCuentaEnPartes(n)}>
+                        <Text style={styles.pagosParteBtnText}>{n}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  {pagos.map((pago, i) => (
+                    <View key={i} style={styles.pagoRow}>
+                      <View style={styles.pagoMetodos}>
+                        {['efectivo', 'tarjeta', 'transferencia'].map(m => (
+                          <TouchableOpacity
+                            key={m}
+                            style={[styles.pagoMetodoChip, pago.method === m && styles.pagoMetodoChipActive]}
+                            onPress={() => cambiarPago(i, 'method', m)}
+                          >
+                            <Text style={[styles.pagoMetodoChipText, pago.method === m && { color: '#fff' }]}>
+                              {m === 'transferencia' ? 'Transf.' : (m === 'efectivo' ? 'Efectivo' : 'Tarjeta')}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                      <View style={styles.pagoInputs}>
+                        <TextInput
+                          style={styles.pagoInput}
+                          value={pago.texto}
+                          onChangeText={t => cambiarPago(i, 'amount', t)}
+                          placeholder="Monto"
+                          placeholderTextColor={colors.textMuted}
+                          keyboardType="decimal-pad"
+                        />
+                        {hayPropinas(propCfg) && (
+                          <TextInput
+                            style={[styles.pagoInput, styles.pagoInputPropina]}
+                            value={pago.tipTexto}
+                            onChangeText={t => cambiarPago(i, 'tip_amount', t)}
+                            placeholder="Propina"
+                            placeholderTextColor={colors.textMuted}
+                            keyboardType="decimal-pad"
+                          />
+                        )}
+                        <TouchableOpacity style={styles.pagoQuitar} onPress={() => quitarPago(i)}>
+                          <Ionicons name="close" size={16} color={colors.danger} />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ))}
+
+                  <TouchableOpacity style={styles.pagoAgregar} onPress={agregarPago}>
+                    <Text style={styles.pagoAgregarText}>+ Agregar otro pago</Text>
+                  </TouchableOpacity>
+
+                  <View style={styles.pagosTotalRow}>
+                    <Text style={styles.pagosTotalLabel}>Cuenta</Text>
+                    <Text style={styles.pagosTotalValor}>{formatMoney(totalFinal, currency)}</Text>
+                  </View>
+                </View>
+              )}
+
               {/* PROPINA (BLOQUE 9). Va DESPUÉS del método de pago porque el
                   porcentaje se calcula sobre el total y porque la propina puede
                   cobrarse por otro método (cuenta con tarjeta, propina en
@@ -1085,8 +1275,9 @@ export default function NuevaVentaScreen() {
                 </View>
               )}
 
-              {/* Calculadora de cambio (solo efectivo) */}
-              {metodoPago === 'efectivo' && (
+              {/* Calculadora de cambio (solo efectivo, y solo sin dividir: con
+                  la cuenta repartida el efectivo es apenas una parte). */}
+              {metodoPago === 'efectivo' && !pagoDividido && (
                 <View style={styles.efectivoBox}>
                   <Text style={styles.sectionLabel}>Efectivo recibido</Text>
                   <TextInput
@@ -1417,6 +1608,32 @@ const styles = StyleSheet.create({
 
   // Propina (BLOQUE 9) — en verde para distinguirla del dinero de la venta:
   // no es ingreso del negocio, es del empleado.
+  // ── Pago dividido (BLOQUE 10) ─────────────────────────────────────────────
+  dividirBtn:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, paddingVertical: spacing.sm, marginTop: spacing.sm, borderRadius: radius.md, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border, backgroundColor: colors.surface },
+  dividirBtnText:    { fontSize: font.sm, fontWeight: '700', color: colors.primary },
+  pagosBox:          { backgroundColor: colors.primary + '10', borderRadius: radius.md, borderWidth: 1, borderColor: colors.primary + '55', padding: spacing.md, marginTop: spacing.sm },
+  pagosHeader:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
+  pagosTitulo:       { fontSize: font.sm, fontWeight: '700', color: colors.primary },
+  pagosFaltante:     { fontSize: font.sm, fontWeight: '800', color: colors.primary },
+  pagosPartesRow:    { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginBottom: spacing.sm },
+  pagosPartesLabel:  { fontSize: font.xs, color: colors.textSecondary },
+  pagosParteBtn:     { paddingHorizontal: spacing.md, paddingVertical: 4, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.primary + '55', backgroundColor: colors.surface },
+  pagosParteBtnText: { fontSize: font.sm, fontWeight: '700', color: colors.primary },
+  pagoRow:           { marginBottom: spacing.sm, gap: 4 },
+  pagoMetodos:       { flexDirection: 'row', gap: 4 },
+  pagoMetodoChip:    { flex: 1, alignItems: 'center', paddingVertical: 6, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  pagoMetodoChipActive: { borderColor: colors.primary, backgroundColor: colors.primary },
+  pagoMetodoChipText:{ fontSize: font.xs, fontWeight: '600', color: colors.textSecondary },
+  pagoInputs:        { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  pagoInput:         { flex: 1, paddingHorizontal: spacing.sm, paddingVertical: 8, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, color: colors.text, fontSize: font.sm, textAlign: 'right' },
+  pagoInputPropina:  { borderColor: colors.success + '77', backgroundColor: colors.success + '10' },
+  pagoQuitar:        { padding: 8, borderRadius: radius.sm, backgroundColor: colors.danger + '20' },
+  pagoAgregar:       { paddingVertical: spacing.sm, alignItems: 'center', borderRadius: radius.sm, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.primary + '77', backgroundColor: colors.surface },
+  pagoAgregarText:   { fontSize: font.sm, fontWeight: '700', color: colors.primary },
+  pagosTotalRow:     { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.primary + '33' },
+  pagosTotalLabel:   { fontSize: font.xs, color: colors.primary },
+  pagosTotalValor:   { fontSize: font.xs, fontWeight: '700', color: colors.primary },
+
   propinaBox:        { backgroundColor: colors.success + '10', borderRadius: radius.md, borderWidth: 1, borderColor: colors.success + '55', padding: spacing.md, marginTop: spacing.lg, marginBottom: spacing.sm },
   propinaHeader:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
   propinaMonto:      { fontSize: font.lg, fontWeight: '800', color: colors.success },

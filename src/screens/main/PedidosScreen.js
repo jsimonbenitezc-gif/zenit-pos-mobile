@@ -232,9 +232,12 @@ export default function PedidosScreen() {
         api.resetPinAttempts();
       }
 
-      // PIN válido: cancelar con auditoría
+      // PIN válido: cancelar con auditoría.
+      // El puesto va en `role` (no en `employee_id`, que espera el id numérico
+      // de una cuenta). La verificación de arriba es local y da respuesta
+      // inmediata; el backend la repite por su cuenta con el mismo PIN.
       await api.cancelOrderWithPin(pinModal.pedidoId, {
-        employee_id: rolActivo,
+        role: rolActivo,
         pin: pinValue,
         employee_name: nombreActivo || '',
       });

@@ -595,10 +595,15 @@ class ApiClient {
   }
 
   // ─── Auditoría / PIN de empleado ─────────────────────────────────────────
-  cancelOrderWithPin(orderId, { employee_id, pin, employee_name }) {
+  // ⚠️ `role` es el PUESTO (cajero, encargado…) y es lo que el backend puede
+  // verificar: el PIN que teclea el cajero vive en los permisos del puesto, no
+  // en una cuenta de usuario. Antes se mandaba el puesto como `employee_id`
+  // (un texto como 'cajero'), el backend buscaba un usuario con ese id, no lo
+  // encontraba y respondía 403: ningún cajero podía cancelar (CLAUDE.md §12.2).
+  cancelOrderWithPin(orderId, { employee_id, role, pin, employee_name }) {
     return this.request(`/orders/${orderId}/status`, {
       method: 'PUT',
-      body: { status: 'cancelado', employee_id, pin, employee_name }
+      body: { status: 'cancelado', employee_id, role, pin, employee_name }
     });
   }
 
