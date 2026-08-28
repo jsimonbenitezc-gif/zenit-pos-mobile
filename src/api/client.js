@@ -348,6 +348,18 @@ class ApiClient {
     return this.request(`/stats/dashboard${q}`);
   }
 
+  // Rentabilidad por producto (BLOQUE 12). Premium: el costo sale de las
+  // recetas del inventario, que ya es premium.
+  getProfitability({ desde, hasta, orden, branchId } = {}) {
+    const params = [];
+    if (desde) params.push(`date_from=${desde}`);
+    if (hasta) params.push(`date_to=${hasta}`);
+    if (orden) params.push(`order_by=${orden}`);
+    if (branchId) params.push(`branch_id=${branchId}`);
+    const q = params.length ? `?${params.join('&')}` : '';
+    return this.request(`/stats/profitability${q}`);
+  }
+
   // ─── Inventario (premium) ────────────────────────────────────────────────
   getIngredients(branchId) {
     const q = branchId ? `?branch_id=${branchId}` : '';

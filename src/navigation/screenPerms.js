@@ -8,6 +8,7 @@ export const SCREEN_PERM_MAP = {
   Clientes:   'ver_clientes',
   Turno:      'ver_turno',
   Inventario: 'ver_inventario',
+  Rentabilidad: 'ver_rentabilidad',
   Ofertas:    'ver_ofertas',
   Ajustes:    'ver_ajustes',
 };

@@ -18,6 +18,8 @@ export const ALL_SCREENS = [
   { name: 'Turno', label: 'Turno', icon: 'time-outline', active: 'time', ownerOnly: false },
   { name: 'Inventario', label: 'Inventario', icon: 'layers-outline', active: 'layers', ownerOnly: true },
   { name: 'Ofertas', label: 'Ofertas', icon: 'pricetag-outline', active: 'pricetag', ownerOnly: true },
+  // Solo el dueño: son los márgenes del negocio (BLOQUE 12).
+  { name: 'Rentabilidad', label: 'Margen', icon: 'trending-up-outline', active: 'trending-up', ownerOnly: true },
   { name: 'Dashboard', label: 'Resumen', icon: 'bar-chart-outline', active: 'bar-chart', ownerOnly: true },
   { name: 'Ajustes', label: 'Ajustes', icon: 'settings-outline', active: 'settings', ownerOnly: false },
 ];

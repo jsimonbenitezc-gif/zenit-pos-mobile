@@ -22,6 +22,7 @@ import ClientesScreen    from '../screens/main/ClientesScreen';
 import TurnoScreen       from '../screens/main/TurnoScreen';
 import InventarioScreen  from '../screens/main/InventarioScreen';
 import OfertasScreen     from '../screens/main/OfertasScreen';
+import RentabilidadScreen from '../screens/main/RentabilidadScreen';
 import AjustesScreen     from '../screens/main/AjustesScreen';
 import KDSScreen         from '../screens/main/KDSScreen';
 
@@ -35,6 +36,7 @@ const SCREEN_MAP = {
   Turno:      TurnoScreen,
   Inventario: InventarioScreen,
   Ofertas:    OfertasScreen,
+  Rentabilidad: RentabilidadScreen,
   Ajustes:    AjustesScreen,
 };
 
