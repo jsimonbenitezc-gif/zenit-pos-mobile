@@ -13,7 +13,10 @@ import * as SecureStore from 'expo-secure-store';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { useNetwork } from '../../context/NetworkContext';
-import { obtenerCatalogo, obtenerClientes, registrarVenta, sincronizarVentasPendientes } from '../../offline/ventasOffline';
+import { obtenerCatalogo, obtenerClientes, obtenerCatalogoModificadores, registrarVenta, sincronizarVentasPendientes } from '../../offline/ventasOffline';
+import ModalModificadores from '../../components/ModalModificadores';
+import { imprimirTicketPedido } from '../../utils/imprimirTicket';
+import { precioConModificadores, resumenModificadores, productoTieneModificadores } from '../../utils/modificadores';
 import { colors, spacing, radius, font } from '../../theme';
 import LogoTitle from '../../components/LogoTitle';
 import OfflineIndicator from '../../components/OfflineIndicator';
@@ -63,12 +66,19 @@ function ProductCard({ product, onPress, currency, mostrarStock, stockMap }) {
 
 // ─── Fila del carrito ─────────────────────────────────────────────────────────
 
-function CartItem({ item, onDelete, onEditNota, currency }) {
+function CartItem({ item, onDelete, onEditNota, onEditMods, currency }) {
   return (
     <View style={styles.cartItem}>
       <IconoProducto valor={item.emoji || 'svg:shopping-bag'} size={24} color={colors.textSecondary} />
       <View style={{ flex: 1 }}>
         <Text style={styles.cartName} numberOfLines={1}>{item.nombre}</Text>
+        {/* Modificadores (BLOQUE 11): van resaltados y no como nota gris — cambian
+            lo que se cobra y lo que la cocina prepara. Tocarlos los edita. */}
+        {resumenModificadores(item.modificadores) ? (
+          <Text style={styles.cartMods} numberOfLines={2} onPress={() => onEditMods && onEditMods(item)}>
+            {resumenModificadores(item.modificadores)}
+          </Text>
+        ) : null}
         {item.nota ? (
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Ionicons name="document-text-outline" size={12} color={colors.textMuted} />
@@ -103,6 +113,10 @@ export default function NuevaVentaScreen() {
   const [productos, setProductos]   = useState([]);
   const [clientes, setClientes]     = useState([]);
   const [carrito, setCarrito]       = useState([]);
+  // MODIFICADORES (BLOQUE 11). El catálogo se cachea offline: la caja tiene que
+  // poder ofrecer y cobrar los extras sin internet, igual que el impuesto (§29).
+  const [catalogoMods, setCatalogoMods] = useState({ groups: [], product_groups: [] });
+  const [modsModal, setModsModal] = useState(null); // { producto, previa, uid }
   const [busqueda, setBusqueda]     = useState('');
   const [loading, setLoading]       = useState(true);
 
@@ -244,10 +258,12 @@ export default function NuevaVentaScreen() {
 
   const load = useCallback(async () => {
     try {
-      const [grouped, clts] = await Promise.all([
+      const [grouped, clts, mods] = await Promise.all([
         obtenerCatalogo(),   // online: backend + cachea; offline: caché local
         obtenerClientes(),   // online: backend + cachea; offline: caché local
+        obtenerCatalogoModificadores(), // idem; nunca lanza (ver ventasOffline)
       ]);
+      setCatalogoMods(mods);
       const cats = grouped.map(g => ({ id: g.id, name: g.name, emoji: g.emoji }));
       const all  = grouped.flatMap(g => (g.products || []).map(p => ({ ...p, category_id: g.id })));
       setCategories([{ id: null, name: 'Todos', emoji: 'svg:search' }, ...cats]);
@@ -331,15 +347,54 @@ export default function NuevaVentaScreen() {
   });
 
   function agregarAlCarrito(producto) {
+    // MODIFICADORES (BLOQUE 11). Si el producto ofrece extras se preguntan
+    // primero; si no, se agrega directo y el flujo queda EXACTAMENTE como antes
+    // del bloque — un negocio sin extras no ve un paso de más.
+    if (productoTieneModificadores(catalogoMods, producto.id)) {
+      setModsModal({ producto, previa: [], uid: null });
+      return;
+    }
+    _empujarAlCarrito(producto, []);
+  }
+
+  function _empujarAlCarrito(producto, modificadores) {
     const uid = `${producto.id}_${Date.now()}_${Math.random()}`;
     setCarrito(prev => [...prev, {
       uid,
       product_id: producto.id,
       nombre: producto.name,
       emoji: producto.emoji || 'svg:shopping-bag',
-      precio: parseFloat(producto.price),
+      // `precio` es lo que se cobra por este renglón (base + extras): todo lo
+      // que ya leía este campo —impuesto, descuentos, pagos, total— sigue
+      // funcionando sin enterarse de que hay modificadores.
+      precio: precioConModificadores(producto.price, modificadores),
+      precio_base: parseFloat(producto.price),
+      modificadores,
       nota: '',
     }]);
+  }
+
+  /** Reabre el selector para cambiar los extras de un renglón ya en el carrito. */
+  function editarModificadores(item) {
+    const producto = productos.find(p => p.id === item.product_id);
+    if (!producto) return;
+    setModsModal({ producto, previa: item.modificadores || [], uid: item.uid });
+  }
+
+  function confirmarModificadores(seleccion) {
+    const { producto, uid } = modsModal;
+    if (uid) {
+      // Edición de un renglón existente.
+      setCarrito(prev => prev.map(i => i.uid === uid ? {
+        ...i,
+        modificadores: seleccion,
+        precio_base: parseFloat(producto.price),
+        precio: precioConModificadores(producto.price, seleccion),
+      } : i));
+    } else {
+      _empujarAlCarrito(producto, seleccion);
+    }
+    setModsModal(null);
   }
 
   function eliminarDelCarrito(uid) {
@@ -628,7 +683,17 @@ export default function NuevaVentaScreen() {
         // offline); en una venta online sigue mandando el precio del catálogo.
         // Sin esto, una venta guardada sin internet se recalculaba con el precio
         // vigente al momento de subirla.
-        items: carrito.map(i => ({ product_id: i.product_id, quantity: 1, unit_price: i.precio, notes: i.nota || undefined })),
+        // ⚠️ `unit_price` es el precio BASE, sin extras: el backend suma los
+        // modificadores por su cuenta a partir del option_id (BLOQUE 11), y
+        // compara ESE precio contra el catálogo al auditar ventas diferidas.
+        items: carrito.map(i => ({
+          product_id: i.product_id,
+          quantity: 1,
+          unit_price: i.precio_base != null ? i.precio_base : i.precio,
+          base_unit_price: i.precio_base != null ? i.precio_base : i.precio,
+          modifiers: i.modificadores && i.modificadores.length ? i.modificadores : undefined,
+          notes: i.nota || undefined,
+        })),
         // PAGOS DIVIDIDOS (BLOQUE 10). Con varios métodos el pedido se guarda
         // como 'multiple' y el reparto real viaja en `payments`; con uno solo se
         // guarda ese método y no se crea ninguna fila (venta de siempre).
@@ -686,12 +751,27 @@ export default function NuevaVentaScreen() {
       // meta = datos para mostrar la venta en Pedidos sin depender del backend.
       const res = await registrarVenta(orderBody, online, {
         total: totalFinal,
+        // Para poder imprimir el ticket también sin conexión (BLOQUE 11).
+        impuesto: desglose.impuesto,
         resumen: {
           payment_method: metodoPago,
-          items: carrito.map(i => ({ name: i.nombre, quantity: 1 })),
+          items: carrito.map(i => ({
+            name: i.nombre,
+            quantity: 1,
+            modificadores: resumenModificadores(i.modificadores),
+          })),
         },
       });
       refrescarPendientes?.();
+
+      // TICKET (BLOQUE 11, deuda §12.7). Hasta ahora el celular podía emparejar
+      // una impresora y hacer una prueba, pero al cobrar NO salía ticket.
+      // ⚠️ Sin await y sin try/catch a propósito: la venta ya está registrada y
+      // un fallo de impresora NUNCA debe tumbarla (mismo criterio del §26).
+      // `imprimirTicketPedido` no lanza; si no hay impresora, no hace nada.
+      if (res.pedido) {
+        imprimirTicketPedido(res.pedido, settings, { cashier: nombreActivo });
+      }
 
       // Limpiar todo
       setCarrito([]);
@@ -919,7 +999,7 @@ export default function NuevaVentaScreen() {
                 Productos ({totalItems})
               </Text>
               {carrito.map(item => (
-                <CartItem key={item.uid} item={item} onDelete={eliminarDelCarrito} onEditNota={abrirNota} currency={currency} />
+                <CartItem key={item.uid} item={item} onDelete={eliminarDelCarrito} onEditNota={abrirNota} onEditMods={editarModificadores} currency={currency} />
               ))}
 
               {carrito.length === 0 && (
@@ -953,6 +1033,17 @@ export default function NuevaVentaScreen() {
           </Animated.View>
         </View>
       )}
+
+      {/* ── Modal de modificadores (BLOQUE 11) ── */}
+      <ModalModificadores
+        visible={modsModal !== null}
+        producto={modsModal?.producto}
+        catalogo={catalogoMods}
+        seleccionPrevia={modsModal?.previa}
+        currency={currency}
+        onCancel={() => setModsModal(null)}
+        onConfirm={confirmarModificadores}
+      />
 
       {/* ── Modal notas por producto ── */}
       <Modal
@@ -1572,6 +1663,8 @@ const styles = StyleSheet.create({
   cartEmoji:      { fontSize: 24, marginRight: spacing.sm },
   cartName:       { fontSize: font.sm, fontWeight: '600', color: colors.textPrimary },
   cartNota:       { fontSize: font.sm - 1, color: colors.textMuted, marginTop: 1, marginBottom: 1 },
+  // Los extras van en ámbar: cambian el precio y lo que se prepara (BLOQUE 11).
+  cartMods:       { fontSize: font.sm - 1, color: '#b45309', fontWeight: '600', marginTop: 1 },
   cartPrice:      { fontSize: font.md, fontWeight: '800', color: colors.primary },
   iconBtn:        { padding: spacing.sm, marginLeft: spacing.xs },
   emptyCart:      { alignItems: 'center', paddingVertical: spacing.xxl, gap: spacing.sm },

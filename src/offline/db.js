@@ -44,6 +44,14 @@ async function _abrir() {
       en_fidelidad INTEGER DEFAULT 0,
       puntos       INTEGER DEFAULT 0
     );
+    -- Biblioteca de modificadores (BLOQUE 11). Se cachea entera para poder
+    -- armar un carrito con extras sin internet, igual que el catálogo.
+    -- Los ids son los del BACKEND: la venta encolada guarda el option_id real,
+    -- que es lo que el servidor necesita para resolverla al subir.
+    CREATE TABLE IF NOT EXISTS catalogo_modificadores (
+      id           INTEGER PRIMARY KEY,
+      payload_json TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS ventas_pendientes (
       client_uuid  TEXT PRIMARY KEY,
       payload_json TEXT NOT NULL,
@@ -146,6 +154,43 @@ export async function leerCatalogo() {
     image: c.imagen,
     products: porCategoria.get(c.id) ?? [],
   }));
+}
+
+// ─── MODIFICADORES (BLOQUE 11) ─────────────────────────────────────────────
+// Se guarda el catálogo COMPLETO como un solo JSON, no normalizado en tablas:
+// son unas decenas de filas de texto, se reemplaza entero en cada sync y se lee
+// entero al armar el carrito. Normalizarlo sería trabajo sin ninguna consulta
+// que lo aproveche.
+
+/** Reemplaza el catálogo de modificadores cacheado. */
+export async function guardarCatalogoModificadores(catalogo) {
+  if (!catalogo || !Array.isArray(catalogo.groups)) return;
+  const db = await initDB();
+  await db.runAsync(
+    'INSERT OR REPLACE INTO catalogo_modificadores (id, payload_json) VALUES (1, ?)',
+    [JSON.stringify({ groups: catalogo.groups, product_groups: catalogo.product_groups || [] })]
+  );
+}
+
+/**
+ * El catálogo cacheado, en el MISMO formato que devuelve GET /api/modifiers.
+ * Sin caché (o con un JSON roto) devuelve un catálogo vacío: la venta sigue
+ * funcionando, simplemente sin ofrecer extras.
+ */
+export async function leerCatalogoModificadores() {
+  try {
+    const db = await initDB();
+    const row = await db.getFirstAsync('SELECT payload_json FROM catalogo_modificadores WHERE id = 1');
+    if (!row?.payload_json) return { groups: [], product_groups: [] };
+    const parsed = JSON.parse(row.payload_json);
+    return {
+      groups: Array.isArray(parsed.groups) ? parsed.groups : [],
+      product_groups: Array.isArray(parsed.product_groups) ? parsed.product_groups : [],
+    };
+  } catch (e) {
+    console.warn('[offline/db] Catálogo de modificadores:', e?.message);
+    return { groups: [], product_groups: [] };
+  }
 }
 
 /** ¿Hay catálogo cacheado? (para decidir si podemos operar offline) */

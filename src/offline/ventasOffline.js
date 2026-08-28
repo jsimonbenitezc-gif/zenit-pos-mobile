@@ -11,6 +11,7 @@ import { generarUuid } from '../utils/uuid';
 import {
   guardarCatalogo, leerCatalogo, hayCatalogoCacheado,
   guardarClientes, leerClientes,
+  guardarCatalogoModificadores, leerCatalogoModificadores,
   encolarVenta, obtenerVentas, marcarVenta, limpiarVentasSubidas,
   obtenerVentasParaMostrar,
 } from './db';
@@ -36,6 +37,25 @@ export async function obtenerCatalogo() {
       return await leerCatalogo();
     }
     throw e; // sin red y sin caché: que la pantalla muestre su error
+  }
+}
+
+/**
+ * Reemplazo de api.getModifiers(): online cachea; sin red devuelve la caché.
+ *
+ * NUNCA lanza. Un negocio sin modificadores y uno sin caché se ven igual desde
+ * la pantalla de venta —sin extras que preguntar— y en los dos casos la venta
+ * tiene que poder hacerse: quedarse sin vender por no poder leer los extras
+ * sería el mismo error que dejar la caja sin funcionar por falta de red (§13).
+ */
+export async function obtenerCatalogoModificadores() {
+  try {
+    const catalogo = await api.getModifiers();
+    guardarCatalogoModificadores(catalogo).catch((e) =>
+      console.warn('[offline] cache modificadores:', e?.message));
+    return catalogo;
+  } catch {
+    return await leerCatalogoModificadores().catch(() => ({ groups: [], product_groups: [] }));
   }
 }
 
@@ -90,15 +110,50 @@ export async function registrarVenta(orderBody, online, meta = {}) {
   if (online) {
     try {
       // Sin sold_at: online manda la hora del servidor, como siempre.
-      await api.createOrder(body);
-      return { modo: 'online' };
+      const pedido = await api.createOrder(body);
+      // Se devuelve el pedido para poder IMPRIMIR el ticket (BLOQUE 11): lleva
+      // los ids, el desglose de impuesto y el reparto de pagos tal como quedaron
+      // registrados, que es lo que debe salir en el papel.
+      return { modo: 'online', pedido };
     } catch (e) {
       if (!esErrorTransitorio(e)) throw e; // error real del servidor → que la UI lo muestre
       // Se cayó la red al enviar: caemos a la cola local para no perder la venta.
     }
   }
   await crearVenta({ ...body, sold_at: soldAt }, meta); // client_uuid ya viene: crearVenta lo reutiliza
-  return { modo: 'offline' };
+  // Sin backend no hay id ni desglose calculado por el servidor, pero el cliente
+  // está enfrente esperando su ticket: se arma uno con lo que la caja SÍ sabe.
+  // El folio queda vacío a propósito — inventarle un número que después no
+  // coincida con el del sistema sería peor que no ponerlo.
+  return {
+    modo: 'offline',
+    pedido: {
+      id: null,
+      total: meta.total ?? 0,
+      // El impuesto lo calcula la pantalla con la misma fórmula del backend
+      // (§29) y lo pasa en `meta`: sin él, el ticket offline no podría desglosar
+      // lo que el ticket online sí desglosa.
+      tax_amount: meta.impuesto ?? 0,
+      createdAt: soldAt,
+      payment_method: body.payment_method,
+      discount_amount: body.discount_amount || 0,
+      tip_amount: body.tip_amount || 0,
+      tip_method: body.tip_method || null,
+      tax_rate: body.tax_rate || 0,
+      tax_included: body.tax_included,
+      order_type: body.order_type,
+      payments: body.payments || [],
+      items: (body.items || []).map((it, i) => ({
+        name: meta.resumen?.items?.[i]?.name || 'Producto',
+        quantity: it.quantity,
+        // El precio del papel es el que se COBRÓ: base + extras (BLOQUE 11).
+        unit_price: (parseFloat(it.base_unit_price ?? it.unit_price) || 0)
+          + (it.modifiers || []).reduce((s, m) => s + (parseFloat(m.price_delta) || 0), 0),
+        modifiers: it.modifiers,
+        notes: it.notes,
+      })),
+    },
+  };
 }
 
 // ─── Motor de sincronización ─────────────────────────────────────────────────

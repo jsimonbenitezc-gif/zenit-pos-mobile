@@ -16,6 +16,7 @@ import LogoTitle from '../../components/LogoTitle';
 import { formatMoney } from '../../utils/money';
 import { friendlyError } from '../../utils/errors';
 import { useAuth } from '../../context/AuthContext';
+import { SelectorGruposProducto, ModalBibliotecaModificadores } from '../../components/GestionModificadores';
 
 // ─── Fila de producto ─────────────────────────────────────────────────────────
 
@@ -71,6 +72,11 @@ export default function ProductosScreen() {
 
   // Modal producto
   const [modalProd, setModalProd]   = useState(false);
+  // MODIFICADORES (BLOQUE 11). `gruposProd` guarda los grupos marcados en el
+  // formulario para guardarlos JUNTO con el producto: el dueño toca "Guardar"
+  // una sola vez.
+  const [modalBiblioteca, setModalBiblioteca] = useState(false);
+  const [gruposProd, setGruposProd] = useState(null);
   const [editandoProd, setEditProd] = useState(null);
   const [nombre, setNombre]         = useState('');
   const [precio, setPrecio]         = useState('');
@@ -110,12 +116,14 @@ export default function ProductosScreen() {
   // ── Producto CRUD ──────────────────────────────────────────────────────────
 
   function abrirNuevoProd() {
+    setGruposProd(null);
     setEditProd(null);
     setNombre(''); setPrecio(''); setEmoji('svg:package'); setImagenProd(null); setCatId(categorias[0]?.id || '');
     setModalProd(true);
   }
 
   function abrirEditarProd(p) {
+    setGruposProd(null);
     setEditProd(p);
     setNombre(p.name);
     setPrecio(String(p.price));
@@ -170,12 +178,21 @@ export default function ProductosScreen() {
         image: imagenProd || null,
         category_id: catId || null,
       };
+      let productoId;
       if (editandoProd) {
         const updated = await api.updateProduct(editandoProd.id, body);
         setProductos(prev => prev.map(p => p.id === editandoProd.id ? { ...p, ...updated } : p));
+        productoId = editandoProd.id;
       } else {
         const created = await api.createProduct(body);
         setProductos(prev => [created, ...prev]);
+        productoId = created.id;
+      }
+      // Modificadores del producto (BLOQUE 11). Solo si el dueño los tocó:
+      // `null` significa "no abrió esa sección" y no debe borrar lo que ya
+      // estaba enganchado.
+      if (gruposProd !== null && productoId) {
+        await api.setProductModifiers(productoId, gruposProd).catch(() => {});
       }
       setModalProd(false);
     } catch (e) {
@@ -261,14 +278,29 @@ export default function ProductosScreen() {
       <View style={styles.header}>
         <LogoTitle title="Productos" titleStyle={styles.title} />
         {isOwner && (
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={vista === 'productos' ? abrirNuevoProd : abrirNuevaCat}
-          >
-            <Text style={styles.addBtnText}>+ Nuevo</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            {/* Biblioteca de modificadores (BLOQUE 11). Vive aquí y no en
+                Ajustes porque es parte del MENÚ: se configura junto a los
+                productos que la usan. */}
+            {vista === 'productos' && (
+              <TouchableOpacity onPress={() => setModalBiblioteca(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="options-outline" size={22} color={colors.primary} />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={styles.addBtn}
+              onPress={vista === 'productos' ? abrirNuevoProd : abrirNuevaCat}
+            >
+              <Text style={styles.addBtnText}>+ Nuevo</Text>
+            </TouchableOpacity>
+          </View>
         )}
       </View>
+
+      <ModalBibliotecaModificadores
+        visible={modalBiblioteca}
+        onClose={() => setModalBiblioteca(false)}
+      />
 
       {/* Toggle Productos / Categorías */}
       <View style={styles.tabRow}>
@@ -410,6 +442,19 @@ export default function ProductosScreen() {
                   </View>
                 </TouchableOpacity>
               ))}
+
+              {/* Modificadores del producto (BLOQUE 11). Solo al EDITAR: un
+                  producto que todavía no existe no tiene a qué engancharlos, y
+                  guardarlos requiere su id. */}
+              {editandoProd && (
+                <>
+                  <Text style={styles.label}>Modificadores</Text>
+                  <SelectorGruposProducto
+                    productId={editandoProd.id}
+                    onCambio={setGruposProd}
+                  />
+                </>
+              )}
 
               {editandoProd && (
                 <TouchableOpacity style={styles.btnEliminar} onPress={() => { setModalProd(false); eliminarProd(editandoProd); }}>

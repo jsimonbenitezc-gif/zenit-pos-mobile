@@ -15,6 +15,8 @@ import OfflineIndicator from '../../components/OfflineIndicator';
 import SelectorSucursal from '../../components/SelectorSucursal';
 import { formatMoney } from '../../utils/money';
 import { friendlyError } from '../../utils/errors';
+import { resumenModificadores, leerModificadores } from '../../utils/modificadores';
+import { imprimirTicketPedido } from '../../utils/imprimirTicket';
 
 const ESTADOS = [
   { key: null,         label: 'Todos' },
@@ -36,7 +38,7 @@ const ESTADO_COLOR = {
 const PAGO_LABEL = { efectivo: 'Efectivo', tarjeta: 'Tarjeta', transferencia: 'Transferencia' };
 const PAGO_ICON  = { efectivo: 'cash-outline', tarjeta: 'card-outline', transferencia: 'phone-portrait-outline' };
 
-function PedidoCard({ pedido, onCambiarEstado, currency }) {
+function PedidoCard({ pedido, onCambiarEstado, onReimprimir, currency }) {
   const fecha = new Date(pedido.createdAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
   const color = ESTADO_COLOR[pedido.status] || colors.textMuted;
 
@@ -82,9 +84,16 @@ function PedidoCard({ pedido, onCambiarEstado, currency }) {
       {pedido.items?.length > 0 && (
         <View style={styles.items}>
           {pedido.items.map(item => (
-            <Text key={item.id} style={styles.itemText}>
-              {item.quantity}× {item.product?.name || 'Producto'}
-            </Text>
+            <View key={item.id}>
+              <Text style={styles.itemText}>
+                {item.quantity}× {item.product?.name || 'Producto'}
+              </Text>
+              {/* Extras del renglón (BLOQUE 11). El precio del renglón ya los
+                  incluye, así que van como detalle y no como cargo aparte. */}
+              {resumenModificadores(leerModificadores(item.modifiers)) ? (
+                <Text style={styles.itemMods}>   {resumenModificadores(leerModificadores(item.modifiers))}</Text>
+              ) : null}
+            </View>
           ))}
         </View>
       )}
@@ -111,6 +120,20 @@ function PedidoCard({ pedido, onCambiarEstado, currency }) {
           onPress={() => onCambiarEstado(pedido.id, 'entregado')}
         >
           <Text style={styles.accionBtnText}>Marcar entregado</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Reimprimir (BLOQUE 11, deuda §12.7). Un ticket se pierde, se moja o el
+          cliente lo pide después: hasta ahora el celular no tenía cómo volver a
+          sacarlo. No aparece en las ventas que aún no han subido: sin folio ni
+          desglose del servidor, ese papel no sería el mismo. */}
+      {!pedido._offline && (
+        <TouchableOpacity
+          style={styles.btnReimprimir}
+          onPress={() => onReimprimir(pedido)}
+        >
+          <Ionicons name="print-outline" size={14} color={colors.textSecondary} />
+          <Text style={styles.btnReimprimirText}>Reimprimir ticket</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -141,6 +164,33 @@ export default function PedidosScreen() {
   const [pinError, setPinError]         = useState('');
   const [pinLoading, setPinLoading]     = useState(false);
   const pinInputRef = useRef(null);
+
+  /**
+   * Reimprime el ticket de un pedido (BLOQUE 11, deuda §12.7).
+   *
+   * A diferencia del ticket que sale al cobrar —donde el silencio es lo
+   * correcto—, aquí el usuario PIDIÓ el papel explícitamente: si no sale, hay
+   * que decirle por qué. Un fallo sigue sin romper nada: la función no lanza.
+   */
+  async function reimprimirTicket(pedido) {
+    // El listado no trae los items completos de todos los pedidos; se pide el
+    // detalle para que el papel salga igual que el original.
+    let completo = pedido;
+    try {
+      if (!pedido.items || pedido.items.length === 0) {
+        completo = await api.getOrder(pedido.id);
+      }
+    } catch { /* se imprime con lo que hay */ }
+
+    const r = await imprimirTicketPedido(completo, settings, { cashier: nombreActivo });
+    if (r.ok) return;
+    const MOTIVOS = {
+      no_disponible: 'Esta versión de la app no puede imprimir. Instala el APK con soporte de impresora.',
+      sin_impresora: 'No hay una impresora configurada. Ve a Ajustes → Impresora.',
+      error_impresora: 'No se pudo conectar con la impresora. Revisa que esté encendida y en alcance.',
+    };
+    Alert.alert('No se imprimió', MOTIVOS[r.motivo] || 'No se pudo imprimir el ticket.');
+  }
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -290,7 +340,7 @@ export default function PedidosScreen() {
         contentContainerStyle={{ padding: spacing.lg, paddingTop: spacing.sm }}
         ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
-        renderItem={({ item }) => <PedidoCard pedido={item} onCambiarEstado={cambiarEstado} currency={currency} />}
+        renderItem={({ item }) => <PedidoCard pedido={item} onCambiarEstado={cambiarEstado} onReimprimir={reimprimirTicket} currency={currency} />}
         ListEmptyComponent={<Text style={styles.empty}>No hay pedidos con este filtro</Text>}
         onEndReached={loadMore}
         onEndReachedThreshold={0.3}
@@ -370,6 +420,13 @@ const styles = StyleSheet.create({
   cliente: { fontSize: font.sm, color: colors.textSecondary },
   items: { marginTop: spacing.xs, paddingTop: spacing.xs, borderTopWidth: 1, borderTopColor: colors.border },
   itemText: { fontSize: font.sm - 1, color: colors.textSecondary },
+  // Los extras van en ámbar: cambian el precio y lo que prepara la cocina.
+  itemMods: { fontSize: font.sm - 2, color: '#b45309', fontWeight: '600' },
+  btnReimprimir: {
+    flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start',
+    marginTop: spacing.sm, paddingVertical: 4,
+  },
+  btnReimprimirText: { fontSize: font.sm - 1, color: colors.textSecondary },
   acciones: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   accionBtn: { flex: 1, padding: spacing.sm, borderRadius: radius.sm, alignItems: 'center' },
   accionBtnText: { color: '#fff', fontWeight: '700', fontSize: font.sm },

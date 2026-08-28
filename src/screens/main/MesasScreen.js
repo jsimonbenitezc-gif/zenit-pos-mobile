@@ -22,6 +22,9 @@ import { generarUuid } from '../../utils/uuid';
 import { desgloseDePedido, etiquetaImpuesto } from '../../utils/impuestos';
 import { configPropina, hayPropinas, normalizarPropina, normalizarMetodo as normalizarMetodoPropina, propinaPorPorcentaje, totalConPropina } from '../../utils/propinas';
 import { dividirEnPartes, montoDeItems, cuadrarUltimoPago, faltantePago, pagosCuadran, validarPagos, metodoResumen as metodoResumenPagos, metodoDePago, PAGO_MAX } from '../../utils/pagos';
+import ModalModificadores from '../../components/ModalModificadores';
+import { imprimirTicketPedido } from '../../utils/imprimirTicket';
+import { claveCarrito, precioConModificadores, productoTieneModificadores, resumenModificadores, leerModificadores } from '../../utils/modificadores';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -77,7 +80,7 @@ function MesaCard({ mesa, onPress, currency }) {
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 
 export default function MesasScreen() {
-  const { isOwner, settings, sucursalId, puedeRegistrarEnSucursal } = useAuth();
+  const { isOwner, settings, sucursalId, puedeRegistrarEnSucursal, nombreActivo } = useAuth();
   const currency = settings?.currency_symbol || '$';
   // Config de propinas (BLOQUE 9). Se declara arriba porque la usan tanto el
   // cobro como el render del modal.
@@ -104,6 +107,10 @@ export default function MesasScreen() {
   const [modalAgregarVisible, setModalAgregar]   = useState(false);
   const [productos, setProductos]                = useState([]);
   const [carritoAgregar, setCarritoAgregar]      = useState({});
+  // MODIFICADORES (BLOQUE 11). El catálogo se baja con las mesas; el modal se
+  // abre al agregar un producto que ofrece extras.
+  const [catalogoMods, setCatalogoMods]          = useState({ groups: [], product_groups: [] });
+  const [modsModal, setModsModal]                = useState(null); // { producto }
   const [loadingProductos, setLoadingProductos]  = useState(false);
   const [agregando, setAgregando]                = useState(false);
   // Idempotencia del envío en curso (abrir mesa / agregar productos). Es un ref y
@@ -350,9 +357,15 @@ export default function MesasScreen() {
     uuidEnvioRef.current = null; // carrito nuevo = envío nuevo
     setBusquedaP('');
     try {
-      const grouped = await api.getProductsGrouped();
+      const [grouped, mods] = await Promise.all([
+        api.getProductsGrouped(),
+        // Los extras se bajan junto al catálogo: sin ellos el mesero no podría
+        // mandar 'sin cebolla' a la cocina (BLOQUE 11). No es crítico.
+        api.getModifiers().catch(() => ({ groups: [], product_groups: [] })),
+      ]);
       const all = grouped.flatMap(g => (g.products || []).map(p => ({ ...p, categoryName: g.name })));
       setProductos(all.filter(p => p.active !== false));
+      setCatalogoMods(mods);
     } catch {
       Alert.alert('Error', 'No se pudieron cargar los productos.');
     } finally {
@@ -376,30 +389,62 @@ export default function MesasScreen() {
   // ── Carrito de agregar ───────────────────────────────────────────────────────
 
   function incrementar(producto) {
+    // Si el producto ofrece extras se preguntan primero (BLOQUE 11). Si no,
+    // se agrega directo y todo queda como antes del bloque.
+    if (productoTieneModificadores(catalogoMods, producto.id)) {
+      setModsModal({ producto });
+      return;
+    }
+    _sumarAlCarritoMesa(producto, []);
+  }
+
+  /**
+   * La clave del carrito es "producto + extras": dos tacos, uno con extra queso
+   * y otro sin él, son renglones DISTINTOS y se cobran distinto. Agrupar solo
+   * por producto haría que el segundo heredara los extras (y el precio) del
+   * primero.
+   */
+  function _sumarAlCarritoMesa(producto, modificadores) {
     uuidEnvioRef.current = null; // el envío cambió: ya no es el mismo lote
+    const clave = claveCarrito(producto.id, modificadores);
     setCarritoAgregar(prev => ({
       ...prev,
-      [producto.id]: { producto, qty: (prev[producto.id]?.qty || 0) + 1 },
+      [clave]: {
+        producto,
+        modificadores,
+        // Lo que se cobra por unidad de ESTE renglón (base + extras).
+        precio: precioConModificadores(producto.price, modificadores),
+        qty: (prev[clave]?.qty || 0) + 1,
+        // Para saber de qué variante quitar cuando el cajero toca el "−" del
+        // catálogo, que solo conoce el producto: se quita de la última tocada.
+        tocado: Date.now(),
+      },
     }));
   }
 
   function decrementar(productoId) {
     uuidEnvioRef.current = null;
     setCarritoAgregar(prev => {
-      const qty = (prev[productoId]?.qty || 0) - 1;
-      if (qty <= 0) {
-        const next = { ...prev };
-        delete next[productoId];
-        return next;
-      }
-      return { ...prev, [productoId]: { ...prev[productoId], qty } };
+      // El "−" del catálogo solo conoce el producto, no la variante: se quita de
+      // la ÚLTIMA que el cajero tocó, que es la que acaba de agregar.
+      const claves = Object.keys(prev).filter(k => prev[k].producto.id === productoId);
+      if (claves.length === 0) return prev;
+      const clave = claves.sort((a, b) => (prev[b].tocado || 0) - (prev[a].tocado || 0))[0];
+      const qty = (prev[clave]?.qty || 0) - 1;
+      const next = { ...prev };
+      if (qty <= 0) delete next[clave];
+      else next[clave] = { ...prev[clave], qty };
+      return next;
     });
   }
 
   async function confirmarAgregar() {
-    const items = Object.values(carritoAgregar).map(({ producto, qty }) => ({
+    const items = Object.values(carritoAgregar).map(({ producto, qty, modificadores }) => ({
       product_id: producto.id,
       quantity: qty,
+      // Solo viaja QUÉ se eligió: el delta lo pone el backend desde su base
+      // (BLOQUE 11), nunca el cliente.
+      ...(modificadores && modificadores.length ? { modifiers: modificadores } : {}),
     }));
     if (items.length === 0) return;
     // Mirando otra sucursal la vista es SOLO LECTURA: abrir una mesa de Norte con
@@ -494,13 +539,23 @@ export default function MesasScreen() {
             : propina)
         : 0;
       const metodoFinal = dividirCuenta ? metodoResumenPagos(pagosMesa) : metodoPago;
-      await api.updateOrderStatus(ordenActiva.id, 'completado', {
+      const cobrado = await api.updateOrderStatus(ordenActiva.id, 'completado', {
         payment_method: metodoFinal,
         tip_amount: propinaFinal,
         tip_method: propinaFinal > 0 ? normalizarMetodoPropina(propinaMetodo, metodoFinal) : null,
         // BLOQUE 10 — desglose de la cuenta dividida. Va solo si se dividió; en
         // un cobro normal el backend hace lo de siempre (un método, sin filas).
         ...(pagosPayload ? { payments: pagosPayload } : {}),
+      });
+
+      // TICKET DE LA MESA (BLOQUE 11, deuda §12.7). La respuesta de cobrar trae
+      // los items, el impuesto congelado y el reparto de pagos ya guardados: es
+      // exactamente lo que debe salir en el papel.
+      // ⚠️ Sin await y sin try/catch: la mesa ya está cobrada y un fallo de
+      // impresora NUNCA debe tumbar el cobro (§26). La función no lanza.
+      imprimirTicketPedido(cobrado || ordenActiva, settings, {
+        cashier: nombreActivo,
+        tableName: mesaSel?.name,
       });
 
       // Otorgar puntos si hay cliente seleccionado con fidelidad activa
@@ -568,7 +623,9 @@ export default function MesasScreen() {
   );
 
   const totalCarrito = Object.values(carritoAgregar)
-    .reduce((s, { producto, qty }) => s + parseFloat(producto.price) * qty, 0);
+    // El precio del renglón ya trae los extras; los renglones sin modificadores
+    // no lo llevan y caen al del catálogo, igual que antes del BLOQUE 11.
+    .reduce((s, { producto, qty, precio }) => s + parseFloat(precio != null ? precio : producto.price) * qty, 0);
 
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -676,6 +733,11 @@ export default function MesasScreen() {
                 <IconoProducto valor={item.product?.emoji || 'svg:shopping-bag'} size={22} color={colors.textSecondary} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.itemName}>{item.product?.name || 'Producto'}</Text>
+                  {/* Extras del renglón (BLOQUE 11). El precio del renglón ya
+                      los incluye, así que van como detalle, no como cargo aparte. */}
+                  {resumenModificadores(leerModificadores(item.modifiers)) ? (
+                    <Text style={styles.itemMods}>{resumenModificadores(leerModificadores(item.modifiers))}</Text>
+                  ) : null}
                   {item.notes ? <View style={{ flexDirection: 'row', alignItems: 'center' }}><Ionicons name="document-text-outline" size={12} color={colors.textMuted} /><Text style={[styles.itemNota, { marginLeft: 2 }]}>{item.notes}</Text></View> : null}
                 </View>
                 <Text style={styles.itemQty}>×{item.quantity}</Text>
@@ -742,7 +804,10 @@ export default function MesasScreen() {
               columnWrapperStyle={{ gap: spacing.sm }}
               ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
               renderItem={({ item }) => {
-                const qty = carritoAgregar[item.id]?.qty || 0;
+                // Suma de TODAS las variantes de este producto en el carrito.
+                const qty = Object.values(carritoAgregar)
+                  .filter(e => e.producto.id === item.id)
+                  .reduce((s, e) => s + e.qty, 0);
                 const recipeStock = stockMap ? stockMap[item.id] : undefined;
                 const rawStock = recipeStock !== undefined ? recipeStock : (item.stock ?? null);
                 const stock = rawStock !== null ? Math.max(0, rawStock) : null;
@@ -782,6 +847,19 @@ export default function MesasScreen() {
               }}
             />
           )}
+          {/* Selector de extras (BLOQUE 11). Va dentro del modal del catálogo
+              para que se dibuje encima de él y no detrás. */}
+          <ModalModificadores
+            visible={modsModal !== null}
+            producto={modsModal?.producto}
+            catalogo={catalogoMods}
+            currency={currency}
+            onCancel={() => setModsModal(null)}
+            onConfirm={(seleccion) => {
+              _sumarAlCarritoMesa(modsModal.producto, seleccion);
+              setModsModal(null);
+            }}
+          />
           {Object.keys(carritoAgregar).length > 0 && (
             <View style={styles.agregarFooter}>
               <TouchableOpacity
@@ -1199,6 +1277,8 @@ const styles = StyleSheet.create({
   itemEmoji:        { fontSize: 22 },
   itemName:         { fontSize: font.sm, fontWeight: '600', color: colors.textPrimary },
   itemNota:         { fontSize: font.sm - 2, color: colors.textMuted },
+  // Los extras van en ámbar: cambian el precio y lo que prepara la cocina.
+  itemMods:         { fontSize: font.sm - 2, color: '#b45309', fontWeight: '600' },
   itemQty:          { fontSize: font.sm, fontWeight: '700', color: colors.textSecondary },
   itemPrice:        { fontSize: font.sm, fontWeight: '700', color: colors.textPrimary, minWidth: 60, textAlign: 'right' },
   emptyItems:       { textAlign: 'center', color: colors.textMuted, paddingVertical: spacing.xl },

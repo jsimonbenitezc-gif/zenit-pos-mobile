@@ -8,6 +8,7 @@
  */
 
 import { Platform, NativeModules } from 'react-native';
+import { resumenModificadores, leerModificadores } from './modificadores';
 
 // react-native-bluetooth-classic inicializa código Java nativo al importarse.
 // Solo lo cargamos si el módulo nativo existe, para evitar crash en devices
@@ -187,8 +188,13 @@ function formatTime(date) {
   return date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 }
 
-const METODO = { efectivo: 'Efectivo', tarjeta: 'Tarjeta', transferencia: 'Transferencia' };
-const TIPO   = { local: 'Comer aqui', llevar: 'Para llevar', domicilio: 'Domicilio' };
+const METODO = {
+  efectivo: 'Efectivo', tarjeta: 'Tarjeta', transferencia: 'Transferencia',
+  // BLOQUE 10: una venta repartida entre varios métodos. El desglose real va
+  // renglón por renglón más abajo.
+  multiple: 'Pago dividido',
+};
+const TIPO   = { local: 'Comer aqui', llevar: 'Para llevar', domicilio: 'Domicilio', comer: 'Comer aqui' };
 
 // ─── API pública ─────────────────────────────────────────────────────────────
 
@@ -210,11 +216,16 @@ const TIPO   = { local: 'Comer aqui', llevar: 'Para llevar', domicilio: 'Domicil
  * @param {string}  [opts.taxName]         - Nombre del impuesto (IVA, ITBIS…)
  * @param {number}  [opts.taxRate]         - Tasa con la que se cobró
  * @param {boolean} [opts.taxIncluded]     - true = el precio ya lo incluía
+ * @param {number}  [opts.tip]             - Propina (BLOQUE 9). NO entra en total
+ * @param {string}  [opts.tipMethod]       - Con qué se dejó la propina
+ * @param {Array}   [opts.payments]        - Reparto por método (BLOQUE 10)
+ * @param {string}  [opts.footer]          - Pie configurable (ticket_footer)
  * @param {string}  [opts.paymentMethod]
  * @param {string}  [opts.orderType]
  * @param {string|number} [opts.orderId]
  * @param {string}  [opts.cashier]
  * @param {string}  [opts.tableName]
+ * @param {Date|string} [opts.date]        - Fecha del pedido (para reimpresiones)
  */
 export async function printReceipt(address, opts = {}) {
   if (!BT) throw new Error('UNAVAILABLE');
@@ -233,14 +244,22 @@ export async function printReceipt(address, opts = {}) {
     taxName       = 'IVA',
     taxRate       = 0,
     taxIncluded   = false,
+    tip           = 0,
+    tipMethod,
+    payments      = [],
+    footer,
     paymentMethod = 'efectivo',
     orderType,
     orderId,
     cashier,
     tableName,
+    date,
   } = opts;
 
-  const now    = new Date();
+  // Fecha del PEDIDO, no la de ahora: una reimpresión tiene que decir cuándo se
+  // cobró, no cuándo se volvió a imprimir el papel.
+  const now = date ? new Date(date) : new Date();
+  const fecha = isNaN(now.getTime()) ? new Date() : now;
   const ticket = new TicketBuilder();
 
   ticket.cmd(CMD.RESET).cmd(CMD.CODEPAGE_858);
@@ -256,8 +275,8 @@ export async function printReceipt(address, opts = {}) {
   // Info del pedido
   ticket.cmd(CMD.ALIGN_LEFT);
   if (orderId)   ticket.line(`Folio: #${orderId}`);
-  ticket.line(`Fecha: ${formatDate(now)}`);
-  ticket.line(`Hora:  ${formatTime(now)}`);
+  ticket.line(`Fecha: ${formatDate(fecha)}`);
+  ticket.line(`Hora:  ${formatTime(fecha)}`);
   if (cashier)   ticket.line(`Cajero: ${cashier}`);
   if (tableName) ticket.line(`Mesa: ${tableName}`);
   if (orderType) ticket.line(`Tipo: ${TIPO[orderType] || orderType}`);
@@ -269,6 +288,11 @@ export async function printReceipt(address, opts = {}) {
     const price    = parseFloat(item.price || item.unit_price || 0);
     const subtotal = price * qty;
     ticket.splitLine(`${qty}x ${item.name}`, `${currency}${subtotal.toFixed(2)}`);
+    // MODIFICADORES (BLOQUE 11). Van bajo el renglón, NO como cargo aparte: el
+    // precio del renglón ya los incluye, así que un renglón propio haría que el
+    // ticket pareciera cobrar dos veces.
+    const extras = resumenModificadores(leerModificadores(item.modifiers ?? item.modificadores));
+    if (extras) ticket.left(`   ${extras}`);
     if (item.notes) ticket.left(`   * ${item.notes}`);
   }
   ticket.separator();
@@ -293,14 +317,45 @@ export async function printReceipt(address, opts = {}) {
   ticket
     .cmd(CMD.BOLD_ON)
     .right(`TOTAL: ${currency}${total.toFixed(2)}`)
-    .cmd(CMD.BOLD_OFF)
-    .right(`Pago: ${METODO[paymentMethod] || paymentMethod}`);
+    .cmd(CMD.BOLD_OFF);
 
-  // Pie
+  // PROPINA (BLOQUE 9). Va DESPUÉS del TOTAL, no dentro: el total es lo que
+  // costó la comida y la propina es lo que el cliente dejó de más. Se cierra con
+  // "TOTAL PAGADO", que es el dinero que realmente entregó.
+  const propina = parseFloat(tip) || 0;
+  if (propina > 0) {
+    ticket.right(`Propina: ${currency}${propina.toFixed(2)}`);
+    ticket
+      .cmd(CMD.BOLD_ON)
+      .right(`TOTAL PAGADO: ${currency}${(total + propina).toFixed(2)}`)
+      .cmd(CMD.BOLD_OFF);
+  }
+
+  ticket.right(`Pago: ${METODO[paymentMethod] || paymentMethod}`);
+
+  // DESGLOSE DEL PAGO (BLOQUE 10). Solo si la cuenta se repartió entre varios
+  // métodos: en una venta normal sería una línea de ruido. Es lo que le permite
+  // al cliente y al cajero verificar la división.
+  if (Array.isArray(payments) && payments.length >= 2) {
+    ticket.left('Pago dividido:');
+    for (const pago of payments) {
+      const monto = parseFloat(pago.amount != null ? pago.amount : pago.monto) || 0;
+      const prop  = parseFloat(pago.tip_amount != null ? pago.tip_amount : pago.propina) || 0;
+      const metodo = METODO[pago.method || pago.metodo] || (pago.method || pago.metodo || 'Efectivo');
+      // Lo que se entregó en ESE pago es monto + su propina.
+      const detalle = prop > 0
+        ? `${currency}${monto.toFixed(2)} +${currency}${prop.toFixed(2)} prop.`
+        : `${currency}${monto.toFixed(2)}`;
+      ticket.splitLine(`  ${metodo}`, detalle);
+    }
+  }
+
+  // Pie configurable (ticket_footer). Antes estaba escrito a mano en el código,
+  // así que el negocio no podía cambiarlo desde la app aunque el ajuste exista.
   ticket
     .cmd(CMD.ALIGN_CENTER)
     .line('')
-    .line('Gracias por su preferencia')
+    .line(footer && String(footer).trim() ? String(footer).trim() : 'Gracias por su preferencia')
     .line('Zenit POS')
     .cmd(CMD.FEED_3)
     .cmd(CMD.CUT);

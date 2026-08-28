@@ -315,6 +315,13 @@ class ApiClient {
     return this.request(`/orders/${id}/status`, { method: 'PUT', body: { status, ...extra } });
   }
 
+  // Un pedido con TODO su detalle: items (con sus modificadores congelados),
+  // desglose de impuesto y reparto de pagos. Lo usa la reimpresión del ticket,
+  // porque el listado no trae los items completos de cada pedido.
+  getOrder(id) {
+    return this.request(`/orders/${id}`);
+  }
+
   // Token acotado para abrir el KDS en otro dispositivo (QR). Dura 12h y el backend
   // solo lo acepta para leer la cola de cocina (`middleware/auth.js`).
   // NUNCA metas el token de sesión en el QR: da acceso completo a la cuenta.
@@ -439,6 +446,49 @@ class ApiClient {
 
   deleteDiscount(id) {
     return this.request(`/offers/discounts/${id}`, { method: 'DELETE' });
+  }
+
+  // ─── Modificadores (BLOQUE 11) ───────────────────────────────────────────
+  // La biblioteca del negocio: grupos ("Extras", "Tamaño") con sus opciones, y
+  // qué producto usa cuáles. Viene entera en UNA llamada porque es lo que se
+  // cachea para poder armar un carrito con extras sin internet.
+  getModifiers() {
+    return this.request('/modifiers');
+  }
+
+  createModifierGroup(data) {
+    return this.request('/modifiers/groups', { method: 'POST', body: data });
+  }
+
+  updateModifierGroup(id, data) {
+    return this.request(`/modifiers/groups/${id}`, { method: 'PUT', body: data });
+  }
+
+  deleteModifierGroup(id) {
+    return this.request(`/modifiers/groups/${id}`, { method: 'DELETE' });
+  }
+
+  createModifierOption(groupId, data) {
+    return this.request(`/modifiers/groups/${groupId}/options`, { method: 'POST', body: data });
+  }
+
+  updateModifierOption(id, data) {
+    return this.request(`/modifiers/options/${id}`, { method: 'PUT', body: data });
+  }
+
+  deleteModifierOption(id) {
+    return this.request(`/modifiers/options/${id}`, { method: 'DELETE' });
+  }
+
+  getProductModifiers(productId) {
+    return this.request(`/modifiers/products/${productId}`);
+  }
+
+  setProductModifiers(productId, groupIds) {
+    return this.request(`/modifiers/products/${productId}`, {
+      method: 'PUT',
+      body: { group_ids: groupIds },
+    });
   }
 
   // ─── Mesas ───────────────────────────────────────────────────────────────
