@@ -138,24 +138,35 @@ export default function KDSScreen({ navigation }) {
   const [showQR, setShowQR]       = useState(false);
   const [qrUrl, setQrUrl]         = useState(null);
   const [qrError, setQrError]     = useState(null);
+  const [codigoPair, setCodigoPair] = useState(null);
   const intervalRef = useRef(null);
 
-  // El QR lleva un token ACOTADO al KDS (12h, solo lectura de la cola de cocina).
-  // Antes llevaba el token de SESIÓN, lo que tenía dos problemas graves:
-  //   1. La página /kds exige `purpose:'kds'` y rechazaba ese token → el QR no servía.
-  //   2. Quien fotografiara el código obtenía una credencial completa de la cuenta.
-  // Además el QR se dibuja aquí mismo: antes se pedía a un servicio externo
-  // (api.qrserver.com) pasándole el token dentro de la URL, así que la credencial
-  // terminaba en los registros de un tercero.
+  // EL QR YA NO ES UNA CREDENCIAL (BLOQUE 13).
+  //
+  // Llevaba un token acotado de 12 h, y antes de eso el token de SESIÓN entero.
+  // Aun acotado, el código ERA la llave: quien lo fotografiara veía la cocina
+  // medio día y no había forma de cortarlo — solo esperar a que venciera.
+  //
+  // Ahora lleva un CÓDIGO DE EMPAREJAMIENTO de un solo uso que caduca en 10
+  // minutos y cuyo único efecto es dejar la pantalla en "pendiente". Para que
+  // vea un solo pedido hay que aprobarla con PIN desde
+  // Ajustes → Pantallas de cocina, y revocarla corta el acceso al instante.
+  //
+  // El QR se dibuja aquí mismo, nunca con un servicio externo: pedírselo a
+  // api.qrserver.com metía el código en los registros de un tercero.
   async function abrirQR() {
     setQrUrl(null);
     setQrError(null);
+    setCodigoPair(null);
     setShowQR(true);
     try {
-      const { kdsToken } = await api.getKdsToken(sucursalId ?? null);
-      if (!kdsToken) throw new Error('respuesta sin kdsToken');
-      const branchParam = sucursalId ? `&branch_id=${sucursalId}` : '';
-      setQrUrl(`${KDS_WEB_BASE}?token=${encodeURIComponent(kdsToken)}${branchParam}`);
+      const r = await api.crearCodigoKds(sucursalId ?? null);
+      if (!r?.codigo) throw new Error('respuesta sin código de emparejamiento');
+      setCodigoPair(r.codigo);
+      // El backend arma la URL con su APP_URL; si no la tiene configurada
+      // devuelve una ruta relativa, que dentro de un QR no lleva a ninguna parte.
+      const absoluta = typeof r.url === 'string' && r.url.startsWith('http');
+      setQrUrl(absoluta ? r.url : `${KDS_WEB_BASE}?pair=${encodeURIComponent(r.codigo)}`);
     } catch {
       setQrError('No se pudo generar el código. Revisa tu conexión e inténtalo de nuevo.');
     }
@@ -239,8 +250,11 @@ export default function KDSScreen({ navigation }) {
       <Modal visible={showQR} transparent animationType="fade" onRequestClose={() => setShowQR(false)}>
         <View style={styles.qrOverlay}>
           <View style={styles.qrBox}>
-            <Text style={styles.qrTitle}>Abrir KDS en otro dispositivo</Text>
-            <Text style={styles.qrSub}>Escanea con la cámara. La página se actualiza sola cada 15 segundos.</Text>
+            <Text style={styles.qrTitle}>Agregar una pantalla de cocina</Text>
+            <Text style={styles.qrSub}>
+              Escanea con el dispositivo que va a mostrar la cocina. Después apruébalo
+              en Ajustes → Pantallas de cocina; te va a pedir tu PIN.
+            </Text>
             {qrUrl ? (
               <View style={styles.qrImage}>
                 <QRCode value={qrUrl} size={200} backgroundColor="#fff" />
@@ -250,6 +264,12 @@ export default function KDSScreen({ navigation }) {
             ) : (
               <ActivityIndicator color={KDS.indigo} style={{ marginVertical: 40 }} />
             )}
+            {codigoPair ? (
+              <>
+                <Text style={styles.qrCodigo}>{codigoPair}</Text>
+                <Text style={styles.qrCaduca}>Dura 10 minutos y sirve una sola vez</Text>
+              </>
+            ) : null}
             <TouchableOpacity style={styles.qrCloseBtn} onPress={() => setShowQR(false)}>
               <Text style={styles.qrCloseBtnText}>Cerrar</Text>
             </TouchableOpacity>
@@ -342,6 +362,8 @@ const styles = StyleSheet.create({
   qrSub:       { fontSize: 12, color: KDS.textSub, textAlign: 'center', marginBottom: 20, lineHeight: 18 },
   qrImage:     { width: 220, height: 220, borderRadius: 10, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   qrError:     { color: KDS.red, textAlign: 'center', marginVertical: 40, paddingHorizontal: 12, lineHeight: 20 },
+  qrCodigo:    { color: KDS.indigo, fontSize: 22, fontWeight: '800', letterSpacing: 4, marginTop: 14 },
+  qrCaduca:    { color: KDS.textSub, fontSize: 11, marginTop: 4 },
   qrCloseBtn:  { marginTop: 20, borderWidth: 1, borderColor: KDS.border, borderRadius: 8, paddingHorizontal: 32, paddingVertical: 10 },
   qrCloseBtnText: { color: KDS.textSub, fontWeight: '700' },
 

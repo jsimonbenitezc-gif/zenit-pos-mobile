@@ -34,6 +34,7 @@ import { SeccionNotificaciones } from './ajustes/SeccionNotificaciones';
 import { SeccionSucursales } from './ajustes/SeccionSucursales';
 import { SeccionImpuestos } from './ajustes/SeccionImpuestos';
 import { SeccionPropinas } from './ajustes/SeccionPropinas';
+import { SeccionPantallasKDS } from './ajustes/SeccionPantallasKDS';
 
 
 // ─── Pantalla principal ───────────────────────────────────────────────────────
@@ -1229,6 +1230,20 @@ export default function AjustesScreen({ navigation }) {
             settings={settings}
             currency={moneda}
             onSaved={refreshSettings}
+            styles={styles}
+          />
+        )}
+
+        {/* ── Pantallas de cocina (BLOQUE 13) ─── */}
+        {/* Solo el dueño ve la lista: aprobar una pantalla es dar acceso
+            permanente a la cola de pedidos, y revocarla se lo quita. El PIN que
+            se teclea al aprobar es el del PUESTO, no la contraseña de la cuenta
+            (§19.19). */}
+        {isOwner && (
+          <SeccionPantallasKDS
+            sucursalId={sucursalId}
+            rolActivo={rolActivo}
+            nombreActivo={nombreActivo}
             styles={styles}
           />
         )}

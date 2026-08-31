@@ -322,11 +322,35 @@ class ApiClient {
     return this.request(`/orders/${id}`);
   }
 
-  // Token acotado para abrir el KDS en otro dispositivo (QR). Dura 12h y el backend
-  // solo lo acepta para leer la cola de cocina (`middleware/auth.js`).
-  // NUNCA metas el token de sesión en el QR: da acceso completo a la cuenta.
-  getKdsToken(branchId = null) {
-    return this.request('/kds/token', { method: 'POST', body: { branch_id: branchId } });
+  // ─── Pantallas de cocina (BLOQUE 13) ─────────────────────────────────────
+  //
+  // El QR ya NO lleva una credencial. Antes llevaba un token de 12 h: quien lo
+  // fotografiara veía la cocina medio día y no había forma de cortarlo. Ahora
+  // lleva un CÓDIGO DE EMPAREJAMIENTO de un solo uso que caduca en 10 minutos y
+  // cuyo único efecto es dejar la pantalla "pendiente" hasta que alguien la
+  // apruebe con el PIN de su puesto.
+  //
+  // ⚠️ Y nunca, jamás, el token de sesión: da acceso completo a la cuenta.
+  crearCodigoKds(branchId = null) {
+    return this.request('/kds/pairing', { method: 'POST', body: { branch_id: branchId } });
+  }
+
+  getDispositivosKds() {
+    return this.request('/kds/devices');
+  }
+
+  // `datos` lleva { role, pin, employee_name, nombre, branch_id }: la misma
+  // credencial que el resto de acciones privilegiadas del POS (§19.19).
+  aprobarDispositivoKds(id, datos) {
+    return this.request(`/kds/devices/${id}/approve`, { method: 'POST', body: datos });
+  }
+
+  revocarDispositivoKds(id, datos) {
+    return this.request(`/kds/devices/${id}/revoke`, { method: 'POST', body: datos });
+  }
+
+  eliminarDispositivoKds(id) {
+    return this.request(`/kds/devices/${id}`, { method: 'DELETE' });
   }
 
   // ─── Clientes ────────────────────────────────────────────────────────────
