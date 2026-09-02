@@ -34,6 +34,7 @@ import { SeccionNotificaciones } from './ajustes/SeccionNotificaciones';
 import { SeccionSucursales } from './ajustes/SeccionSucursales';
 import { SeccionImpuestos } from './ajustes/SeccionImpuestos';
 import { SeccionPropinas } from './ajustes/SeccionPropinas';
+import { SeccionHorario } from './ajustes/SeccionHorario';
 import { SeccionPantallasKDS } from './ajustes/SeccionPantallasKDS';
 
 
@@ -1229,6 +1230,18 @@ export default function AjustesScreen({ navigation }) {
           <SeccionPropinas
             settings={settings}
             currency={moneda}
+            onSaved={refreshSettings}
+            styles={styles}
+          />
+        )}
+
+        {/* ── Horario del negocio (BLOQUE 14) ─── */}
+        {/* Solo el dueño: es una SEÑAL DE SEGURIDAD, y que la cambiara un
+            empleado sería dejarle apagar la alarma que vigila sus propias
+            acciones. ⚠️ No bloquea nada de la operación: ver SeccionHorario. */}
+        {isOwner && (
+          <SeccionHorario
+            settings={settings}
             onSaved={refreshSettings}
             styles={styles}
           />

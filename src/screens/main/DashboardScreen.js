@@ -440,10 +440,15 @@ export default function DashboardScreen() {
             const fecha = new Date(log.createdAt);
             const horaStr = fecha.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
             const diaStr  = fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+            // BLOQUE 14 — lo ocurrido fuera del horario del negocio se distingue de
+            // un vistazo. Es la razón de ser de la marca: el dueño no debería tener
+            // que abrir 200 acciones normales para encontrar las tres de la madrugada.
+            // Sin horario configurado esto nunca se enciende.
+            const fueraHorario = log.fuera_horario === true || log.fuera_horario === 1;
             return (
               <TouchableOpacity
                 key={log.id}
-                style={[styles.alertRow, (stockBajoCount > 0 || i > 0) && styles.alertRowBorder]}
+                style={[styles.alertRow, (stockBajoCount > 0 || i > 0) && styles.alertRowBorder, fueraHorario && styles.auditFuera]}
                 onPress={() => setAuditDetalle(log)}
                 activeOpacity={0.7}
               >
@@ -451,7 +456,10 @@ export default function DashboardScreen() {
                   <Ionicons name={tipo.icon} size={18} color={tipo.color} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.alertTitle}>{tipo.label}</Text>
+                  <Text style={styles.alertTitle}>
+                    {tipo.label}
+                    {fueraHorario ? <Text style={styles.auditFueraEtiqueta}> · fuera de horario</Text> : null}
+                  </Text>
                   <Text style={styles.alertSub} numberOfLines={1}>
                     {log.employee_name}{log.target_description ? ` · ${log.target_description}` : ''}
                   </Text>
@@ -623,7 +631,12 @@ export default function DashboardScreen() {
                 <ScrollView style={styles.detalleScroll} showsVerticalScrollIndicator={false}>
                   <View style={styles.detalleRow}>
                     <Text style={styles.detalleKey}>Fecha</Text>
-                    <Text style={styles.detalleVal} selectable>{fechaStr}</Text>
+                    <Text style={styles.detalleVal} selectable>
+                      {fechaStr}
+                      {(log.fuera_horario === true || log.fuera_horario === 1)
+                        ? <Text style={styles.auditFueraEtiqueta}>{'\n⚠️ Ocurrió fuera del horario del negocio'}</Text>
+                        : null}
+                    </Text>
                   </View>
                   <View style={styles.detalleRow}>
                     <Text style={styles.detalleKey}>Empleado</Text>
@@ -813,6 +826,8 @@ const styles = StyleSheet.create({
   hourlyBarLabel: { fontSize: 9, color: colors.textSecondary, marginTop: 3 },
 
   // Audit log (hora/fecha en alertas)
+  auditFuera:         { backgroundColor: colors.warning ? colors.warning + '14' : '#fffbeb' },
+  auditFueraEtiqueta: { fontSize: font.sm - 2, fontWeight: '700', color: '#b45309' },
   auditHora:  { fontSize: font.sm - 1, fontWeight: '700', color: colors.textSecondary },
   auditDia:   { fontSize: font.sm - 2, color: colors.textMuted, marginTop: 1 },
 
