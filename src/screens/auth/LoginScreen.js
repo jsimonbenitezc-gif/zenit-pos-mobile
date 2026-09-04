@@ -9,12 +9,13 @@ import { colors, spacing, radius, font } from '../../theme';
 import { friendlyError } from '../../utils/errors';
 
 export default function LoginScreen({ navigation }) {
-  const { loginOwner } = useAuth();
+  const { loginOwner, entrarModoLocal } = useAuth();
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading]   = useState(false);
   const [enviandoReset, setEnviandoReset] = useState(false);
+  const [entrandoLocal, setEntrandoLocal] = useState(false);
 
   async function handleLogin() {
     if (!username.trim() || !password) {
@@ -29,6 +30,12 @@ export default function LoginScreen({ navigation }) {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleLocal() {
+    setEntrandoLocal(true);
+    try { await entrarModoLocal(); }
+    catch (e) { Alert.alert('Error', 'No se pudo iniciar el modo sin cuenta.'); setEntrandoLocal(false); }
   }
 
   async function handleForgot() {
@@ -105,6 +112,25 @@ export default function LoginScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
+        {/* Empezar sin cuenta (BLOQUE 18). Es la razón de ser del modo local: el
+            muro de registro se lleva por delante a la mayoría de las descargas,
+            y no por falta de internet sino por el trámite. Aquí se vende y se
+            cobra en un minuto; la cuenta llega cuando el negocio la necesite. */}
+        <View style={styles.separadorLocal}>
+          <View style={styles.linea} />
+          <Text style={styles.separadorTexto}>o</Text>
+          <View style={styles.linea} />
+        </View>
+
+        <TouchableOpacity style={styles.btnLocal} onPress={handleLocal} disabled={loading || entrandoLocal}>
+          {entrandoLocal
+            ? <ActivityIndicator color={colors.primary} />
+            : <Text style={styles.btnLocalText}>Empezar sin cuenta</Text>}
+        </TouchableOpacity>
+        <Text style={styles.btnLocalNota}>
+          Vende y cobra desde ya, sin internet. Tus datos se guardan en este teléfono.
+        </Text>
+
         <Text style={styles.footer}>Zenit POS · Todos los derechos reservados</Text>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -113,6 +139,12 @@ export default function LoginScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container:        { flexGrow: 1, backgroundColor: colors.background, padding: spacing.xl, justifyContent: 'center' },
+  separadorLocal:   { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.xl },
+  linea:            { flex: 1, height: 1, backgroundColor: colors.border },
+  separadorTexto:   { color: colors.textMuted, fontSize: font.sm },
+  btnLocal:         { marginTop: spacing.lg, borderWidth: 1.5, borderColor: colors.primary, borderRadius: radius.md, padding: spacing.md + 2, alignItems: 'center' },
+  btnLocalText:     { color: colors.primary, fontSize: font.lg, fontWeight: '700' },
+  btnLocalNota:     { color: colors.textMuted, fontSize: font.sm, textAlign: 'center', marginTop: spacing.sm, lineHeight: 18 },
   header:           { alignItems: 'center', marginBottom: spacing.xxl },
   logoImg:          { width: 90, height: 90, marginBottom: spacing.md },
   appName:          { fontSize: font.xxl + 4, fontWeight: '800', color: colors.textPrimary, letterSpacing: -0.5 },

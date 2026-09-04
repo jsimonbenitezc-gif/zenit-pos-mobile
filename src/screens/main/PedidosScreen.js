@@ -6,9 +6,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../api/client';
+import {
+  verificarPinPuesto, pinBloqueado, minutosBloqueoPin,
+  registrarFalloPin, resetFallosPin,
+} from '../../offline/credenciales';
 import { useAuth } from '../../context/AuthContext';
 import { useNetwork } from '../../context/NetworkContext';
-import { obtenerVentasParaMostrar } from '../../offline/ventasOffline';
+import { ventasParaMostrar } from '../../offline/ventasOffline';
 import { colors, spacing, radius, font } from '../../theme';
 import LogoTitle from '../../components/LogoTitle';
 import OfflineIndicator from '../../components/OfflineIndicator';
@@ -143,7 +147,7 @@ function PedidoCard({ pedido, onCambiarEstado, onReimprimir, currency }) {
 const PAGE_SIZE = 30;
 
 export default function PedidosScreen() {
-  const { settings, sucursalId, nombreActivo, rolActivo, permisosRolesEfectivos } = useAuth();
+  const { settings, sucursalId, nombreActivo, rolActivo, permisosRolesEfectivos, modoLocal } = useAuth();
   const { online } = useNetwork();
   const currency = settings?.currency_symbol || '$';
   const prevOnline = useRef(true);
@@ -195,8 +199,19 @@ export default function PedidosScreen() {
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     pageRef.current = 1;
-    // Ventas offline aún sin subir. Solo se muestran en "Todos" (no tienen estado del backend).
-    const offline = filtro ? [] : await obtenerVentasParaMostrar().catch(() => []);
+    // Ventas que no vienen del backend. Con cuenta son las encoladas ("por
+    // subir"); en MODO LOCAL son TODAS las del negocio. Solo se muestran en
+    // "Todos": no tienen el estado que usa el filtro del backend.
+    const offline = filtro ? [] : await ventasParaMostrar().catch(() => []);
+    // MODO LOCAL (BLOQUE 18): no hay servidor al que pedirle el historial —
+    // las ventas locales SON el historial completo. Se pinta y se termina.
+    if (modoLocal) {
+      setPedidos(offline);
+      setHasMore(false);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
     try {
       const params = { limit: PAGE_SIZE, page: 1 };
       if (filtro) params.status = filtro;
@@ -213,7 +228,7 @@ export default function PedidosScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [filtro, sucursalVista]);
+  }, [filtro, sucursalVista, modoLocal]);
 
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore) return;
@@ -263,8 +278,8 @@ export default function PedidosScreen() {
 
   async function confirmarCancelacion() {
     if (!pinValue) { setPinError('Ingresa tu PIN'); return; }
-    if (api.isPinLocked()) {
-      setPinError(`Demasiados intentos. Espera ${api.getPinLockRemainingMin()} min.`);
+    if (pinBloqueado()) {
+      setPinError(`Demasiados intentos. Espera ${minutosBloqueoPin()} min.`);
       return;
     }
     setPinLoading(true);
@@ -272,14 +287,14 @@ export default function PedidosScreen() {
     try {
       const perfilActual = permisosRolesEfectivos?.[rolActivo];
       if (perfilActual?.pin_set) {
-        const result = await api.verifyProfilePin(rolActivo, pinValue);
-        if (!result.valid) {
-          api.registerPinFailure();
-          setPinError(api.isPinLocked() ? 'Demasiados intentos. Espera 5 min.' : 'PIN incorrecto');
+        const result = await verificarPinPuesto(rolActivo, pinValue, permisosRolesEfectivos);
+        if (!result.valido) {
+          registrarFalloPin();
+          setPinError(pinBloqueado() ? 'Demasiados intentos. Espera 5 min.' : 'PIN incorrecto');
           setPinLoading(false);
           return;
         }
-        api.resetPinAttempts();
+        resetFallosPin();
       }
 
       // PIN válido: cancelar con auditoría.

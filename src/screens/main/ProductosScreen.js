@@ -10,7 +10,10 @@ import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'react-native';
 import IconoProducto from '../../components/IconoProducto';
 import IconPicker from '../../components/IconPicker';
-import { api } from '../../api/client';
+import {
+  cargarCatalogoEditable, crearProducto, actualizarProducto, borrarProducto,
+  crearCategoria, actualizarCategoria, borrarCategoria, fijarModificadoresDeProducto,
+} from '../../offline/catalogoEditable';
 import { colors, spacing, radius, font } from '../../theme';
 import LogoTitle from '../../components/LogoTitle';
 import { formatMoney } from '../../utils/money';
@@ -56,7 +59,7 @@ function CatRow({ cat, onEdit, onDelete }) {
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 
 export default function ProductosScreen() {
-  const { settings, isOwner } = useAuth();
+  const { settings, isOwner, modoLocal } = useAuth();
   const currency = settings?.currency_symbol || '$';
 
   // Vista activa: 'productos' | 'categorias'
@@ -99,7 +102,7 @@ export default function ProductosScreen() {
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     try {
-      const [prods, cats] = await Promise.all([api.getProducts(), api.getCategories()]);
+      const { productos: prods, categorias: cats } = await cargarCatalogoEditable();
       setProductos(prods);
       setCategorias(cats);
     } catch (e) {
@@ -180,11 +183,11 @@ export default function ProductosScreen() {
       };
       let productoId;
       if (editandoProd) {
-        const updated = await api.updateProduct(editandoProd.id, body);
+        const updated = await actualizarProducto(editandoProd.id, body);
         setProductos(prev => prev.map(p => p.id === editandoProd.id ? { ...p, ...updated } : p));
         productoId = editandoProd.id;
       } else {
-        const created = await api.createProduct(body);
+        const created = await crearProducto(body);
         setProductos(prev => [created, ...prev]);
         productoId = created.id;
       }
@@ -192,7 +195,7 @@ export default function ProductosScreen() {
       // `null` significa "no abrió esa sección" y no debe borrar lo que ya
       // estaba enganchado.
       if (gruposProd !== null && productoId) {
-        await api.setProductModifiers(productoId, gruposProd).catch(() => {});
+        await fijarModificadoresDeProducto(productoId, gruposProd).catch(() => {});
       }
       setModalProd(false);
     } catch (e) {
@@ -207,7 +210,7 @@ export default function ProductosScreen() {
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Eliminar', style: 'destructive', onPress: async () => {
         try {
-          await api.deleteProduct(p.id);
+          await borrarProducto(p.id);
           setProductos(prev => prev.filter(x => x.id !== p.id));
         } catch (e) { Alert.alert('Error', friendlyError(e)); }
       }},
@@ -238,10 +241,10 @@ export default function ProductosScreen() {
     try {
       const body = { name: catNombre.trim(), emoji: catEmoji.trim() };
       if (editandoCat) {
-        const updated = await api.updateCategory(editandoCat.id, body);
+        const updated = await actualizarCategoria(editandoCat.id, body);
         setCategorias(prev => prev.map(c => c.id === editandoCat.id ? { ...c, ...updated } : c));
       } else {
-        const created = await api.createCategory(body);
+        const created = await crearCategoria(body);
         setCategorias(prev => [...prev, created]);
       }
       setModalCat(false);
@@ -257,7 +260,7 @@ export default function ProductosScreen() {
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Eliminar', style: 'destructive', onPress: async () => {
         try {
-          await api.deleteCategory(c.id);
+          await borrarCategoria(c.id);
           setCategorias(prev => prev.filter(x => x.id !== c.id));
         } catch (e) { Alert.alert('Error', friendlyError(e)); }
       }},
@@ -282,7 +285,9 @@ export default function ProductosScreen() {
             {/* Biblioteca de modificadores (BLOQUE 11). Vive aquí y no en
                 Ajustes porque es parte del MENÚ: se configura junto a los
                 productos que la usan. */}
-            {vista === 'productos' && (
+            {/* Sin cuenta no hay biblioteca de modificadores que configurar
+                (§32): un botón que no lleva a ningún lado es peor que no tenerlo. */}
+            {vista === 'productos' && !modoLocal && (
               <TouchableOpacity onPress={() => setModalBiblioteca(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Ionicons name="options-outline" size={22} color={colors.primary} />
               </TouchableOpacity>
@@ -446,7 +451,7 @@ export default function ProductosScreen() {
               {/* Modificadores del producto (BLOQUE 11). Solo al EDITAR: un
                   producto que todavía no existe no tiene a qué engancharlos, y
                   guardarlos requiere su id. */}
-              {editandoProd && (
+              {editandoProd && !modoLocal && (
                 <>
                   <Text style={styles.label}>Modificadores</Text>
                   <SelectorGruposProducto

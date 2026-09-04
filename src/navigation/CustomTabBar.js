@@ -9,20 +9,46 @@ import { useAuth } from '../context/AuthContext';
 import { colors, spacing, radius, font } from '../theme';
 import { SCREEN_PERM_MAP } from './screenPerms';
 
+// `local`: la pantalla existe también en el MODO LOCAL, el negocio sin cuenta
+// (BLOQUE 18). La Etapa 1 cubre vender, el catálogo propio y el historial; el
+// resto necesita el servidor y es justamente el gancho para crear una cuenta.
+// Mesas queda fuera a propósito (decidido el 2026-09-04, ver el plan V5).
 export const ALL_SCREENS = [
-  { name: 'NuevaVenta', label: 'Venta', icon: 'cart-outline', active: 'cart', ownerOnly: false },
-  { name: 'Pedidos', label: 'Pedidos', icon: 'receipt-outline', active: 'receipt', ownerOnly: false },
+  { name: 'NuevaVenta', label: 'Venta', icon: 'cart-outline', active: 'cart', ownerOnly: false, local: true },
+  { name: 'Pedidos', label: 'Pedidos', icon: 'receipt-outline', active: 'receipt', ownerOnly: false, local: true },
   { name: 'Mesas', label: 'Mesas', icon: 'grid-outline', active: 'grid', ownerOnly: false },
-  { name: 'Productos', label: 'Productos', icon: 'cube-outline', active: 'cube', ownerOnly: false },
-  { name: 'Clientes', label: 'Clientes', icon: 'people-outline', active: 'people', ownerOnly: false },
-  { name: 'Turno', label: 'Turno', icon: 'time-outline', active: 'time', ownerOnly: false },
+  { name: 'Productos', label: 'Productos', icon: 'cube-outline', active: 'cube', ownerOnly: false, local: true },
+  { name: 'Clientes', label: 'Clientes', icon: 'people-outline', active: 'people', ownerOnly: false, local: true },
+  { name: 'Turno', label: 'Turno', icon: 'time-outline', active: 'time', ownerOnly: false, local: true },
   { name: 'Inventario', label: 'Inventario', icon: 'layers-outline', active: 'layers', ownerOnly: true },
   { name: 'Ofertas', label: 'Ofertas', icon: 'pricetag-outline', active: 'pricetag', ownerOnly: true },
   // Solo el dueño: son los márgenes del negocio (BLOQUE 12).
   { name: 'Rentabilidad', label: 'Margen', icon: 'trending-up-outline', active: 'trending-up', ownerOnly: true },
   { name: 'Dashboard', label: 'Resumen', icon: 'bar-chart-outline', active: 'bar-chart', ownerOnly: true },
-  { name: 'Ajustes', label: 'Ajustes', icon: 'settings-outline', active: 'settings', ownerOnly: false },
+  { name: 'Ajustes', label: 'Ajustes', icon: 'settings-outline', active: 'settings', ownerOnly: false, local: true },
 ];
+
+/**
+ * Las pantallas que puede ver este usuario. UN SOLO LUGAR decide esto, y lo usan
+ * tanto la barra de abajo como el navegador: si se separaran, la barra ofrecería
+ * una pestaña que el navegador no tiene registrada y tocarla no haría nada.
+ */
+export function pantallasDisponibles({ isOwner, rolActivo, permisosRolesEfectivos, modoLocal }) {
+  // En modo local no hay cuenta ni puestos: manda la lista blanca y nada más.
+  if (modoLocal) return ALL_SCREENS.filter(s => s.local);
+
+  let lista = ALL_SCREENS.filter(s => !s.ownerOnly || isOwner);
+  if (rolActivo && rolActivo !== 'dueno') {
+    const permisos = permisosRolesEfectivos?.[rolActivo] || {};
+    lista = lista.filter(s => {
+      if (s.name === 'Ajustes') return true; // siempre visible (impresora/KDS/cambiar perfil)
+      const key = SCREEN_PERM_MAP[s.name];
+      if (!key) return true;
+      return permisos[key] !== false;
+    });
+  }
+  return lista;
+}
 
 const DEFAULT_SLOTS = ['NuevaVenta', 'Pedidos', 'Mesas', 'Clientes', 'Ajustes'];
 const STORE_KEY = 'zenit_tab_slots_v2';
@@ -35,7 +61,7 @@ function moveItem(list, from, to) {
 }
 
 export default function CustomTabBar({ state, navigation }) {
-  const { isOwner, rolActivo, settings, permisosRolesEfectivos, cambiarPerfil } = useAuth();
+  const { isOwner, rolActivo, settings, permisosRolesEfectivos, cambiarPerfil, modoLocal } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [slots, setSlots] = useState(DEFAULT_SLOTS);
@@ -45,19 +71,10 @@ export default function CustomTabBar({ state, navigation }) {
   const [dragging, setDragging] = useState(false);
   const [draggedName, setDraggedName] = useState(null);
 
-  const availableScreens = useMemo(() => {
-    let lista = ALL_SCREENS.filter(s => !s.ownerOnly || isOwner);
-    if (rolActivo && rolActivo !== 'dueno') {
-      const permisos = permisosRolesEfectivos?.[rolActivo] || {};
-      lista = lista.filter(s => {
-        if (s.name === 'Ajustes') return true; // siempre visible (impresora/KDS/cambiar perfil)
-        const key = SCREEN_PERM_MAP[s.name];
-        if (!key) return true;
-        return permisos[key] !== false;
-      });
-    }
-    return lista;
-  }, [isOwner, rolActivo, permisosRolesEfectivos]);
+  const availableScreens = useMemo(
+    () => pantallasDisponibles({ isOwner, rolActivo, permisosRolesEfectivos, modoLocal }),
+    [isOwner, rolActivo, permisosRolesEfectivos, modoLocal]
+  );
 
   const BAR_HEIGHT = 64 + (insets.bottom || spacing.sm);
   const sheetY = useRef(new Animated.Value(360)).current;

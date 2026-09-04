@@ -7,6 +7,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../api/client';
+import { listarClientes, crearCliente, actualizarCliente } from '../../offline/clientes';
+import {
+  verificarPinPuesto, pinBloqueado, minutosBloqueoPin,
+  registrarFalloPin, resetFallosPin,
+} from '../../offline/credenciales';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
 import LogoTitle from '../../components/LogoTitle';
@@ -20,7 +25,7 @@ function avatarColor(name) {
 }
 
 export default function ClientesScreen() {
-  const { settings, user, isPremium, nombreActivo, rolActivo, permisosRolesEfectivos } = useAuth();
+  const { settings, user, isPremium, nombreActivo, rolActivo, permisosRolesEfectivos, modoLocal } = useAuth();
 
   const [clientes, setClientes]     = useState([]);
   const [busqueda, setBusqueda]     = useState('');
@@ -54,7 +59,7 @@ export default function ClientesScreen() {
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     try {
-      const data = await api.getCustomers();
+      const data = await listarClientes();
       setClientes(data);
     } catch {
       Alert.alert('Error', 'No se pudo cargar la lista de clientes.');
@@ -75,7 +80,7 @@ export default function ClientesScreen() {
     try {
       const payload = { name: nombre.trim(), phone: telefono.trim() };
       if (direccion.trim()) payload.address = direccion.trim();
-      const c = await api.createCustomer(payload);
+      const c = await crearCliente(payload);
       setClientes(prev => [c, ...prev]);
       setModalNuevo(false);
       setNombre(''); setTelefono(''); setDireccion('');
@@ -107,32 +112,32 @@ export default function ClientesScreen() {
 
   async function confirmarEdicionConPin() {
     if (!pinEditValue) { setPinEditError('Ingresa tu PIN'); return; }
-    if (api.isPinLocked()) {
-      setPinEditError(`Demasiados intentos. Espera ${api.getPinLockRemainingMin()} min.`);
+    if (pinBloqueado()) {
+      setPinEditError(`Demasiados intentos. Espera ${minutosBloqueoPin()} min.`);
       return;
     }
     setPinEditLoading(true);
     setPinEditError('');
     try {
-      const perfilActual = permisosRolesEfectivos?.[rolActivo];
+      const perfilActual = modoLocal ? null : permisosRolesEfectivos?.[rolActivo];
       if (perfilActual?.pin_set) {
-        const result = await api.verifyProfilePin(rolActivo, pinEditValue);
-        if (!result.valid) {
-          api.registerPinFailure();
-          setPinEditError(api.isPinLocked() ? 'Demasiados intentos. Espera 5 min.' : 'PIN incorrecto');
+        const result = await verificarPinPuesto(rolActivo, pinEditValue, permisosRolesEfectivos);
+        if (!result.valido) {
+          registrarFalloPin();
+          setPinEditError(pinBloqueado() ? 'Demasiados intentos. Espera 5 min.' : 'PIN incorrecto');
           setPinEditLoading(false);
           return;
         }
-        api.resetPinAttempts();
+        resetFallosPin();
       }
 
       // PIN válido: guardar con auditoría
       setGuardandoEditar(true);
       const payload = { name: editNombre.trim(), phone: editTelefono.trim(), address: editDireccion.trim() || null };
-      const updated = await api.updateCustomerWithPin(editando.id, payload, {
-        employee_id: rolActivo,
-        pin: pinEditValue,
-        employee_name: nombreActivo || '',
+      const updated = await actualizarCliente(editando.id, {
+        ...payload,
+        payload,
+        auth: { employee_id: rolActivo, pin: pinEditValue, employee_name: nombreActivo || '' },
       });
       setClientes(prev => prev.map(c => c.id === editando.id ? { ...c, ...updated } : c));
       setPinEditModal(false);
@@ -190,7 +195,10 @@ export default function ClientesScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Tabs */}
+      {/* Tabs. Sin cuenta NO hay programa de fidelidad (§13): los puntos los
+          calcula y descuenta el servidor dentro de la misma transacción de la
+          venta, así que aquí no se pueden ofrecer sin inventar un saldo. */}
+      {!modoLocal && (
       <View style={styles.tabs}>
         <TouchableOpacity
           style={[styles.tab, tab === 'todos' && styles.tabActive]}
@@ -216,6 +224,7 @@ export default function ClientesScreen() {
           )}
         </TouchableOpacity>
       </View>
+      )}
 
       {/* Buscador */}
       <View style={styles.searchWrap}>
@@ -252,7 +261,7 @@ export default function ClientesScreen() {
         keyExtractor={c => String(c.id)}
         contentContainerStyle={styles.list}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
-        renderItem={({ item }) => <ClienteCard item={item} onEdit={abrirEditar} onToggleFidelidad={toggleFidelidad} toggling={toggling} isPremium={isPremium} />}
+        renderItem={({ item }) => <ClienteCard item={item} onEdit={abrirEditar} onToggleFidelidad={toggleFidelidad} toggling={toggling} isPremium={isPremium && !modoLocal} />}
         ListEmptyComponent={
           <View style={styles.emptyWrap}>
             <Ionicons name={tab === 'fidelidad' ? 'star-outline' : 'people-outline'} size={48} color={colors.textMuted} />

@@ -15,9 +15,17 @@ import {
   encolarVenta, obtenerVentas, marcarVenta, limpiarVentasSubidas,
   obtenerVentasParaMostrar,
 } from './db';
+import {
+  esModoLocal, catalogoLocalAgrupado, registrarVentaLocal, listarPedidosLocales,
+} from './local';
 
-// Re-exportado para que la pantalla de Pedidos muestre las ventas offline pendientes.
-export { obtenerVentasParaMostrar };
+// La pantalla de Pedidos pide por aquí lo que tiene que mostrar sin backend.
+// Con cuenta son las ventas encoladas ("por subir"); en modo local son TODAS las
+// ventas del negocio, que no están en ningún otro sitio.
+export async function ventasParaMostrar() {
+  if (await esModoLocal()) return await listarPedidosLocales();
+  return await obtenerVentasParaMostrar();
+}
 
 const MAX_INTENTOS = 5; // tras estos intentos con error del servidor, marcar para revisión
 
@@ -28,6 +36,9 @@ const MAX_INTENTOS = 5; // tras estos intentos con error del servidor, marcar pa
  * sin red devuelve la caché. Lanza solo si no hay red NI caché.
  */
 export async function obtenerCatalogo() {
+  // MODO LOCAL (BLOQUE 18): el catálogo es el que capturó el propio negocio.
+  // No hay servidor al que preguntar ni caché que refrescar.
+  if (await esModoLocal()) return await catalogoLocalAgrupado();
   try {
     const grouped = await api.getProductsGrouped();
     guardarCatalogo(grouped).catch((e) => console.warn('[offline] cache catálogo:', e?.message));
@@ -49,6 +60,9 @@ export async function obtenerCatalogo() {
  * sería el mismo error que dejar la caja sin funcionar por falta de red (§13).
  */
 export async function obtenerCatalogoModificadores() {
+  // Los modificadores se configuran con cuenta (§32): en modo local no hay
+  // ninguno, y la pantalla de venta ya sabe tratar un catálogo vacío.
+  if (await esModoLocal()) return { groups: [], product_groups: [] };
   try {
     const catalogo = await api.getModifiers();
     guardarCatalogoModificadores(catalogo).catch((e) =>
@@ -61,6 +75,9 @@ export async function obtenerCatalogoModificadores() {
 
 /** Reemplazo de api.getCustomers(): online cachea; sin red devuelve la caché (o []). */
 export async function obtenerClientes() {
+  // Los clientes locales llegan en la Etapa 2; hasta entonces la venta sin
+  // cuenta es anónima, que es como se cobra en un mostrador.
+  if (await esModoLocal()) return [];
   try {
     const clientes = await api.getCustomers();
     guardarClientes(clientes).catch((e) => console.warn('[offline] cache clientes:', e?.message));
@@ -101,6 +118,13 @@ export async function crearVenta(orderBody, meta = {}) {
  * @returns {Promise<{ modo: 'online' | 'offline' }>}
  */
 export async function registrarVenta(orderBody, online, meta = {}) {
+  // MODO LOCAL: la venta se guarda y se acabó. NO va a la cola de pendientes —
+  // esa cola significa "sube en cuanto haya red", y aquí no hay cuenta a la que
+  // subir nada (ver la trampa 3 del BLOQUE 18 en el plan V5).
+  if (await esModoLocal()) {
+    const pedido = await registrarVentaLocal(orderBody, meta);
+    return { modo: 'local', pedido };
+  }
   // Un solo client_uuid para ambos caminos: si el envío online expira pero el
   // pedido SÍ se creó, la cola reintenta con el mismo uuid y el backend deduplica.
   const body = { ...orderBody, client_uuid: orderBody.client_uuid || generarUuid() };

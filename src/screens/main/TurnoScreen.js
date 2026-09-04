@@ -6,7 +6,18 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
-import { api } from '../../api/client';
+import {
+  // Con alias A PROPÓSITO: los handlers de esta pantalla se llaman igual
+  // (abrirTurno, cerrarTurno…). Sin renombrar, cada handler se taparía a sí
+  // mismo y se llamaría en bucle en vez de llamar al adaptador.
+  turnoActivo as cajaTurnoActivo,
+  abrirTurno as cajaAbrirTurno,
+  totalesTurno as cajaTotales,
+  cerrarTurno as cajaCerrarTurno,
+  movimientosCaja as cajaMovimientos,
+  registrarMovimiento as cajaRegistrarMovimiento,
+  anularMovimiento as cajaAnularMovimiento,
+} from '../../offline/caja';
 import { colors, spacing, radius, font } from '../../theme';
 import LogoTitle from '../../components/LogoTitle';
 import { formatMoney } from '../../utils/money';
@@ -35,7 +46,7 @@ const MOV_TIPOS = [
 const MOV_LABEL = { retiro: 'Retiro', gasto: 'Gasto', deposito: 'Depósito' };
 
 export default function TurnoScreen() {
-  const { settings, user, sucursalId, puedeRegistrarEnSucursal, nombreActivo, rolActivo } = useAuth();
+  const { settings, user, sucursalId, puedeRegistrarEnSucursal, nombreActivo, rolActivo, modoLocal, salirModoLocal } = useAuth();
   const currency = settings?.currency_symbol || '$';
   const [turno, setTurno]           = useState(null);
   const [totales, setTotales]       = useState(null);
@@ -66,17 +77,17 @@ export default function TurnoScreen() {
 
   // El PIN para sacar dinero lo decide el dueño (ajuste del negocio). Los
   // depósitos nunca lo piden: meter dinero a la caja no es un riesgo.
-  const pinMovimientos = settings?.movimientos_caja_pin !== false;
+  const pinMovimientos = !modoLocal && settings?.movimientos_caja_pin !== false;
   const pinRequerido = (tipo) => tipo !== 'deposito' && pinMovimientos;
 
   const cargarTurno = useCallback(async () => {
     try {
-      const t = await api.getTurnoActivo(sucursalId);
+      const t = await cajaTurnoActivo(sucursalId);
       setTurno(t || null);
       if (t) {
-        const tots = await api.getTurnoTotales(t.id).catch(() => null);
+        const tots = await cajaTotales(t.id).catch(() => null);
         setTotales(tots);
-        const movs = await api.getMovimientosCaja(t.id).catch(() => null);
+        const movs = await cajaMovimientos(t.id).catch(() => null);
         setMovimientos(movs?.movimientos || []);
         setMovTotales(movs?.totales || {});
       } else {
@@ -111,7 +122,7 @@ export default function TurnoScreen() {
     setSaving(true);
     try {
       const cajeroNombre = nombreActivo || user?.name || 'Cajero';
-      const nuevo = await api.abrirTurno(cajeroNombre, rolActivo || null, fondo, sucursalId);
+      const nuevo = await cajaAbrirTurno(cajeroNombre, rolActivo || null, fondo, sucursalId);
       setTurno(nuevo);
       setTotales({ total_pedidos: 0, total_ventas: 0, total_efectivo: 0, total_tarjeta: 0, total_transferencia: 0 });
       setModal(false);
@@ -172,7 +183,7 @@ export default function TurnoScreen() {
     setSaving(true);
     setMovError('');
     try {
-      await api.registrarMovimientoCaja(turno.id, {
+      await cajaRegistrarMovimiento(turno.id, {
         tipo: movTipo,
         monto,
         motivo: movMotivo.trim() || null,
@@ -199,7 +210,7 @@ export default function TurnoScreen() {
     setSaving(true);
     setMovError('');
     try {
-      await api.anularMovimientoCaja(turno.id, modalAnular, {
+      await cajaAnularMovimiento(turno.id, modalAnular, {
         role: rolActivo || null,
         pin: pinRequerido('retiro') ? anularPin : undefined,
         employee_name: nombreActivo || user?.name || '',
@@ -231,12 +242,21 @@ export default function TurnoScreen() {
           onPress: async () => {
             setSaving(true);
             try {
-              await api.cerrarTurno(turno.id, efectivo, notasCierre || null);
+              const resumenDelDia = {
+                ventas: totales?.total_pedidos ?? 0,
+                total: totales?.total_ventas ?? 0,
+                moneda: currency,
+              };
+              await cajaCerrarTurno(turno.id, efectivo, notasCierre || null, efectivoEsperado());
               setTurno(null);
               setTotales(null);
               setModalCierre(false);
               setEfectivo('');
               setNotas('');
+              // Sin cuenta, el corte que acaba de cerrar existe SOLO aquí. Es el
+              // mejor momento para decirlo: final del día, nadie con prisa y
+              // mirando el dinero que hizo. Como mucho una vez al día.
+              if (modoLocal && await tocaAvisar()) setAviso(resumenDelDia);
             } catch (e) {
               Alert.alert('Error', friendlyError(e) || 'No se pudo cerrar el turno');
             } finally {
@@ -682,6 +702,14 @@ export default function TurnoScreen() {
           </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
+
+      {/* Aviso del negocio sin cuenta, tras cerrar el corte (BLOQUE 18, Etapa 2) */}
+      <AvisoSinCuenta
+        visible={!!aviso}
+        resumen={aviso}
+        onClose={() => setAviso(null)}
+        onCrearCuenta={() => { setAviso(null); salirModoLocal(false); }}
+      />
     </SafeAreaView>
   );
 }

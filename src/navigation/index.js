@@ -7,12 +7,12 @@ import * as SecureStore from 'expo-secure-store';
 
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../theme';
-import CustomTabBar, { ALL_SCREENS } from './CustomTabBar';
-import { SCREEN_PERM_MAP } from './screenPerms';
+import CustomTabBar, { pantallasDisponibles } from './CustomTabBar';
 
 import LoginScreen       from '../screens/auth/LoginScreen';
 import RegisterScreen    from '../screens/auth/RegisterScreen';
 import PerfilScreen      from '../screens/auth/PerfilScreen';
+import SinConexionInicialScreen from '../screens/auth/SinConexionInicialScreen';
 import DashboardScreen   from '../screens/main/DashboardScreen';
 import NuevaVentaScreen  from '../screens/main/NuevaVentaScreen';
 import PedidosScreen     from '../screens/main/PedidosScreen';
@@ -24,6 +24,7 @@ import InventarioScreen  from '../screens/main/InventarioScreen';
 import OfertasScreen     from '../screens/main/OfertasScreen';
 import RentabilidadScreen from '../screens/main/RentabilidadScreen';
 import AjustesScreen     from '../screens/main/AjustesScreen';
+import AjustesLocalScreen from '../screens/main/AjustesLocalScreen';
 import KDSScreen         from '../screens/main/KDSScreen';
 
 const SCREEN_MAP = {
@@ -47,26 +48,18 @@ const Tab   = createBottomTabNavigator();
 const SLOTS_KEY = 'zenit_tab_slots_v2';
 
 function MainTabs() {
-  const { isOwner, rolActivo, permisosRolesEfectivos } = useAuth();
+  const { isOwner, rolActivo, permisosRolesEfectivos, modoLocal } = useAuth();
   const [initialRoute, setInitialRoute] = useState(null);
   const screensRef = useRef([]);
 
+  // El filtro vive en CustomTabBar (`pantallasDisponibles`): la barra de abajo y
+  // el navegador TIENEN que ver la misma lista. Si se separaran, la barra
+  // ofrecería una pestaña que aquí no está registrada y tocarla no haría nada.
   const screens = useMemo(() => {
-    // Primer filtro: ownerOnly
-    let lista = ALL_SCREENS.filter(s => !s.ownerOnly || isOwner);
-    // Segundo filtro: permisos del puesto activo (solo si no es admin)
-    if (rolActivo && rolActivo !== 'dueno') {
-      const permisos = permisosRolesEfectivos?.[rolActivo] || {};
-      lista = lista.filter(s => {
-        if (s.name === 'Ajustes') return true; // siempre visible para impresora/KDS/cambiar perfil
-        const key = SCREEN_PERM_MAP[s.name];
-        if (!key) return true;
-        return permisos[key] !== false;
-      });
-    }
+    const lista = pantallasDisponibles({ isOwner, rolActivo, permisosRolesEfectivos, modoLocal });
     screensRef.current = lista;
     return lista;
-  }, [isOwner, rolActivo, permisosRolesEfectivos]);
+  }, [isOwner, rolActivo, permisosRolesEfectivos, modoLocal]);
 
   useEffect(() => {
     SecureStore.getItemAsync(SLOTS_KEY).then(saved => {
@@ -101,7 +94,10 @@ function MainTabs() {
         <Tab.Screen
           key={s.name}
           name={s.name}
-          component={SCREEN_MAP[s.name]}
+          // Ajustes tiene una pantalla propia sin cuenta: la normal son 1.580
+          // líneas de sucursales, puestos, plan y notificaciones que en modo
+          // local no existen (BLOQUE 18, trampa 4: todo es aditivo).
+          component={s.name === 'Ajustes' && modoLocal ? AjustesLocalScreen : SCREEN_MAP[s.name]}
         />
       ))}
     </Tab.Navigator>
@@ -109,7 +105,7 @@ function MainTabs() {
 }
 
 export default function Navigation() {
-  const { user, loading, profileReady, rolActivo } = useAuth();
+  const { user, loading, profileReady, rolActivo, arranqueSinCache } = useAuth();
 
   if (loading) {
     return (
@@ -122,7 +118,12 @@ export default function Navigation() {
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {!user ? (
+        {arranqueSinCache ? (
+          /* Hay sesión guardada pero no se pudo reconstruir y no hay caché local.
+             Mandar al login sería un callejón sin salida: el login también
+             necesita internet. */
+          <Stack.Screen name="SinConexion" component={SinConexionInicialScreen} />
+        ) : !user ? (
           <>
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />

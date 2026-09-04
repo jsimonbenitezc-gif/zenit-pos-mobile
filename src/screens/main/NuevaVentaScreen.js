@@ -11,6 +11,10 @@ import IconoProducto from '../../components/IconoProducto';
 import SvgIcon from '../../components/SvgIcon';
 import * as SecureStore from 'expo-secure-store';
 import { api } from '../../api/client';
+import {
+  verificarPinPuesto, pinBloqueado, minutosBloqueoPin,
+  registrarFalloPin, resetFallosPin,
+} from '../../offline/credenciales';
 import { useAuth } from '../../context/AuthContext';
 import { useNetwork } from '../../context/NetworkContext';
 import { obtenerCatalogo, obtenerClientes, obtenerCatalogoModificadores, registrarVenta, sincronizarVentasPendientes } from '../../offline/ventasOffline';
@@ -104,7 +108,7 @@ function CartItem({ item, onDelete, onEditNota, onEditMods, currency }) {
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 
 export default function NuevaVentaScreen() {
-  const { settings, user, isPremium, refreshSettings, sucursalId, puedeRegistrarEnSucursal, nombreActivo, rolActivo, permisosRolesEfectivos } = useAuth();
+  const { settings, user, isPremium, refreshSettings, sucursalId, puedeRegistrarEnSucursal, nombreActivo, rolActivo, permisosRolesEfectivos, modoLocal } = useAuth();
   const { online, refrescarPendientes } = useNetwork();
   const currency = settings?.currency_symbol || '$';
 
@@ -283,6 +287,11 @@ export default function NuevaVentaScreen() {
 
   useEffect(() => {
     let sse = null;
+    // Sin cuenta no hay inventario (es de la versión con cuenta), así que no hay
+    // stock que mostrar ni servidor al que abrirle una conexión en vivo. Sin este
+    // guard, un equipo que tuviera activado "mostrar stock" con su cuenta anterior
+    // intentaría conectarse a un servidor con el que ya no tiene sesión.
+    if (modoLocal) { setMostrarStock(false); return; }
     SecureStore.getItemAsync('mostrar_stock').then(val => {
       const show = val === 'true';
       setMostrarStock(show);
@@ -294,7 +303,7 @@ export default function NuevaVentaScreen() {
       }
     });
     return () => { try { sse?.close(); } catch {} };
-  }, [sucursalId]);
+  }, [sucursalId, modoLocal]);
 
   // Refrescar stock cada vez que la pantalla gana foco (ej. volver de otra tab)
   useFocusEffect(
@@ -583,8 +592,8 @@ export default function NuevaVentaScreen() {
 
   async function confirmarDescuentoConPin() {
     if (!pinDescValue) { setPinDescError('Ingresa tu PIN'); return; }
-    if (api.isPinLocked()) {
-      setPinDescError(`Demasiados intentos. Espera ${api.getPinLockRemainingMin()} min.`);
+    if (pinBloqueado()) {
+      setPinDescError(`Demasiados intentos. Espera ${minutosBloqueoPin()} min.`);
       return;
     }
     setPinDescLoading(true);
@@ -592,14 +601,14 @@ export default function NuevaVentaScreen() {
     try {
       const perfilActual = permisosRolesEfectivos?.[rolActivo];
       if (perfilActual?.pin_set) {
-        const result = await api.verifyProfilePin(rolActivo, pinDescValue);
-        if (!result.valid) {
-          api.registerPinFailure();
-          setPinDescError(api.isPinLocked() ? `Demasiados intentos. Espera 5 min.` : 'PIN incorrecto');
+        const result = await verificarPinPuesto(rolActivo, pinDescValue, permisosRolesEfectivos);
+        if (!result.valido) {
+          registrarFalloPin();
+          setPinDescError(pinBloqueado() ? `Demasiados intentos. Espera 5 min.` : 'PIN incorrecto');
           setPinDescLoading(false);
           return;
         }
-        api.resetPinAttempts();
+        resetFallosPin();
       }
       // PIN válido: aplicar descuento y registrar en auditoría
       const d = descPendiente;

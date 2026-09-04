@@ -52,6 +52,122 @@ async function _abrir() {
       id           INTEGER PRIMARY KEY,
       payload_json TEXT NOT NULL
     );
+    -- ── MODO LOCAL (BLOQUE 18) ───────────────────────────────────────────
+    -- El negocio SIN CUENTA. Ids propios y un uuid por fila (el uuid es lo que
+    -- sobrevive si algún día crea su cuenta y se lleva todo).
+    -- 🔴 SEPARADAS de las tablas catalogo_* a propósito: aquéllas guardan datos
+    -- del servidor con los ids DEL SERVIDOR. Mezclarlas haría que una venta
+    -- apuntara al producto equivocado. Un aparato está en un modo o en el otro.
+    CREATE TABLE IF NOT EXISTS local_categorias (
+      id     INTEGER PRIMARY KEY AUTOINCREMENT,
+      uuid   TEXT NOT NULL UNIQUE,
+      nombre TEXT NOT NULL,
+      emoji  TEXT,
+      orden  INTEGER DEFAULT 0
+    );
+    CREATE TABLE IF NOT EXISTS local_productos (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      uuid         TEXT NOT NULL UNIQUE,
+      nombre       TEXT NOT NULL,
+      precio       REAL NOT NULL DEFAULT 0,
+      emoji        TEXT,
+      imagen       TEXT,
+      categoria_id INTEGER,
+      activo       INTEGER NOT NULL DEFAULT 1
+    );
+    -- Una venta local NO sube nunca, así que NO va en ventas_pendientes (que
+    -- significa "esto se sube en cuanto haya red"). Ver el comentario de local.js.
+    CREATE TABLE IF NOT EXISTS local_pedidos (
+      id                INTEGER PRIMARY KEY AUTOINCREMENT,
+      uuid              TEXT NOT NULL UNIQUE,
+      fecha             TEXT NOT NULL,
+      total             REAL NOT NULL DEFAULT 0,
+      subtotal          REAL,
+      impuesto          REAL NOT NULL DEFAULT 0,
+      tasa_impuesto     REAL,
+      impuesto_incluido INTEGER,
+      propina           REAL NOT NULL DEFAULT 0,
+      propina_metodo    TEXT,
+      descuento         REAL NOT NULL DEFAULT 0,
+      metodo_pago       TEXT NOT NULL DEFAULT 'efectivo',
+      pagos_json        TEXT,
+      tipo              TEXT,
+      notas             TEXT,
+      cliente_id        INTEGER,
+      turno_id          INTEGER
+    );
+    CREATE TABLE IF NOT EXISTS local_pedido_items (
+      id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+      pedido_id          INTEGER NOT NULL,
+      producto_id        INTEGER,
+      nombre             TEXT NOT NULL,
+      cantidad           REAL NOT NULL DEFAULT 1,
+      precio_unitario    REAL NOT NULL DEFAULT 0,
+      precio_base        REAL,
+      modificadores_json TEXT,
+      notas              TEXT
+    );
+    -- Turno de caja local (Etapa 2). Es lo que separa "una calculadora bonita"
+    -- de un punto de venta: sin corte, el cajero cobra todo el día y nadie puede
+    -- cuadrar el cajón. Los totales se CONGELAN al cerrar, igual que en el
+    -- backend (§28): un corte ya leído no puede cambiar después.
+    CREATE TABLE IF NOT EXISTS local_turnos (
+      id                INTEGER PRIMARY KEY AUTOINCREMENT,
+      uuid              TEXT NOT NULL UNIQUE,
+      cajero            TEXT,
+      apertura          TEXT NOT NULL,
+      cierre            TEXT,
+      fondo_inicial     REAL NOT NULL DEFAULT 0,
+      efectivo_contado  REAL,
+      diferencia        REAL,
+      notas             TEXT,
+      total_pedidos     INTEGER,
+      total_ventas      REAL,
+      total_efectivo    REAL,
+      total_tarjeta     REAL,
+      total_transferencia REAL,
+      total_propinas    REAL,
+      total_propinas_efectivo REAL,
+      total_impuesto    REAL,
+      total_depositos   REAL,
+      total_retiros     REAL,
+      total_gastos      REAL
+    );
+    -- Dinero que entra o sale del cajón por fuera de las ventas (§28).
+    -- NUNCA se borra: un movimiento equivocado se ANULA y deja de contar.
+    CREATE TABLE IF NOT EXISTS local_movimientos (
+      id        INTEGER PRIMARY KEY AUTOINCREMENT,
+      uuid      TEXT NOT NULL UNIQUE,
+      turno_id  INTEGER NOT NULL,
+      tipo      TEXT NOT NULL,          -- retiro | gasto | deposito
+      monto     REAL NOT NULL,
+      motivo    TEXT,
+      fecha     TEXT NOT NULL,
+      anulado   INTEGER NOT NULL DEFAULT 0,
+      motivo_anulacion TEXT
+    );
+    CREATE TABLE IF NOT EXISTS local_clientes (
+      id        INTEGER PRIMARY KEY AUTOINCREMENT,
+      uuid      TEXT NOT NULL UNIQUE,
+      nombre    TEXT NOT NULL,
+      telefono  TEXT,
+      direccion TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_local_pedidos_fecha ON local_pedidos (fecha DESC);
+    CREATE INDEX IF NOT EXISTS idx_local_items_pedido ON local_pedido_items (pedido_id);
+    CREATE INDEX IF NOT EXISTS idx_local_movs_turno ON local_movimientos (turno_id);
+    -- Sesión local: lo mínimo para ARRANCAR sin internet (perfil del usuario y
+    -- ajustes del negocio, incluidos los puestos). Va en SQLite y no en
+    -- SecureStore porque permisos_roles + el logo pasan de largo el límite
+    -- práctico de SecureStore (~2 KB). Guarda los MISMOS hashes de PIN que ya
+    -- viajan en GET /api/settings — no expone nada nuevo, y es exactamente lo
+    -- que el desktop guarda en su propia SQLite.
+    -- Guarda además los ajustes del negocio SIN cuenta, bajo 'ajustes_local'.
+    CREATE TABLE IF NOT EXISTS sesion_local (
+      clave      TEXT PRIMARY KEY,
+      valor_json TEXT NOT NULL,
+      guardado_en TEXT
+    );
     CREATE TABLE IF NOT EXISTS ventas_pendientes (
       client_uuid  TEXT PRIMARY KEY,
       payload_json TEXT NOT NULL,
@@ -66,6 +182,10 @@ async function _abrir() {
   // Migración para BDs ya creadas antes de agregar estas columnas de display.
   for (const col of ['total REAL', 'resumen_json TEXT']) {
     try { await db.execAsync(`ALTER TABLE ventas_pendientes ADD COLUMN ${col};`); } catch { /* ya existe */ }
+  }
+  // Etapa 2 del modo local sobre una base creada en la Etapa 1.
+  for (const col of ['cliente_id INTEGER', 'turno_id INTEGER']) {
+    try { await db.execAsync(`ALTER TABLE local_pedidos ADD COLUMN ${col};`); } catch { /* ya existe */ }
   }
   return db;
 }
@@ -323,6 +443,66 @@ export async function contarPendientes() {
 export async function limpiarVentasSubidas() {
   const db = await initDB();
   await db.runAsync("DELETE FROM ventas_pendientes WHERE estado = 'subida'");
+}
+
+// ─── SESIÓN LOCAL (arrancar sin internet) ───────────────────────────────────
+// Sin esto la app no pasa de la pantalla de login cuando no hay señal: el
+// arranque llama a GET /auth/me y GET /settings, y sin red no hay ni usuario ni
+// puestos que mostrar. Se cachea lo que hace falta para reconstruir ese arranque.
+
+/** Guarda un valor de sesión (`perfil` | `settings`). Nunca lanza. */
+export async function guardarSesionLocal(clave, valor) {
+  if (valor == null) return;
+  try {
+    const db = await initDB();
+    await db.runAsync(
+      'INSERT OR REPLACE INTO sesion_local (clave, valor_json, guardado_en) VALUES (?, ?, ?)',
+      [clave, JSON.stringify(valor), new Date().toISOString()]
+    );
+  } catch (e) {
+    console.warn('[offline/db] guardarSesionLocal:', e?.message);
+  }
+}
+
+/**
+ * Lee un valor de sesión. Devuelve `undefined` cuando NO hay nada guardado y el
+ * valor cuando sí lo hay.
+ *
+ * ⚠️ La diferencia entre `undefined` y `{}` es de SEGURIDAD, no de estilo: unos
+ * ajustes vacíos se leen como "este negocio no tiene puestos configurados" y
+ * pueden acabar dando acceso de dueño (ver `_resolverPerfil` en AuthContext).
+ * "No pude leer los puestos" tiene que poder distinguirse de "no hay puestos".
+ */
+export async function leerSesionLocal(clave) {
+  try {
+    const db = await initDB();
+    const row = await db.getFirstAsync('SELECT valor_json FROM sesion_local WHERE clave = ?', [clave]);
+    if (!row?.valor_json) return undefined;
+    const parsed = _parse(row.valor_json);
+    return parsed == null ? undefined : parsed;
+  } catch (e) {
+    console.warn('[offline/db] leerSesionLocal:', e?.message);
+    return undefined;
+  }
+}
+
+/**
+ * Borra la sesión cacheada Y el catálogo del negocio. Se llama en el logout: los
+ * productos, los clientes y los puestos son de la cuenta que se acaba de cerrar y
+ * no significan nada en otra (mismo criterio que la sucursal del equipo, §24).
+ *
+ * ⚠️ Las ventas pendientes NO se tocan: son dinero ya cobrado que todavía no
+ * subió. Borrarlas al cerrar sesión sería perder ventas reales.
+ */
+export async function limpiarSesionLocal() {
+  try {
+    const db = await initDB();
+    await db.execAsync(
+      'DELETE FROM sesion_local; DELETE FROM catalogo_categorias; DELETE FROM catalogo_productos; DELETE FROM catalogo_clientes; DELETE FROM catalogo_modificadores;'
+    );
+  } catch (e) {
+    console.warn('[offline/db] limpiarSesionLocal:', e?.message);
+  }
 }
 
 function _parse(json) {

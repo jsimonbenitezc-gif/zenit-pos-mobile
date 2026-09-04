@@ -7,11 +7,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import { useAuth } from '../../context/AuthContext';
-import { api } from '../../api/client';
+import { useNetwork } from '../../context/NetworkContext';
+import {
+  verificarPinPuesto, pinBloqueado, minutosBloqueoPin,
+  registrarFalloPin, resetFallosPin,
+} from '../../offline/credenciales';
 import { colors, spacing, radius, font } from '../../theme';
 
 export default function PerfilScreen() {
   const { permisosRolesEfectivos, seleccionarPerfil, verificarPasswordAdmin, sessionEmail, logout } = useAuth();
+  const { online } = useNetwork();
   const permisos = permisosRolesEfectivos || {};
 
   const puestosActivos = (() => {
@@ -60,29 +65,32 @@ export default function PerfilScreen() {
     }
   }
 
+  // El PIN se verifica contra el servidor y, si no hay red, contra los hashes
+  // cacheados (offline/credenciales.js). Sin ese fallback el cajero llegaba hasta
+  // aquí sin conexión y no podía pasar: la app se quedaba sin caja.
   async function confirmarPin() {
     if (!pinInput || !puestoElegido) return;
-    if (api.isPinLocked()) {
-      Alert.alert('Bloqueado', `Demasiados intentos. Espera ${api.getPinLockRemainingMin()} minutos.`);
+    if (pinBloqueado()) {
+      Alert.alert('Bloqueado', `Demasiados intentos. Espera ${minutosBloqueoPin()} minutos.`);
       return;
     }
     setVerificandoPin(true);
     try {
-      const result = await api.verifyProfilePin(puestoElegido.rol, pinInput);
-      if (result.valid) {
-        api.resetPinAttempts();
+      const { valido } = await verificarPinPuesto(puestoElegido.rol, pinInput, permisos);
+      if (valido) {
+        resetFallosPin();
         setModalPin(false);
         seleccionarPerfil(puestoElegido.rol, puestoElegido.nombre);
       } else {
-        api.registerPinFailure();
+        registrarFalloPin();
         setPinError(true);
         setPinInput('');
-        if (api.isPinLocked()) {
+        if (pinBloqueado()) {
           Alert.alert('Bloqueado', 'Demasiados intentos. Espera 5 minutos.');
         }
       }
     } catch {
-      Alert.alert('Error', 'No se pudo verificar el PIN. Verifica tu conexión a internet.');
+      Alert.alert('Error', 'No se pudo verificar el PIN. Inténtalo de nuevo.');
     } finally {
       setVerificandoPin(false);
     }
@@ -125,6 +133,16 @@ export default function PerfilScreen() {
           <Text style={styles.title}>¿Quién está usando la app?</Text>
           <Text style={styles.subtitle}>Selecciona tu perfil para continuar</Text>
         </View>
+
+        {!online && (
+          <View style={styles.avisoOffline}>
+            <Ionicons name="cloud-offline-outline" size={18} color={colors.textSecondary} />
+            <Text style={styles.avisoOfflineText}>
+              Sin conexión. Se usan los puestos y el PIN guardados en este equipo; la
+              comprobación puede tardar un momento.
+            </Text>
+          </View>
+        )}
 
         <View style={styles.list}>
           {puestosActivos.map(p => (
@@ -260,6 +278,8 @@ const styles = StyleSheet.create({
   title:              { fontSize: font.xl, fontWeight: '800', color: colors.textPrimary, textAlign: 'center' },
   subtitle:           { fontSize: font.sm, color: colors.textMuted, textAlign: 'center' },
   list:               { gap: spacing.sm },
+  avisoOffline:       { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.md },
+  avisoOfflineText:   { flex: 1, fontSize: font.sm, color: colors.textSecondary, lineHeight: 18 },
   card:               { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg, borderWidth: 1, borderColor: colors.border },
   cardAdmin:          { opacity: 0.75 },
   cardLeft:           { flexDirection: 'row', alignItems: 'center', gap: spacing.md, flex: 1 },

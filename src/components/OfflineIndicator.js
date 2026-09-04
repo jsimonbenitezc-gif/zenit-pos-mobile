@@ -3,10 +3,16 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNetwork } from '../context/NetworkContext';
+import { useAuth } from '../context/AuthContext';
 import { radius, font, spacing } from '../theme';
 
 export default function OfflineIndicator() {
   const { online, pendientes } = useNetwork();
+  const { modoLocal } = useAuth();
+  // Sin cuenta, estar sin internet es lo NORMAL y no hay nada esperando a subir.
+  // Un aviso permanente de "Sin conexión" ahí no informa de nada: solo alarma y
+  // sugiere que algo va mal cuando el negocio funciona exactamente como debe.
+  if (modoLocal) return null;
   if (online && pendientes === 0) return null;
 
   const offline = !online;

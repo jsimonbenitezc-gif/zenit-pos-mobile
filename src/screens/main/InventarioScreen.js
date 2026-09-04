@@ -10,6 +10,10 @@ import { Ionicons } from '@expo/vector-icons';
 import IconoProducto from '../../components/IconoProducto';
 import ListaComprasSection from './ListaComprasSection';
 import { api } from '../../api/client';
+import {
+  verificarPinPuesto, pinBloqueado, minutosBloqueoPin,
+  registrarFalloPin, resetFallosPin,
+} from '../../offline/credenciales';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font } from '../../theme';
 import LogoTitle from '../../components/LogoTitle';
@@ -521,8 +525,8 @@ export default function InventarioScreen() {
 
   const confirmarAjusteConPin = async () => {
     if (!pinAjusteValue) { setPinAjusteError('Ingresa tu PIN'); return; }
-    if (api.isPinLocked()) {
-      setPinAjusteError(`Demasiados intentos. Espera ${api.getPinLockRemainingMin()} min.`);
+    if (pinBloqueado()) {
+      setPinAjusteError(`Demasiados intentos. Espera ${minutosBloqueoPin()} min.`);
       return;
     }
     setPinAjusteLoading(true);
@@ -530,14 +534,14 @@ export default function InventarioScreen() {
     try {
       const perfilActual = permisosRolesEfectivos?.[rolActivo];
       if (perfilActual?.pin_set) {
-        const result = await api.verifyProfilePin(rolActivo, pinAjusteValue);
-        if (!result.valid) {
-          api.registerPinFailure();
-          setPinAjusteError(api.isPinLocked() ? 'Demasiados intentos. Espera 5 min.' : 'PIN incorrecto');
+        const result = await verificarPinPuesto(rolActivo, pinAjusteValue, permisosRolesEfectivos);
+        if (!result.valido) {
+          registrarFalloPin();
+          setPinAjusteError(pinBloqueado() ? 'Demasiados intentos. Espera 5 min.' : 'PIN incorrecto');
           setPinAjusteLoading(false);
           return;
         }
-        api.resetPinAttempts();
+        resetFallosPin();
       }
       const qty = parseFloat(cantidad);
       setPinAjusteModal(false);

@@ -18,7 +18,10 @@ function OfflineBootstrap() {
     // Intento inicial (si ya hay sesión). sincronizarVentasPendientes ignora si no hay token.
     sincronizarVentasPendientes().then(() => refrescarPendientes?.()).catch(() => {});
     // Al volver la conexión: subir pendientes y refrescar el conteo.
-    registrarOnReconnect(async () => {
+    // `registrarOnReconnect` devuelve la baja: no es el único interesado en la
+    // reconexión (AuthContext también se engancha para refrescar una sesión que
+    // se restauró sin red).
+    return registrarOnReconnect(async () => {
       await sincronizarVentasPendientes();
       refrescarPendientes?.();
     });

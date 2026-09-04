@@ -6,41 +6,16 @@ class ApiClient {
     this.token = null;
     this.refreshToken = null;
     this.baseURL = BASE_URL;
-    this._pinFailCount = 0;
-    this._pinLockedUntil = null;
     this.onUnauthorized = null; // callback para sesión expirada
     this.onTokenRefreshed = null; // callback (token, refreshToken) tras rotación exitosa
     this._refreshPromise = null; // dedupe: evita refrescar varias veces en paralelo
     this._refreshRejected = false; // true solo si el servidor rechazó el refresh token (401/403)
   }
 
-  // ─── Control de intentos de PIN ──────────────────────────────────────
-  isPinLocked() {
-    if (!this._pinLockedUntil) return false;
-    if (Date.now() >= this._pinLockedUntil) {
-      this._pinFailCount = 0;
-      this._pinLockedUntil = null;
-      return false;
-    }
-    return true;
-  }
-
-  getPinLockRemainingMin() {
-    if (!this._pinLockedUntil) return 0;
-    return Math.max(0, Math.ceil((this._pinLockedUntil - Date.now()) / 60000));
-  }
-
-  registerPinFailure() {
-    this._pinFailCount++;
-    if (this._pinFailCount >= 5) {
-      this._pinLockedUntil = Date.now() + 5 * 60 * 1000;
-    }
-  }
-
-  resetPinAttempts() {
-    this._pinFailCount = 0;
-    this._pinLockedUntil = null;
-  }
+  // El control de intentos de PIN vive ahora en `src/offline/credenciales.js`,
+  // junto a la verificación: aquí era solo en memoria y se borraba al reabrir la
+  // app, así que dejó de ser una barrera en cuanto el PIN se pudo comprobar sin
+  // red (bastaba con matar el proceso entre intento e intento).
 
   setToken(token) {
     this.token = token;
