@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   ActivityIndicator, RefreshControl, Alert, TextInput,
@@ -169,6 +169,41 @@ export default function MesasScreen() {
   // ── Dividir la cuenta (BLOQUE 10) ────────────────────────────────────────
   const itemsCuenta = (ordenActiva && ordenActiva.items) || [];
   const totalCuenta = parseFloat((ordenActiva && ordenActiva.total) || 0);
+
+  /**
+   * La cuenta partida en UNIDADES asignables, no en renglones.
+   *
+   * ⚠️ Cuatro refrescos iguales son UN renglón con cantidad 4, y dos parejas
+   * que pagan por separado necesitan 2 y 2. Repartiendo renglones enteros los
+   * cuatro caen forzosamente en el mismo ticket. Cada unidad lleva un id propio
+   * ("12#0", "12#1"…) y su parte del subtotal, así que montoDeItems() —la
+   * fórmula compartida con el backend y el desktop (§31)— sigue funcionando SIN
+   * TOCARLA: la suma de las unidades es la suma de los renglones.
+   */
+  const unidadesCuenta = useMemo(() => {
+    const out = [];
+    for (const it of itemsCuenta) {
+      const sub = parseFloat(it.subtotal);
+      const monto = Number.isFinite(sub) && sub > 0
+        ? sub
+        : (parseFloat(it.unit_price) || 0) * (parseFloat(it.quantity) || 0);
+      const cant = parseInt(it.quantity, 10);
+      // Una cantidad fraccionaria o rara se trata como un solo bloque: partir
+      // "0.75 kg de queso" en unidades no significaría nada.
+      const piezas = Number.isFinite(cant) && cant > 1 ? cant : 1;
+      for (let k = 0; k < piezas; k++) {
+        out.push({
+          id: `${it.id}#${k}`,
+          item_id: it.id,
+          nombre: it.product ? it.product.name : 'Producto',
+          subtotal: monto / piezas,
+          pieza: k + 1,
+          de: piezas,
+        });
+      }
+    }
+    return out;
+  }, [itemsCuenta]);
   const faltaCuenta = faltantePago(pagosMesa, totalCuenta);
   const divisionCuadra = pagosMesa.length > 0 && pagosCuadran(pagosMesa, totalCuenta);
 
@@ -182,7 +217,7 @@ export default function MesasScreen() {
     // Se arranca con dos pagos y todos los items en el primero: el cajero solo
     // mueve los que cambian de dueño.
     const inicial = {};
-    for (const it of itemsCuenta) inicial[it.id] = 0;
+    for (const u of unidadesCuenta) inicial[u.id] = 0;
     setAsignacion(inicial);
     setPagosMesa(_repartirPorItems(inicial, 2));
     setDividirCuenta(true);
@@ -198,9 +233,13 @@ export default function MesasScreen() {
       item_ids: [],
     }));
     for (let i = 0; i < base.length; i++) {
-      const ids = itemsCuenta.filter(it => (asig[it.id] || 0) === i).map(it => it.id);
-      base[i].item_ids = ids;
-      base[i].amount = montoDeItems(itemsCuenta, ids, totalCuenta);
+      const suyas = unidadesCuenta.filter(u => (asig[u.id] || 0) === i);
+      // El monto se calcula por UNIDADES; los item_ids que se guardan son los
+      // ids REALES (sin repetir), que es lo que el backend sabe validar. Un
+      // renglón partido entre dos pagos aparece en los dos: es la verdad. El
+      // cuadre lo hace el amount, nunca esta lista (§31).
+      base[i].item_ids = [...new Set(suyas.map(u => u.item_id))];
+      base[i].amount = montoDeItems(unidadesCuenta, suyas.map(u => u.id), totalCuenta);
     }
     // Las proporciones dejan centavos sueltos: se le cargan al último pago para
     // que la suma dé exactamente la cuenta (el backend exige que cuadre).
@@ -1007,10 +1046,10 @@ export default function MesasScreen() {
                       Toca el número para asignar cada producto a quien lo paga.
                       Los montos se calculan solos.
                     </Text>
-                    {itemsCuenta.map(it => (
-                      <View key={it.id} style={styles.divisionItemRow}>
+                    {unidadesCuenta.map(u => (
+                      <View key={u.id} style={styles.divisionItemRow}>
                         <Text style={styles.divisionItemNombre} numberOfLines={1}>
-                          {it.quantity}× {it.product ? it.product.name : 'Producto'}
+                          {u.nombre}{u.de > 1 ? ` · ${u.pieza} de ${u.de}` : ''}
                         </Text>
                         <View style={styles.divisionItemPagos}>
                           {pagosMesa.map((_, i) => (
@@ -1018,13 +1057,13 @@ export default function MesasScreen() {
                               key={i}
                               style={[
                                 styles.divisionItemChip,
-                                (asignacion[it.id] || 0) === i && styles.divisionItemChipActive,
+                                (asignacion[u.id] || 0) === i && styles.divisionItemChipActive,
                               ]}
-                              onPress={() => asignarItem(it.id, i)}
+                              onPress={() => asignarItem(u.id, i)}
                             >
                               <Text style={[
                                 styles.divisionItemChipText,
-                                (asignacion[it.id] || 0) === i && { color: '#fff' },
+                                (asignacion[u.id] || 0) === i && { color: '#fff' },
                               ]}>{i + 1}</Text>
                             </TouchableOpacity>
                           ))}
