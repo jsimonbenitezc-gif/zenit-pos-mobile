@@ -12,7 +12,8 @@
     "verificar": "node scripts/revisar.js && node scripts/smoke-credenciales.js && node scripts/smoke-modo-local.js && node scripts/smoke-migracion.js && npm run smoke:sinsesion",
     "smoke:local": "node scripts/smoke-modo-local.js",
     "smoke:migracion": "node scripts/smoke-migracion.js",
-    "smoke:sinsesion": "node scripts/smoke-modo-local-sin-sesion.js"
+    "smoke:sinsesion": "node scripts/smoke-modo-local-sin-sesion.js",
+    "emulador": "node scripts/emulador.js"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
