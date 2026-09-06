@@ -9,8 +9,9 @@
     "web": "expo start --web",
     "revisar": "node scripts/revisar.js",
     "smoke:credenciales": "node scripts/smoke-credenciales.js",
-    "verificar": "node scripts/revisar.js && node scripts/smoke-credenciales.js && node scripts/smoke-modo-local.js",
-    "smoke:local": "node scripts/smoke-modo-local.js"
+    "verificar": "node scripts/revisar.js && node scripts/smoke-credenciales.js && node scripts/smoke-modo-local.js && node scripts/smoke-migracion.js",
+    "smoke:local": "node scripts/smoke-modo-local.js",
+    "smoke:migracion": "node scripts/smoke-migracion.js"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",

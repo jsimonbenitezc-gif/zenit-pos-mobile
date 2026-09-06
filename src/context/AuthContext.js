@@ -9,6 +9,7 @@ import { normalizarSugerencias } from '../utils/propinas';
 import { useNetwork } from './NetworkContext';
 import { guardarSesionLocal, leerSesionLocal, limpiarSesionLocal } from '../offline/db';
 import { leerAjustesLocales, guardarAjustesLocales, borrarNegocioLocal, fijarModoLocal } from '../offline/local';
+import { migrarANube } from '../offline/migrar';
 import {
   esErrorDeRed, guardarVerificadorAdmin, verificarPasswordAdminLocal,
   hayVerificadorAdmin, borrarVerificadorAdmin, cargarBloqueoPin, resetFallosPin,
@@ -442,6 +443,40 @@ export function AuthProvider({ children }) {
     setProfileReady(false);
   }
 
+  /**
+   * "CREAR CUENTA Y LLEVARME TODO" (BLOQUE 18, Etapa 3).
+   *
+   * Registra la cuenta con el camino de siempre y, acto seguido, sube el negocio
+   * local: catálogo, clientes e historial de ventas.
+   *
+   * ⚠️ EL ORDEN IMPORTA Y ES ÉSTE:
+   *   1. la cuenta (si el registro falla, no se tocó absolutamente nada);
+   *   2. la migración (lo local sigue intacto pase lo que pase);
+   *   3. y SOLO AL FINAL se apaga la bandera de modo local.
+   * Apagarla antes dejaría al usuario en una cuenta vacía mirando cómo su
+   * negocio "desaparece" si la migración se cae a la mitad.
+   *
+   * Devuelve el reporte de la migración. **No lanza por un fallo de migración**:
+   * la cuenta ya existe y lo local no se ha perdido, así que la pantalla puede
+   * ofrecer reintentar. Sí propaga un fallo del REGISTRO, que es lo que hay que
+   * corregir antes de seguir (correo repetido, contraseña corta…).
+   */
+  async function crearCuentaYMigrar(nombre, correo, contrasena, onPaso) {
+    await registerOwner(nombre, correo, contrasena);
+
+    let reporte;
+    try {
+      reporte = await migrarANube(api, onPaso);
+    } catch (e) {
+      reporte = { ok: false, subido: {}, fallos: [{ tipo: 'migracion', nombre: 'la subida', error: e?.message || String(e) }] };
+    }
+
+    await SecureStore.deleteItemAsync('zenit_modo_local');
+    fijarModoLocal(false);
+    setModoLocal(false);
+    return reporte;
+  }
+
   /** Guarda ajustes del negocio local (nombre, moneda, impuesto, propinas…). */
   async function guardarAjustesLocal(parciales) {
     const nuevos = await guardarAjustesLocales(parciales);
@@ -652,6 +687,7 @@ export function AuthProvider({ children }) {
       rolActivo, nombreActivo, profileReady, sessionEmail,
       arranqueSinCache, sesionRestauradaOffline, reintentarArranque,
       modoLocal, entrarModoLocal, salirModoLocal, guardarAjustesLocal,
+      crearCuentaYMigrar,
       loginOwner, registerOwner, logout,
       verificarPasswordAdmin,
       refreshUser, refreshSettings,

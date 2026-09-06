@@ -26,9 +26,11 @@ import { normalizarSugerencias } from '../../utils/propinas';
 import {
   isPrinterAvailable, getPairedDevices, connectPrinter, disconnectPrinter, printTest,
 } from '../../utils/printer';
+import { resumenParaMigrar } from '../../offline/migrar';
+import ModalMigrar from './ajustes/ModalMigrar';
 
 export default function AjustesLocalScreen() {
-  const { settings, guardarAjustesLocal, salirModoLocal } = useAuth();
+  const { settings, guardarAjustesLocal, salirModoLocal, crearCuentaYMigrar } = useAuth();
 
   const [nombre, setNombre]   = useState('');
   const [moneda, setMoneda]   = useState('$');
@@ -135,6 +137,21 @@ export default function AjustesLocalScreen() {
     catch (e) { Alert.alert('Error al imprimir', friendlyError(e)); }
   }
 
+  // ── Migrar a una cuenta (Etapa 3) ─────────────────────────────────────────
+  const [modalMigrar, setModalMigrar] = useState(false);
+  const [resumen, setResumen] = useState(null);
+
+  // El resumen se lee al entrar para que el botón diga CUÁNTO se va a subir. Un
+  // botón que solo dice "llevarme todo" no da la confianza que hace falta para
+  // tocarlo: ver "38 ventas" sí.
+  useEffect(() => {
+    resumenParaMigrar().then(setResumen).catch(() => setResumen(null));
+  }, []);
+
+  function abrirMigrar() {
+    setModalMigrar(true);
+  }
+
   // ── Salidas del modo local ────────────────────────────────────────────────
   function irACuenta() {
     Alert.alert(
@@ -227,14 +244,32 @@ export default function AjustesLocalScreen() {
         )}
 
         <Text style={styles.seccion}>Cuenta</Text>
-        <TouchableOpacity style={[styles.opcion, styles.opcionDestacada]} onPress={irACuenta}>
+
+        {/* La salida BUENA: crear cuenta SIN perder nada. Va primero y destacada
+            porque es lo que el negocio quiere hacer — "irACuenta", que deja el
+            historial atrás, se queda debajo para quien ya tiene una cuenta. */}
+        <TouchableOpacity style={[styles.opcion, styles.opcionDestacada]} onPress={abrirMigrar}>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.opcionLabel, { color: colors.primary }]}>Crear una cuenta gratis</Text>
+            <Text style={[styles.opcionLabel, { color: colors.primary }]}>Crear cuenta y llevarme todo</Text>
             <Text style={styles.opcionSub}>
-              Respaldo automático, mesas, inventario, empleados y ver tus ventas desde otro aparato.
+              {resumen
+                ? `Se suben tus ${resumen.productos} producto${resumen.productos === 1 ? '' : 's'}, ` +
+                  `${resumen.clientes} cliente${resumen.clientes === 1 ? '' : 's'} y ${resumen.ventas} venta${resumen.ventas === 1 ? '' : 's'}. ` +
+                  'Nada se borra de este teléfono.'
+                : 'Tu menú, tus clientes y tu historial de ventas se suben a tu cuenta nueva.'}
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.primary} />
+          <Ionicons name="cloud-upload-outline" size={18} color={colors.primary} />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.opcion} onPress={irACuenta}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.opcionLabel}>Ya tengo cuenta: iniciar sesión</Text>
+            <Text style={styles.opcionSub}>
+              Entras a tu cuenta y este negocio se queda guardado en el teléfono, por si vuelves.
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.btnPeligro} onPress={borrarTodo}>
@@ -244,6 +279,13 @@ export default function AjustesLocalScreen() {
           Sin cuenta no hay copia en internet. Si borras esto o pierdes el teléfono, no se puede recuperar.
         </Text>
       </ScrollView>
+
+      <ModalMigrar
+        visible={modalMigrar}
+        resumen={resumen}
+        onCerrar={() => setModalMigrar(false)}
+        crearCuentaYMigrar={crearCuentaYMigrar}
+      />
 
       <Modal visible={modalPrinter} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModalPrinter(false)}>
         <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>

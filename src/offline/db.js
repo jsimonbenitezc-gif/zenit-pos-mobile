@@ -168,6 +168,21 @@ async function _abrir() {
       valor_json TEXT NOT NULL,
       guardado_en TEXT
     );
+    -- MIGRACIÓN A UNA CUENTA (BLOQUE 18, Etapa 3): el mapa "uuid local → id del
+    -- servidor". Es lo que hace que los items de una venta migrada apunten al
+    -- producto correcto ya subido… y, sobre todo, lo que permite REANUDAR: si la
+    -- red se cae con 30 de 60 productos subidos, reintentar sube los 30 que
+    -- faltan y no crea 30 duplicados. Sin esta tabla, un reintento duplicaría el
+    -- menú entero.
+    --
+    -- Las VENTAS no la necesitan para deduplicarse (el backend ya lo hace por
+    -- client_uuid, §19.7), pero se anotan igual para poder contar el avance.
+    CREATE TABLE IF NOT EXISTS local_migracion (
+      uuid      TEXT PRIMARY KEY,
+      tipo      TEXT NOT NULL,          -- categoria | producto | cliente | pedido | ajustes
+      server_id INTEGER,
+      subido_en TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS ventas_pendientes (
       client_uuid  TEXT PRIMARY KEY,
       payload_json TEXT NOT NULL,
