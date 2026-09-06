@@ -102,7 +102,15 @@ function PedidoCard({ pedido, onCambiarEstado, onReimprimir, currency }) {
         </View>
       )}
 
-      {pedido.status === 'registrado' && (
+      {/* 🔴 UNA VENTA LOCAL NO CAMBIA DE ESTADO.
+          Estos tres botones llaman al backend, y una venta del MODO LOCAL
+          (`_local`) pertenece a un negocio SIN cuenta: la llamada vuelve con 401
+          y hasta el arreglo de hoy expulsaba al usuario con "Sesión expirada".
+          Un pedido local nace ya `completado` —se cobró y se cerró en el
+          momento—, así que era "Marcar entregado" el que salía en pantalla y el
+          que rompía. Aquí el historial es historial, igual que en el modo local
+          del desktop: se puede consultar y reimprimir, no cambiar de estado. */}
+      {!pedido._local && pedido.status === 'registrado' && (
         <View style={styles.acciones}>
           <TouchableOpacity
             style={[styles.accionBtn, { backgroundColor: colors.primary }]}
@@ -118,7 +126,7 @@ function PedidoCard({ pedido, onCambiarEstado, onReimprimir, currency }) {
           </TouchableOpacity>
         </View>
       )}
-      {pedido.status === 'completado' && (
+      {!pedido._local && pedido.status === 'completado' && (
         <TouchableOpacity
           style={[styles.accionBtn, { backgroundColor: colors.success, alignSelf: 'flex-start', marginTop: spacing.sm }]}
           onPress={() => onCambiarEstado(pedido.id, 'entregado')}
@@ -179,9 +187,12 @@ export default function PedidosScreen() {
   async function reimprimirTicket(pedido) {
     // El listado no trae los items completos de todos los pedidos; se pide el
     // detalle para que el papel salga igual que el original.
+    // Una venta LOCAL ya trae sus items (`listarPedidosLocales` los incluye) y no
+    // existe en ningún servidor: pedirla al backend daría 401. Se imprime con lo
+    // que hay, que es todo.
     let completo = pedido;
     try {
-      if (!pedido.items || pedido.items.length === 0) {
+      if (!pedido._local && (!pedido.items || pedido.items.length === 0)) {
         completo = await api.getOrder(pedido.id);
       }
     } catch { /* se imprime con lo que hay */ }

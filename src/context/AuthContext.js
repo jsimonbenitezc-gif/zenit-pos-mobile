@@ -8,7 +8,7 @@ import { zonaDelDispositivo } from '../utils/tz';
 import { normalizarSugerencias } from '../utils/propinas';
 import { useNetwork } from './NetworkContext';
 import { guardarSesionLocal, leerSesionLocal, limpiarSesionLocal } from '../offline/db';
-import { leerAjustesLocales, guardarAjustesLocales, borrarNegocioLocal, fijarModoLocal } from '../offline/local';
+import { leerAjustesLocales, guardarAjustesLocales, borrarNegocioLocal, fijarModoLocal, esModoLocal } from '../offline/local';
 import { migrarANube } from '../offline/migrar';
 import {
   esErrorDeRed, guardarVerificadorAdmin, verificarPasswordAdminLocal,
@@ -68,7 +68,29 @@ export function AuthProvider({ children }) {
 
   // Registrar callback para logout automático cuando el token expire (401)
   useEffect(() => {
-    api.onUnauthorized = () => {
+    api.onUnauthorized = async () => {
+      // 🔴 EN MODO LOCAL NO HAY SESIÓN QUE EXPIRAR.
+      //
+      // Un negocio sin cuenta no tiene token, así que CUALQUIER llamada que se
+      // escape al servidor vuelve con 401 y aterrizaba aquí: se borraba todo y
+      // salía "Sesión expirada", expulsando al usuario de un negocio que vive
+      // solo en su teléfono. Pasó de verdad: los botones de estado del historial
+      // de pedidos (completado / cancelar / entregado) llamaban al backend, y
+      // tocar uno te sacaba de la app.
+      //
+      // El cerrojo va AQUÍ y no en cada pantalla a propósito — es el mismo
+      // criterio del §40.1 y del §41.6: se pone en el punto que DECIDE, no en
+      // quien llama, para que no dependa de que las N pantallas se acuerden.
+      // Las llamadas que se escapen siguen fallando (y eso está bien: son un
+      // error), pero ya no se llevan por delante el negocio del usuario.
+      //
+      // Se consulta `esModoLocal()` en vez del estado `modoLocal` porque este
+      // efecto se registra una sola vez y su closure capturaría el valor viejo.
+      if (await esModoLocal()) {
+        console.warn('[modo local] Una llamada salió al servidor y devolvió 401. ' +
+                     'No se cierra nada: en modo local no hay cuenta.');
+        return;
+      }
       SecureStore.deleteItemAsync('zenit_token').catch(() => {});
       SecureStore.deleteItemAsync('zenit_refresh_token').catch(() => {});
       SecureStore.deleteItemAsync('zenit_push_token').catch(() => {});
