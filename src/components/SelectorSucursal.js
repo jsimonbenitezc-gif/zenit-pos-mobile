@@ -84,8 +84,20 @@ export default function SelectorSucursal({ value, onChange }) {
 }
 
 const styles = StyleSheet.create({
-  scroll:  { marginBottom: spacing.xs, flexGrow: 0 },
-  content: { paddingHorizontal: spacing.lg, gap: spacing.xs },
+  // ⚠️ `flexShrink: 0` no es opcional: sin él, cuando la pantalla que lo contiene
+  // aprieta el espacio vertical, este ScrollView se ENCOGE y recorta las píldoras
+  // por la mitad — se veía en Pedidos y en Inventario, con el nombre de la
+  // sucursal cortado en horizontal. `flexGrow: 0` solo evita que crezca; hace
+  // falta el otro para que tampoco se comprima.
+  scroll: { marginBottom: spacing.xs, flexGrow: 0, flexShrink: 0 },
+  content: {
+    paddingHorizontal: spacing.lg,
+    gap: spacing.xs,
+    alignItems: 'center',
+    // Un respiro arriba y abajo: sin él la píldora roza el borde del ScrollView
+    // y basta un píxel de diferencia para que parezca cortada.
+    paddingVertical: 3,
+  },
   tab: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs + 2,

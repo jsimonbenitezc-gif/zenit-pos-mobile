@@ -23,7 +23,7 @@ export const ALL_SCREENS = [
   { name: 'Inventario', label: 'Inventario', icon: 'layers-outline', active: 'layers', ownerOnly: true },
   { name: 'Ofertas', label: 'Ofertas', icon: 'pricetag-outline', active: 'pricetag', ownerOnly: true },
   // Solo el dueño: son los márgenes del negocio (BLOQUE 12).
-  { name: 'Rentabilidad', label: 'Margen', icon: 'trending-up-outline', active: 'trending-up', ownerOnly: true },
+  { name: 'Rentabilidad', label: 'Rentabilidad', icon: 'trending-up-outline', active: 'trending-up', ownerOnly: true },
   { name: 'Dashboard', label: 'Resumen', icon: 'bar-chart-outline', active: 'bar-chart', ownerOnly: true },
   { name: 'Ajustes', label: 'Ajustes', icon: 'settings-outline', active: 'settings', ownerOnly: false, local: true },
 ];
@@ -77,6 +77,8 @@ export default function CustomTabBar({ state, navigation }) {
   );
 
   const BAR_HEIGHT = 64 + (insets.bottom || spacing.sm);
+  // Alto natural del contenido del panel, medido en su primer render.
+  const [alturaPanel, setAlturaPanel] = useState(360);
   const sheetY = useRef(new Animated.Value(360)).current;
   const sheetYRef = useRef(360);
   const sheetClosedRef = useRef(360);
@@ -139,10 +141,18 @@ export default function CustomTabBar({ state, navigation }) {
     SecureStore.setItemAsync(STORE_KEY, JSON.stringify(newSlots));
   }
 
+  // `sheetY` es CUÁNTO FALTA POR DESCUBRIR: `alturaPanel` con el panel cerrado,
+  // 0 con el panel entero a la vista. La altura visible es la resta, y es lo que
+  // se anima — de ahí que la barra se vea CRECER en vez de recibir una ventana.
+  const alturaVisible = Animated.subtract(alturaPanel, sheetY);
+
+  // ⚠️ `useNativeDriver: false` es obligatorio aquí: el driver nativo no sabe
+  // animar `height`, solo transformaciones y opacidad. Es el precio de que la
+  // superficie crezca de verdad, y en un panel que se abre una vez no se nota.
   function animateOpen() {
     Animated.spring(sheetY, {
       toValue: 0,
-      useNativeDriver: true,
+      useNativeDriver: false,
       tension: 60,
       friction: 10,
     }).start();
@@ -151,8 +161,8 @@ export default function CustomTabBar({ state, navigation }) {
   function animateClose(onEnd) {
     Animated.timing(sheetY, {
       toValue: sheetClosedRef.current,
-      duration: 250,
-      useNativeDriver: true,
+      duration: 220,
+      useNativeDriver: false,
     }).start(() => onEnd?.());
   }
 
@@ -298,21 +308,36 @@ export default function CustomTabBar({ state, navigation }) {
         </Pressable>
       )}
 
+      {/* 🔴 LA BARRA CRECE — NO ENTRA UNA VENTANA DESLIZÁNDOSE.
+          Antes esto se movía con `translateY` desde abajo, y por muy bien que se
+          pintara seguía LEYÉNDOSE como una ventana que aparece: el movimiento es
+          lo que delata a un modal, no el color. Ahora lo que se anima es la
+          ALTURA de un contenedor recortado y anclado a la barra, con el contenido
+          pegado a su fondo: al crecer, la superficie se extiende hacia arriba y va
+          descubriendo lo que lleva dentro. Es la misma diferencia que entre subir
+          una persiana y meter una hoja por debajo de la puerta.
+          ⚠️ Animar `height` obliga a `useNativeDriver: false` (ver animateOpen). */}
       {expanded && (
         <Animated.View
+          style={[
+            styles.morePanelClip,
+            { bottom: BAR_HEIGHT - 2 },
+            { height: alturaVisible },
+          ]}
+          {...panelPan.panHandlers}
+        >
+        <View
           onLayout={(e) => {
             const h = e.nativeEvent.layout.height;
             if (h <= 0) return;
-            const closed = Math.max(220, Math.round(h + 12));
-            sheetClosedRef.current = closed;
+            const alto = Math.max(220, Math.round(h));
+            sheetClosedRef.current = alto;
+            if (alto !== alturaPanel) setAlturaPanel(alto);
           }}
           style={[
-            styles.morePanel,
+            styles.morePanelInner,
             { paddingBottom: insets.bottom || spacing.sm },
-            { bottom: BAR_HEIGHT - 2 },
-            { transform: [{ translateY: sheetY }] },
           ]}
-          {...panelPan.panHandlers}
         >
           {/* EL MISMO TIRADOR, QUE SUBIÓ CON LA SUPERFICIE.
               Es idéntico al de la barra a propósito: al abrirse, el de abajo queda
@@ -404,6 +429,7 @@ export default function CustomTabBar({ state, navigation }) {
               <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
             </Pressable>
           )}
+        </View>
         </Animated.View>
       )}
 
@@ -603,18 +629,20 @@ const styles = StyleSheet.create({
   //
   // Ahora comparte fondo y borde con la barra, se apoya en ella sin separación y
   // solo lleva una sombra suave hacia arriba: una sola pieza que se extiende.
-  morePanel: {
+  // El RECORTE: lo que crece. Lleva el aspecto de la superficie (fondo, borde,
+  // sombra) y `overflow: hidden`, para que el contenido se vaya descubriendo a
+  // medida que sube en vez de asomar entero desde abajo.
+  morePanelClip: {
     position: 'absolute',
     left: 0,
     right: 0,
+    overflow: 'hidden',
     backgroundColor: colors.surface,
     // Un radio pequeño insinúa el borde de la superficie sin gritar "modal".
     borderTopLeftRadius: 14,
     borderTopRightRadius: 14,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl,
     zIndex: 6,
     // Elevación en vez de velo: dice "esto está delante" sin oscurecer la app.
     shadowColor: '#0f172a',
@@ -622,6 +650,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.10,
     shadowRadius: 16,
     elevation: 12,
+  },
+  // El CONTENIDO, anclado al fondo del recorte. Ese `bottom: 0` es la pieza que
+  // hace que crecer se vea como crecer: el contenido no se mueve, se DESCUBRE.
+  // Si fuera flujo normal, subiría junto con el borde y volvería a parecer que
+  // algo entra deslizándose.
+  morePanelInner: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
   },
   moreTitle: {
     fontSize: font.md,
