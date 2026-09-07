@@ -9,7 +9,18 @@ export const ROL_LABEL = { owner: 'Dueño', cashier: 'Cajero', waiter: 'Mesero',
 export const PLAN_LABEL = { free: 'Gratuito', premium: 'Premium', trial: 'Prueba' };
 // Premium en verde: comunica "activo y en orden" (el ámbar se leía como advertencia)
 export const PLAN_COLOR = { free: colors.textMuted, premium: colors.success, trial: colors.primary };
-export const MONEDAS = ['MX$', 'US$', '$', '€', 'Q', 'S/', '₡'];
+// MISMA LISTA que el <select id="adj-moneda"> del desktop (pos/index.html).
+// Son dos repos y no se puede compartir el módulo, así que si agregas una
+// moneda aquí, agrégala allá también: una que solo exista en un lado deja el
+// campo del OTRO en blanco. Comprobado en un navegador real, no supuesto: a un
+// <select> al que se le asigna un valor sin <option> se le queda
+// selectedIndex = -1 y su .value pasa a ser "".
+//
+// '$' va PRIMERA a propósito. Es la convención en México y es el default de
+// toda la app (el valor al que caen los `|| '$'` de currency_symbol). Estaba
+// 'MX$' primera, que es demasiado fácil de tocar sin querer: el negocio acaba
+// viendo "MX$170.00" en el ticket, en el corte y en el resumen.
+export const MONEDAS = ['$', 'MX$', 'US$', '€', 'Q', 'S/', '₡'];
 
 export const PERMISOS_DEFAULT = {
   cajero: {
