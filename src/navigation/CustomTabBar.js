@@ -214,9 +214,12 @@ export default function CustomTabBar({ state, navigation }) {
   }
 
   const currentRoute = state.routes[state.index]?.name;
+  // El velo existe para poder cerrar tocando fuera, no para oscurecer la app: un
+  // 50 % de negro convierte esto en un modal, que es justo lo que NO es. Un 12 %
+  // basta para dar foco y deja la pantalla legible detrás.
   const overlayOpacity = sheetY.interpolate({
     inputRange: [0, 420],
-    outputRange: [0.5, 0],
+    outputRange: [0.12, 0],
     extrapolate: 'clamp',
   });
 
@@ -311,9 +314,22 @@ export default function CustomTabBar({ state, navigation }) {
           ]}
           {...panelPan.panHandlers}
         >
-          <View style={styles.panelHandleWrap}>
-            <View style={styles.handleBar} />
-          </View>
+          {/* EL MISMO TIRADOR, QUE SUBIÓ CON LA SUPERFICIE.
+              Es idéntico al de la barra a propósito: al abrirse, el de abajo queda
+              tapado por el panel y aparece este arriba, así que se lee como que la
+              barra creció y se llevó su asa — no como que salió otra ventana con
+              su propio tirador. Y es lo que cierra: el de la barra queda debajo
+              del panel y ya no recibe toques. */}
+          <TouchableOpacity
+            style={styles.handleWrap}
+            onPress={closeMore}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 60, right: 60 }}
+          >
+            <View style={styles.pullNotchPanel}>
+              <View style={styles.pullNotchLine} />
+            </View>
+          </TouchableOpacity>
 
           <Text style={styles.moreTitle}>Funciones</Text>
           <Text style={styles.moreTip}>
@@ -391,11 +407,24 @@ export default function CustomTabBar({ state, navigation }) {
         </Animated.View>
       )}
 
-      <View style={[styles.bar, { paddingBottom: insets.bottom || spacing.sm }]}>
+      {/* Con el panel abierto la barra CEDE su borde superior al panel: si lo
+          mantuviera, se verían dos líneas separando dos superficies — que es
+          exactamente la lectura de "otra ventana" que se quiere evitar. */}
+      <View style={[
+        styles.bar,
+        expanded && styles.barExpandida,
+        { paddingBottom: insets.bottom || spacing.sm },
+      ]}>
         <View {...openPan.panHandlers}>
+          {/* El tirador ALTERNA. Antes solo abría, así que estando abierto no
+              hacía nada: la única forma de cerrar era arrastrar el panel hacia
+              abajo. Y tocar fuera tampoco cierra — el velo se dibuja fuera de los
+              límites de la barra (su contenedor mide lo que la barra), y en React
+              Native un toque fuera del padre no llega al hijo. Así que sin esto
+              quedaba un panel al que costaba salirse. */}
           <TouchableOpacity
             style={styles.handleWrap}
-            onPress={openMore}
+            onPress={() => (expanded ? closeMore() : openMore())}
             activeOpacity={0.7}
             hitSlop={{ top: 6, bottom: 4, left: 60, right: 60 }}
           >
@@ -475,6 +504,10 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
+  barExpandida: {
+    // El borde lo dibuja el panel mientras está abierto (ver morePanel).
+    borderTopColor: 'transparent',
+  },
   handleWrap: {
     alignItems: 'center',
     paddingTop: 2,
@@ -500,6 +533,16 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: colors.border,
   },
+  // El tirador del panel abierto. Misma rayita que el de la barra, pero sin la
+  // pestañita blanca ni el margen negativo: aquí no sobresale de nada, va dentro
+  // de la propia superficie.
+  pullNotchPanel: {
+    width: 74,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
   tabs: {
     flexDirection: 'row',
   },
@@ -507,7 +550,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tabWrapDimmed: {
-    opacity: 0.3,
+    // Si la barra CRECE, sus iconos siguen siendo los mismos y siguen sirviendo.
+    // Apagarlos al 30 % los convertía en "el fondo de un modal" y reforzaba justo
+    // la sensación que se quiere quitar. Un 0.75 marca que el foco está arriba
+    // sin declararlos inactivos.
+    opacity: 0.75,
   },
   tab: {
     alignItems: 'center',
@@ -543,27 +590,38 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '700',
   },
+  // ⚠️ ESTE PANEL ES LA BARRA CRECIENDO, NO UNA VENTANA ENCIMA.
+  //
+  // Antes se leía como un modal aparte —y así lo describió el dueño: "parece que
+  // aparece otra ventana por encima en lugar de subir la seleccionada"—. Cuatro
+  // cosas lo causaban, y las cuatro eran de estilo:
+  //   · esquinas de 24 px arriba, el lenguaje visual de un bottom sheet;
+  //   · un velo negro al 50 % sobre toda la pantalla, que es lo que hace un modal;
+  //   · su propio tirador, duplicando el de la barra;
+  //   · la barra conservaba su borde superior POR DEBAJO del panel, así que se
+  //     veían dos bordes y por tanto dos superficies apiladas.
+  //
+  // Ahora comparte fondo y borde con la barra, se apoya en ella sin separación y
+  // solo lleva una sombra suave hacia arriba: una sola pieza que se extiende.
   morePanel: {
     position: 'absolute',
     left: 0,
     right: 0,
     backgroundColor: colors.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    // Un radio pequeño insinúa el borde de la superficie sin gritar "modal".
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xl,
     zIndex: 6,
-  },
-  panelHandleWrap: {
-    alignItems: 'center',
-    paddingTop: spacing.md,
-    paddingBottom: spacing.sm,
-  },
-  handleBar: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
+    // Elevación en vez de velo: dice "esto está delante" sin oscurecer la app.
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.10,
+    shadowRadius: 16,
+    elevation: 12,
   },
   moreTitle: {
     fontSize: font.md,

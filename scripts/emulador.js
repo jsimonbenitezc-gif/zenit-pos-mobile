@@ -24,6 +24,7 @@ const { spawn, spawnSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const net = require('net');
 
 const SDK = process.env.ANDROID_HOME
     || process.env.ANDROID_SDK_ROOT
@@ -50,6 +51,22 @@ if (!fs.existsSync(ADB) || !fs.existsSync(EMULATOR)) {
 
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
 const adb = (...args) => spawnSync(ADB, args, { encoding: 'utf8' }).stdout || '';
+
+/** ¿Hay algo escuchando en este puerto? Se intenta OCUPARLO, que es la única
+ *  comprobación fiable: preguntar y luego usarlo deja una ventana de carrera. */
+const estaLibre = (puerto) => new Promise((resolver) => {
+    const servidor = net.createServer();
+    servidor.once('error', () => resolver(false));
+    servidor.once('listening', () => servidor.close(() => resolver(true)));
+    servidor.listen(puerto, '127.0.0.1');
+});
+
+async function puertoLibre(desde, hasta) {
+    for (let p = desde; p <= hasta; p++) {
+        if (await estaLibre(p)) return p;
+    }
+    return null;
+}
 
 (async () => {
     console.log('\n── Zenit en el emulador de Android ──\n');
@@ -85,15 +102,28 @@ const adb = (...args) => spawnSync(ADB, args, { encoding: 'utf8' }).stdout || ''
         log('Emulador listo.');
     }
 
-    // El 8081 suele estar tomado por otro Metro. Expo pregunta si usar otro, y
-    // en modo no interactivo eso ABORTA el arranque sin explicar gran cosa.
-    const puerto = process.env.RCT_METRO_PORT || '8082';
+    // ⚠️ SE BUSCA UN PUERTO LIBRE, NO SE FIJA UNO.
+    //
+    // Expo pregunta "¿uso el siguiente puerto?" cuando el suyo está tomado, y en
+    // modo no interactivo esa pregunta **aborta el arranque** con un mensaje que
+    // no dice qué hacer. Y quedan Metros colgados con facilidad: basta cerrar la
+    // terminal sin cortar el proceso. Fijar un puerto solo mueve el problema del
+    // 8081 al 8082 — se comprobó en vivo.
+    const puerto = process.env.RCT_METRO_PORT || String(await puertoLibre(8081, 8099));
+    if (!puerto) morir('No hay ningún puerto libre entre el 8081 y el 8099.');
     log(`Lanzando Expo en el puerto ${puerto} (Expo Go se instala solo si falta)...\n`);
 
+    // ⚠️ `shell: true` en Windows y no es opcional: desde Node 20, lanzar un `.cmd`
+    // sin shell falla con EINVAL (una mitigación de seguridad de la CVE de
+    // argument-injection). Sin esto el comando muere antes de arrancar Expo.
     const expo = spawn(
         process.platform === 'win32' ? 'npx.cmd' : 'npx',
         ['expo', 'start', '--android', '--port', puerto],
-        { stdio: 'inherit', cwd: path.join(__dirname, '..') }
+        {
+            stdio: 'inherit',
+            cwd: path.join(__dirname, '..'),
+            shell: process.platform === 'win32',
+        }
     );
     expo.on('exit', (c) => process.exit(c ?? 0));
 })();
