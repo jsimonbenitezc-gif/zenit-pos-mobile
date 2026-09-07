@@ -20,6 +20,9 @@ import {
 } from '../../offline/caja';
 import { colors, spacing, radius, font } from '../../theme';
 import LogoTitle from '../../components/LogoTitle';
+// El componente Y su `tocaAvisar` viven en el mismo archivo: los dos se usaban
+// aqui sin importar, y la pantalla reventaba al abrirse (ReferenceError).
+import AvisoSinCuenta, { tocaAvisar } from '../../components/AvisoSinCuenta';
 import { formatMoney } from '../../utils/money';
 import { friendlyError } from '../../utils/errors';
 import { generarUuid } from '../../utils/uuid';
@@ -54,6 +57,8 @@ export default function TurnoScreen() {
   const [saving, setSaving]         = useState(false);
   const [modalApertura, setModal]   = useState(false);
   const [modalCierre, setModalCierre] = useState(false);
+  // Aviso de respaldo del negocio sin cuenta (41.4c). Se usaba sin declarar.
+  const [aviso, setAviso]           = useState(null);
 
   // Apertura
   const [fondoInicial, setFondo]    = useState('');

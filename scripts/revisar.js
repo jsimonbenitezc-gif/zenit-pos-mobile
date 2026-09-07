@@ -13,6 +13,8 @@
 //   1. Que TODOS los archivos parseen (Babel, con la config real del proyecto).
 //   2. Que cada símbolo importado de un módulo local exista de verdad ahí.
 //   3. Que cada `api.X()` exista como método del cliente HTTP.
+//   4. Que no se use ningún nombre que no esté declarado ni importado (el
+//      "fantasma": revienta la pantalla entera al abrirla).
 //
 // Sale con código 1 si encuentra algo. Uso:  npm run revisar
 // ============================================================================
@@ -171,6 +173,71 @@ for (const f of archivos) {
   recorrer(arbol.program);
 }
 
+
+// ─── 3.c Un identificador que se USA y nunca se declaró ──────────────────────
+// EL FANTASMA. Pasó el 2026-09-06 con la pantalla de Turno: usaba <AvisoSinCuenta>
+// y `tocaAvisar()` sin importarlos, y el estado `aviso`/`setAviso` sin declararlo.
+// La pantalla reventaba entera al abrirse ("Property 'AvisoSinCuenta' doesn't
+// exist") y NADA lo avisaba: parsea perfecto, sus imports existen y no hay ningún
+// api.X() de más, así que las tres reglas anteriores pasaban en verde.
+//
+// Es la misma familia que dejó muertas la vista de Turno y la de Mesas del desktop
+// (§28, §29) — allí la caza `npm run revisar` desde hace tiempo; aquí faltaba.
+//
+// Se resuelve con el ÁMBITO REAL de Babel, no con expresiones regulares: hay que
+// saber qué nombres están ligados en cada función, y eso una regex no lo sabe.
+const traverse = require('@babel/traverse').default;
+
+// Lo que existe sin declararlo: JS, el entorno de React Native y Node (los
+// scripts y los shims). Un nombre nuevo aquí es una decisión, no un parche:
+// si algo falta en esta lista, es que de verdad no está definido en ninguna parte.
+const GLOBALES = new Set([
+  // JS
+  'undefined', 'NaN', 'Infinity', 'Object', 'Array', 'String', 'Number', 'Boolean',
+  'Math', 'JSON', 'Date', 'RegExp', 'Error', 'TypeError', 'RangeError', 'Promise',
+  'Symbol', 'Map', 'Set', 'WeakMap', 'WeakSet', 'Proxy', 'Reflect', 'BigInt',
+  'parseInt', 'parseFloat', 'isNaN', 'isFinite', 'encodeURIComponent',
+  'decodeURIComponent', 'encodeURI', 'decodeURI', 'globalThis', 'Intl',
+  'ArrayBuffer', 'Uint8Array', 'Int8Array', 'DataView', 'TextEncoder', 'TextDecoder',
+  // Temporizadores y entorno
+  'console', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval',
+  'setImmediate', 'clearImmediate', 'requestAnimationFrame', 'cancelAnimationFrame',
+  'fetch', 'Headers', 'Request', 'Response', 'AbortController', 'AbortSignal',
+  'URL', 'URLSearchParams', 'FormData', 'Blob', 'FileReader', 'atob', 'btoa',
+  'XMLHttpRequest', 'WebSocket', 'EventSource', 'alert', 'navigator', 'performance',
+  // React Native / Node
+  '__DEV__', 'global', 'process', 'require', 'module', 'exports', '__dirname',
+  '__filename', 'Buffer', 'structuredClone', 'queueMicrotask',
+]);
+
+for (const f of archivos) {
+  const arbol = ast.get(f);
+  if (!arbol) continue;
+  const vistos = new Set();   // un nombre, un aviso por archivo
+  try {
+    traverse(arbol, {
+      ReferencedIdentifier(camino) {
+        const nombre = camino.node.name;
+        if (GLOBALES.has(nombre) || vistos.has(nombre)) return;
+        // `obj.prop` y `{ prop: 1 }` no son referencias a un nombre suelto.
+        if (camino.parentPath?.isMemberExpression({ computed: false }) &&
+            camino.parentPath.node.property === camino.node) return;
+        if (camino.scope.hasBinding(nombre, /* noGlobals */ true)) return;
+        vistos.add(nombre);
+        const enJsx = camino.parentPath?.isJSXOpeningElement() ||
+                      camino.parentPath?.isJSXClosingElement();
+        problemas.push(
+          `[fantasma] ${rel(f)}:${camino.node.loc?.start.line}: ` +
+          `'${nombre}' se usa${enJsx ? ' como componente JSX' : ''} y no está ` +
+          `declarado ni importado — revienta al abrir esa pantalla.`
+        );
+      },
+    });
+  } catch (e) {
+    problemas.push(`[fantasma] ${rel(f)}: no se pudo analizar el ámbito: ${e.message}`);
+  }
+}
+
 // ─── 4. Métodos de `api` ─────────────────────────────────────────────────────
 const RUTA_CLIENTE = path.join(RAIZ, 'src/api/client.js');
 const metodosApi = new Set();
@@ -231,4 +298,4 @@ if (problemas.length) {
   console.error('');
   process.exit(1);
 }
-console.log(`✅ ${archivos.length} archivos: parsean, sus imports locales existen y todos los api.X() están definidos.`);
+console.log(`✅ ${archivos.length} archivos: parsean, sus imports locales existen, todos los api.X() están definidos y no hay ningún nombre sin declarar.`);
