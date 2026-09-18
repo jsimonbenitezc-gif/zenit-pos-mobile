@@ -49,10 +49,30 @@ export function createSSE(configOrGetter, onMessage, opts = {}) {
 
     es = new EventSource(config.url, config.options);
 
-    es.addEventListener('message', (event) => {
-      retryCount = 0;
-      onMessage(event);
-    });
+    // Dos formas, y la diferencia es de dónde viene el evento:
+    //
+    //  · los cinco `/api/<algo>/events` de siempre mandan el evento SIN NOMBRE,
+    //    y eso se oye por 'message';
+    //  · el unificado `/api/events?channels=…` lo manda CON NOMBRE (`event:
+    //    orders`), que es lo que permite traer varios canales por una sola
+    //    conexión — y esos NO llegan a 'message'.
+    //
+    // Por eso `onMessage` recibe también el nombre del canal: una pantalla que
+    // escucha dos canales necesita saber cuál se movió.
+    const canales = Array.isArray(opts.canales) ? opts.canales : null;
+    if (canales && canales.length) {
+      for (const canal of canales) {
+        es.addEventListener(canal, (event) => {
+          retryCount = 0;
+          onMessage(event, canal);
+        });
+      }
+    } else {
+      es.addEventListener('message', (event) => {
+        retryCount = 0;
+        onMessage(event, null);
+      });
+    }
 
     es.addEventListener('error', () => {
       try { es?.close(); } catch {}

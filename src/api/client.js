@@ -414,6 +414,23 @@ class ApiClient {
     };
   }
 
+  /**
+   * UNA conexión para varios canales (§56.7). El backend manda los eventos CON
+   * NOMBRE, así que quien la usa escucha por canal en vez de por 'message'.
+   *
+   * Los cinco `getXEventsConfig()` de abajo se quedan: una pantalla que solo
+   * mira un canal no gana nada cambiando de puerta, y cambiarla sí arriesga.
+   */
+  async getEventsConfig(canales) {
+    await this.ensureFreshToken();
+    if (!this.token) return null;
+    const lista = (Array.isArray(canales) ? canales : [canales]).filter(Boolean).join(',');
+    return {
+      url: `${BASE_URL}/events?channels=${lista}`,
+      options: { headers: { Authorization: `Bearer ${this.token}` } },
+    };
+  }
+
   async getOrdersEventsConfig() {
     await this.ensureFreshToken();
     if (!this.token) return null;

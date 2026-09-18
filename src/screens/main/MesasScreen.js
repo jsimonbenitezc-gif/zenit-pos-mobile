@@ -356,20 +356,26 @@ export default function MesasScreen() {
         }
       });
 
-      // SSE: actualización en tiempo real cuando cambia un pedido
-      const sseOrders = createSSE(() => api.getOrdersEventsConfig(), () => load());
-
-      // SSE: actualización en tiempo real cuando cambian los insumos (stock)
-      const sseInv = createSSE(() => api.getInventoryEventsConfig(), () => {
-        api.getProductsStock(sucursalId).then(map => setStockMap(map)).catch(() => {});
-      });
+      // SSE: pedidos e insumos en tiempo real, por UNA sola conexión (§56.7).
+      // Ésta era la única pantalla del celular que abría dos: ahora pide los dos
+      // canales de golpe y los distingue por el NOMBRE del evento.
+      //
+      // ⚠️ `canales` no es decorativo: sin él, createSSE escucha 'message' y los
+      // eventos NOMBRADOS del endpoint unificado no llegan ahí. La pantalla
+      // dejaría de refrescarse sola sin un solo error.
+      const sse = createSSE(() => api.getEventsConfig(['orders', 'inventory']), (_evento, canal) => {
+        if (canal === 'inventory') {
+          api.getProductsStock(sucursalId).then(map => setStockMap(map)).catch(() => {});
+        } else {
+          load();
+        }
+      }, { canales: ['orders', 'inventory'] });
 
       // Intervalo de respaldo por si el SSE falla o no está disponible
       const interval = setInterval(() => load(), 30000);
 
       return () => {
-        try { sseOrders?.close(); } catch {}
-        try { sseInv?.close(); } catch {}
+        try { sse?.close(); } catch {}
         clearInterval(interval);
       };
     }, [load])
