@@ -1,5 +1,5 @@
 /**
- * SMOKE: el SSE por CANALES del celular (§56.7, 2026-09-17).
+ * SMOKE: el SSE por CANALES del celular (§56.6, 2026-09-17).
  *
  * El backend unificó los cinco `/events` en `GET /api/events?channels=…`, que
  * manda los eventos CON NOMBRE. El celular abre SSE por pantalla, así que casi
@@ -65,7 +65,7 @@ const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
 async function principal() {
   const { createSSE } = cargarSse();
 
-  console.log('\n── SSE por canales (§56.7) ──\n');
+  console.log('\n── SSE por canales (§56.6) ──\n');
 
   // ── 1. Sin `canales`: el camino de siempre, por 'message' ────────────────
   creados.length = 0;

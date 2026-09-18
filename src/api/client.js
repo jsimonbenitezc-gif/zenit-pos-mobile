@@ -415,7 +415,7 @@ class ApiClient {
   }
 
   /**
-   * UNA conexión para varios canales (§56.7). El backend manda los eventos CON
+   * UNA conexión para varios canales (§56.6). El backend manda los eventos CON
    * NOMBRE, así que quien la usa escucha por canal en vez de por 'message'.
    *
    * Los cinco `getXEventsConfig()` de abajo se quedan: una pantalla que solo

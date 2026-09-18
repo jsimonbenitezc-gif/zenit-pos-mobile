@@ -356,7 +356,7 @@ export default function MesasScreen() {
         }
       });
 
-      // SSE: pedidos e insumos en tiempo real, por UNA sola conexión (§56.7).
+      // SSE: pedidos e insumos en tiempo real, por UNA sola conexión (§56.6).
       // Ésta era la única pantalla del celular que abría dos: ahora pide los dos
       // canales de golpe y los distingue por el NOMBRE del evento.
       //
