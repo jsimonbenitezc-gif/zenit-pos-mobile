@@ -231,6 +231,16 @@ const AUDIT_TIPOS = {
   edit_customer:        { icon: 'person-outline',       label: 'Cliente editado',         color: '#f59e0b' },
   inventory_adjustment: { icon: 'cube-outline',         label: 'Ajuste de inventario',    color: '#3b82f6' },
   apply_discount:       { icon: 'pricetag-outline',     label: 'Descuento aplicado',      color: '#8b5cf6' },
+  return_order:         { icon: 'return-down-back-outline', label: 'Devolución',            color: '#ef4444' },
+  // PLAN_OFERTAS_V1, Bloque 0. Lo que no esté aquí sale con su nombre técnico:
+  // cada action_type nuevo del backend se agrega aquí y en el desktop.
+  discount_mismatch:    { icon: 'alert-circle-outline', label: 'Descuento mayor al configurado', color: '#ef4444' },
+  remove_item:          { icon: 'remove-circle-outline', label: 'Producto quitado de una cuenta', color: '#f59e0b' },
+  offline_price:        { icon: 'alert-circle-outline', label: 'Precio distinto al del catálogo', color: '#f59e0b' },
+  cash_movement:        { icon: 'cash-outline',         label: 'Movimiento de caja',      color: '#10b981' },
+  cash_movement_void:   { icon: 'cash-outline',         label: 'Movimiento de caja anulado', color: '#ef4444' },
+  approve_kds_device:   { icon: 'tv-outline',           label: 'Pantalla de cocina autorizada', color: '#3b82f6' },
+  revoke_kds_device:    { icon: 'tv-outline',           label: 'Pantalla de cocina revocada',   color: '#ef4444' },
 };
 
 export default function DashboardScreen() {
