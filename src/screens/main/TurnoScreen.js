@@ -4,7 +4,6 @@ import {
   TextInput, Alert, ActivityIndicator, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import {
   // Con alias A PROPÓSITO: los handlers de esta pantalla se llaman igual
@@ -18,8 +17,8 @@ import {
   registrarMovimiento as cajaRegistrarMovimiento,
   anularMovimiento as cajaAnularMovimiento,
 } from '../../offline/caja';
-import { colors, spacing, radius, font } from '../../theme';
-import LogoTitle from '../../components/LogoTitle';
+import { colors, spacing, radius, font, zc, radios, sombra } from '../../theme';
+import { Cabecera, Icono, IconoEnCuadro, NumeroGrande } from '../../components/ui';
 // El componente Y su `tocaAvisar` viven en el mismo archivo: los dos se usaban
 // aqui sin importar, y la pantalla reventaba al abrirse (ReferenceError).
 import AvisoSinCuenta, { tocaAvisar } from '../../components/AvisoSinCuenta';
@@ -290,17 +289,31 @@ export default function TurnoScreen() {
   if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color={colors.primary} /></View>;
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={{ padding: spacing.lg }}>
-        <LogoTitle title="Turno" titleStyle={styles.title} />
+    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+      {/* Cabecera azul noche (diseño A): con turno abierto, lo vendido en grande */}
+      <Cabecera titulo="Turno">
+        {turno && totales ? (
+          <View style={{ marginTop: 14 }}>
+            <NumeroGrande etiqueta="Vendido en este turno" valor={formatMoney(totales.total_ventas || 0, currency)} />
+            <View style={styles.cabLinea}>
+              <View style={styles.cabDot} />
+              <Text style={styles.cabLineaTxt}>
+                {totales.total_pedidos || 0} {(totales.total_pedidos || 0) === 1 ? 'pedido' : 'pedidos'} · abierto hace {duracion(turno.apertura)}
+              </Text>
+            </View>
+          </View>
+        ) : null}
+      </Cabecera>
+      <ScrollView contentContainerStyle={{ padding: 14, paddingBottom: 30 }}>
 
         {turno ? (
           <>
             {/* Turno activo */}
             <View style={styles.turnoCard}>
               <View style={styles.turnoHeader}>
-                <View style={styles.activeDot} />
+                <IconoEnCuadro nombre="time-outline" tono="verde" />
                 <Text style={styles.turnoTitle}>Turno activo</Text>
+                <View style={styles.activeDot} />
               </View>
               <InfoRow label="Cajero"        value={turno.cajero_nombre} />
               <InfoRow label="Inicio"        value={formatDate(turno.apertura)} />
@@ -310,7 +323,10 @@ export default function TurnoScreen() {
 
             {totales && (
               <View style={styles.totalesCard}>
-                <Text style={styles.totalesTitle}>Ventas del turno</Text>
+                <View style={styles.tituloFila}>
+                  <IconoEnCuadro nombre="recibo" tono="azul" />
+                  <Text style={styles.totalesTitle}>Ventas del turno</Text>
+                </View>
                 <InfoRow label="Pedidos"      value={totales.total_pedidos || 0} />
                 <InfoRow label="Total"        value={formatMoney(totales.total_ventas || 0, currency)} />
                 <InfoRow label="Efectivo"     value={formatMoney(totales.total_efectivo || 0, currency)} />
@@ -346,7 +362,7 @@ export default function TurnoScreen() {
                     <InfoRow
                       label="Propinas (no son ventas)"
                       value={formatMoney(totales.total_propinas, currency)}
-                      valueColor={colors.success}
+                      valueColor={zc.verde}
                     />
                     {(totales.total_propinas_efectivo || 0) > 0 && (
                       <InfoRow
@@ -362,9 +378,10 @@ export default function TurnoScreen() {
             {/* Movimientos de caja: dinero que entra o sale por fuera de las ventas */}
             <View style={styles.totalesCard}>
               <View style={styles.movHeader}>
+                <IconoEnCuadro nombre="cash-outline" tono="ambar" />
                 <Text style={styles.totalesTitle}>Movimientos de caja</Text>
                 <TouchableOpacity style={styles.btnMovAgregar} onPress={abrirModalMovimiento}>
-                  <Ionicons name="add" size={16} color={colors.primary} />
+                  <Icono nombre="add" size={15} color={zc.azul} />
                   <Text style={styles.btnMovAgregarText}>Registrar</Text>
                 </TouchableOpacity>
               </View>
@@ -372,13 +389,13 @@ export default function TurnoScreen() {
               {(movTotales.total_depositos > 0 || movTotales.total_retiros > 0 || movTotales.total_gastos > 0) && (
                 <>
                   {movTotales.total_depositos > 0 && (
-                    <InfoRow label="Depósitos" value={`+${formatMoney(movTotales.total_depositos, currency)}`} valueColor={colors.success} />
+                    <InfoRow label="Depósitos" value={`+${formatMoney(movTotales.total_depositos, currency)}`} valueColor={zc.verde} />
                   )}
                   {movTotales.total_retiros > 0 && (
-                    <InfoRow label="Retiros" value={`−${formatMoney(movTotales.total_retiros, currency)}`} valueColor={colors.danger} />
+                    <InfoRow label="Retiros" value={`−${formatMoney(movTotales.total_retiros, currency)}`} valueColor={zc.rojo} />
                   )}
                   {movTotales.total_gastos > 0 && (
-                    <InfoRow label="Gastos" value={`−${formatMoney(movTotales.total_gastos, currency)}`} valueColor={colors.danger} />
+                    <InfoRow label="Gastos" value={`−${formatMoney(movTotales.total_gastos, currency)}`} valueColor={zc.rojo} />
                   )}
                 </>
               )}
@@ -401,14 +418,14 @@ export default function TurnoScreen() {
                     </View>
                     <Text style={[
                       styles.movMonto,
-                      { color: m.tipo === 'deposito' ? colors.success : colors.danger },
+                      { color: m.tipo === 'deposito' ? zc.verde : zc.rojo },
                       m.anulado && styles.movMontoAnulado,
                     ]}>
                       {m.tipo === 'deposito' ? '+' : '−'}{formatMoney(m.monto, currency)}
                     </Text>
                     {!m.anulado && (
                       <TouchableOpacity onPress={() => { setMovError(''); setModalAnular(m.id); }} hitSlop={8}>
-                        <Ionicons name="close-circle-outline" size={20} color={colors.textMuted} />
+                        <Icono nombre="close-circle-outline" size={20} color={zc.grisSuave} />
                       </TouchableOpacity>
                     )}
                   </View>
@@ -417,12 +434,12 @@ export default function TurnoScreen() {
             </View>
 
             <TouchableOpacity style={styles.btnRefrescar} onPress={cargarTurno}>
-              <Ionicons name="refresh-outline" size={18} color={colors.primary} />
+              <Icono nombre="refresh-outline" size={17} color={zc.azul} />
               <Text style={styles.btnRefrescarText}>Actualizar totales</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.btnCerrar} onPress={() => setModalCierre(true)}>
-              <Ionicons name="lock-closed-outline" size={20} color="#fff" />
+              <Icono nombre="lock-closed-outline" size={20} color="#fff" />
               <Text style={styles.btnCerrarText}>Cerrar turno</Text>
             </TouchableOpacity>
           </>
@@ -430,13 +447,13 @@ export default function TurnoScreen() {
           <>
             {/* Sin turno activo */}
             <View style={styles.emptyCard}>
-              <Ionicons name="time-outline" size={52} color={colors.textMuted} />
+              <IconoEnCuadro nombre="time-outline" tono="azul" size={64} />
               <Text style={styles.emptyTitle}>No hay turno activo</Text>
               <Text style={styles.emptySubtitle}>Abre un turno para comenzar a registrar ventas</Text>
             </View>
 
             <TouchableOpacity style={styles.btnAbrir} onPress={() => setModal(true)}>
-              <Ionicons name="lock-open-outline" size={20} color="#fff" />
+              <Icono nombre="lock-open-outline" size={20} color="#fff" />
               <Text style={styles.btnAbrirText}>Abrir turno</Text>
             </TouchableOpacity>
           </>
@@ -445,13 +462,13 @@ export default function TurnoScreen() {
 
       {/* Modal apertura */}
       <Modal visible={modalApertura} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModal(false)}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView style={styles.modalSafe}>
           <View style={styles.dragHandleWrap}><View style={styles.dragHandle} /></View>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Abrir turno</Text>
               <TouchableOpacity onPress={() => setModal(false)}>
-                <Ionicons name="close" size={24} color={colors.textSecondary} />
+                <Icono nombre="close" size={24} color={zc.gris} />
               </TouchableOpacity>
             </View>
             <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
@@ -473,7 +490,7 @@ export default function TurnoScreen() {
               >
                 {saving
                   ? <ActivityIndicator size="small" color="#fff" />
-                  : <Ionicons name="lock-open-outline" size={20} color="#fff" />}
+                  : <Icono nombre="lock-open-outline" size={20} color="#fff" />}
                 <Text style={styles.btnAbrirText}>Confirmar apertura</Text>
               </TouchableOpacity>
             </ScrollView>
@@ -483,36 +500,38 @@ export default function TurnoScreen() {
 
       {/* Modal cierre */}
       <Modal visible={modalCierre} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModalCierre(false)}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView style={styles.modalSafe}>
           <View style={styles.dragHandleWrap}><View style={styles.dragHandle} /></View>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Cerrar turno</Text>
               <TouchableOpacity onPress={() => setModalCierre(false)}>
-                <Ionicons name="close" size={24} color={colors.textSecondary} />
+                <Icono nombre="close" size={24} color={zc.gris} />
               </TouchableOpacity>
             </View>
             <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
+              <View style={styles.resumenCaja}>
               <InfoRow label="Fondo inicial"    value={formatMoney(parseFloat(turno?.fondo_inicial || 0), currency)} />
               <InfoRow label="Ventas efectivo"  value={formatMoney(totales?.total_efectivo || 0, currency)} />
               {/* La propina en efectivo entró al cajón, así que forma parte de lo
                   que el cajero debe encontrar al contar (BLOQUE 9). */}
               {(totales?.total_propinas_efectivo || 0) > 0 && (
-                <InfoRow label="+ Propinas en efectivo" value={formatMoney(totales.total_propinas_efectivo, currency)} valueColor={colors.success} />
+                <InfoRow label="+ Propinas en efectivo" value={formatMoney(totales.total_propinas_efectivo, currency)} valueColor={zc.verde} />
               )}
               {/* Las filas de movimientos solo aparecen si hubo: un turno sin
                   retiros ni gastos ve el mismo cierre de siempre. */}
               {(movTotales?.total_depositos || 0) > 0 && (
-                <InfoRow label="+ Depósitos" value={formatMoney(movTotales.total_depositos, currency)} valueColor={colors.success} />
+                <InfoRow label="+ Depósitos" value={formatMoney(movTotales.total_depositos, currency)} valueColor={zc.verde} />
               )}
               {(movTotales?.total_retiros || 0) > 0 && (
-                <InfoRow label="− Retiros" value={formatMoney(movTotales.total_retiros, currency)} valueColor={colors.danger} />
+                <InfoRow label="− Retiros" value={formatMoney(movTotales.total_retiros, currency)} valueColor={zc.rojo} />
               )}
               {(movTotales?.total_gastos || 0) > 0 && (
-                <InfoRow label="− Gastos" value={formatMoney(movTotales.total_gastos, currency)} valueColor={colors.danger} />
+                <InfoRow label="− Gastos" value={formatMoney(movTotales.total_gastos, currency)} valueColor={zc.rojo} />
               )}
               <InfoRow label="Efectivo esperado" value={formatMoney(efectivoEsperado(), currency)} />
               <InfoRow label="Duración"         value={duracion(turno?.apertura)} />
+              </View>
 
               <Text style={[styles.label, { marginTop: spacing.lg }]}>Efectivo contado en caja</Text>
               <TextInput
@@ -532,8 +551,8 @@ export default function TurnoScreen() {
                     styles.diferenciaValue,
                     {
                       color: ((parseFloat(efectivoCierre) || 0) - efectivoEsperado()) >= 0
-                        ? colors.success
-                        : colors.danger
+                        ? zc.verde
+                        : zc.rojo
                     }
                   ]}>
                     {(() => {
@@ -561,7 +580,7 @@ export default function TurnoScreen() {
               >
                 {saving
                   ? <ActivityIndicator size="small" color="#fff" />
-                  : <Ionicons name="lock-closed-outline" size={20} color="#fff" />}
+                  : <Icono nombre="lock-closed-outline" size={20} color="#fff" />}
                 <Text style={styles.btnCerrarText}>Confirmar cierre</Text>
               </TouchableOpacity>
             </ScrollView>
@@ -570,13 +589,13 @@ export default function TurnoScreen() {
       </Modal>
       {/* Modal registrar movimiento */}
       <Modal visible={modalMov} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModalMov(false)}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView style={styles.modalSafe}>
           <View style={styles.dragHandleWrap}><View style={styles.dragHandle} /></View>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{MOV_LABEL[movTipo]}</Text>
               <TouchableOpacity onPress={() => setModalMov(false)}>
-                <Ionicons name="close" size={24} color={colors.textSecondary} />
+                <Icono nombre="close" size={24} color={zc.gris} />
               </TouchableOpacity>
             </View>
             <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
@@ -587,8 +606,8 @@ export default function TurnoScreen() {
                     style={[styles.movTipoBtn, movTipo === t.tipo && styles.movTipoBtnActivo]}
                     onPress={() => { setMovTipo(t.tipo); setMovError(''); }}
                   >
-                    <Ionicons name={t.icon} size={20} color={movTipo === t.tipo ? colors.primary : colors.textMuted} />
-                    <Text style={[styles.movTipoLbl, movTipo === t.tipo && { color: colors.primary }]}>{t.label}</Text>
+                    <Icono nombre={t.icon} size={20} color={movTipo === t.tipo ? zc.azul : zc.grisSuave} />
+                    <Text style={[styles.movTipoLbl, movTipo === t.tipo && { color: zc.azul }]}>{t.label}</Text>
                     <Text style={styles.movTipoSub}>{t.sub}</Text>
                   </TouchableOpacity>
                 ))}
@@ -606,7 +625,7 @@ export default function TurnoScreen() {
 
               <Text style={[styles.label, { marginTop: spacing.md }]}>Motivo</Text>
               <TextInput
-                style={[styles.input, { fontSize: font.md, fontWeight: '500' }]}
+                style={[styles.input, { fontSize: 15, fontWeight: '400' }]}
                 value={movMotivo}
                 onChangeText={setMovMotivo}
                 placeholder="Ej: Compra de cilantro"
@@ -640,7 +659,7 @@ export default function TurnoScreen() {
               >
                 {saving
                   ? <ActivityIndicator size="small" color="#fff" />
-                  : <Ionicons name="checkmark" size={20} color="#fff" />}
+                  : <Icono nombre="checkmark" size={20} color="#fff" />}
                 <Text style={styles.btnAbrirText}>Registrar {MOV_LABEL[movTipo].toLowerCase()}</Text>
               </TouchableOpacity>
             </ScrollView>
@@ -650,13 +669,13 @@ export default function TurnoScreen() {
 
       {/* Modal anular movimiento — nunca se borra, se marca */}
       <Modal visible={!!modalAnular} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModalAnular(null)}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView style={styles.modalSafe}>
           <View style={styles.dragHandleWrap}><View style={styles.dragHandle} /></View>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Anular movimiento</Text>
               <TouchableOpacity onPress={() => setModalAnular(null)}>
-                <Ionicons name="close" size={24} color={colors.textSecondary} />
+                <Icono nombre="close" size={24} color={zc.gris} />
               </TouchableOpacity>
             </View>
             <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
@@ -683,7 +702,7 @@ export default function TurnoScreen() {
 
               <Text style={[styles.label, { marginTop: spacing.md }]}>Motivo (opcional)</Text>
               <TextInput
-                style={[styles.input, { fontSize: font.md, fontWeight: '500' }]}
+                style={[styles.input, { fontSize: 15, fontWeight: '400' }]}
                 value={anularMotivo}
                 onChangeText={setAnularMotivo}
                 placeholder="Ej: Monto equivocado"
@@ -694,13 +713,13 @@ export default function TurnoScreen() {
               {movError ? <Text style={styles.movError}>{movError}</Text> : null}
 
               <TouchableOpacity
-                style={[styles.btnCerrar, { marginTop: spacing.xl, opacity: saving ? 0.6 : 1 }]}
+                style={[styles.btnCerrar, styles.btnAnular, { marginTop: spacing.xl, opacity: saving ? 0.6 : 1 }]}
                 onPress={anularMovimiento}
                 disabled={saving}
               >
                 {saving
                   ? <ActivityIndicator size="small" color="#fff" />
-                  : <Ionicons name="close-circle-outline" size={20} color="#fff" />}
+                  : <Icono nombre="close-circle-outline" size={20} color="#fff" />}
                 <Text style={styles.btnCerrarText}>Anular movimiento</Text>
               </TouchableOpacity>
             </ScrollView>
@@ -719,56 +738,65 @@ export default function TurnoScreen() {
   );
 }
 
+const campo = { backgroundColor: zc.tarjeta, borderRadius: radios.boton, borderWidth: 1, borderColor: zc.linea };
+const caja  = { backgroundColor: zc.tarjeta, borderRadius: radios.tarjeta, ...sombra };
+
 const styles = StyleSheet.create({
-  safe:             { flex: 1, backgroundColor: colors.background },
+  safe:             { flex: 1, backgroundColor: zc.fondo },
   centered:         { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  title:            { fontSize: font.xl, fontWeight: '800', color: colors.textPrimary, marginBottom: spacing.lg },
-  turnoCard:        { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.md },
-  turnoHeader:      { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md },
-  activeDot:        { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.success },
-  turnoTitle:       { fontSize: font.lg, fontWeight: '800', color: colors.textPrimary },
-  totalesCard:      { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.md },
-  totalesTitle:     { fontSize: font.md, fontWeight: '700', color: colors.textSecondary, marginBottom: spacing.sm },
-  infoRow:          { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
-  infoLabel:        { fontSize: font.sm, color: colors.textMuted, fontWeight: '600' },
-  infoValue:        { fontSize: font.sm, color: colors.textPrimary, fontWeight: '700' },
-  emptyCard:        { alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.xxl, borderWidth: 1, borderColor: colors.border, gap: spacing.sm, marginBottom: spacing.lg },
-  emptyTitle:       { fontSize: font.lg, fontWeight: '800', color: colors.textPrimary },
-  emptySubtitle:    { fontSize: font.sm, color: colors.textMuted, textAlign: 'center' },
-  btnAbrir:         { backgroundColor: colors.success, borderRadius: radius.md, padding: spacing.md + 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
-  btnAbrirText:     { color: '#fff', fontSize: font.lg, fontWeight: '700' },
-  btnCerrar:        { backgroundColor: colors.danger, borderRadius: radius.md, padding: spacing.md + 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
-  btnCerrarText:    { color: '#fff', fontSize: font.lg, fontWeight: '700' },
-  btnRefrescar:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, paddingVertical: spacing.sm, marginBottom: spacing.sm },
-  btnRefrescarText: { color: colors.primary, fontSize: font.sm, fontWeight: '600' },
+  cabLinea:         { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
+  cabDot:           { width: 8, height: 8, borderRadius: 4, backgroundColor: '#34d399' },
+  cabLineaTxt:      { fontSize: 13, color: zc.enNocheSuave },
+  turnoCard:        { ...caja, padding: 16, marginBottom: 12 },
+  turnoHeader:      { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
+  activeDot:        { width: 8, height: 8, borderRadius: 4, backgroundColor: zc.verde },
+  turnoTitle:       { fontSize: 15, fontWeight: '500', color: zc.tinta, flex: 1 },
+  totalesCard:      { ...caja, padding: 16, marginBottom: 12 },
+  totalesTitle:     { fontSize: 15, fontWeight: '500', color: zc.tinta, flex: 1 },
+  tituloFila:       { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
+  infoRow:          { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderTopWidth: 1, borderTopColor: zc.linea },
+  infoLabel:        { fontSize: 13.5, color: zc.gris },
+  infoValue:        { fontSize: 14, color: zc.tinta, fontWeight: '500', fontVariant: ['tabular-nums'] },
+  emptyCard:        { alignItems: 'center', ...caja, padding: 28, gap: spacing.sm, marginBottom: 14 },
+  emptyTitle:       { fontSize: 17, fontWeight: '500', color: zc.tinta, marginTop: 6 },
+  emptySubtitle:    { fontSize: 13.5, color: zc.grisSuave, textAlign: 'center' },
+  btnAbrir:         { backgroundColor: zc.azul, borderRadius: radios.boton, padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
+  btnAbrirText:     { color: '#fff', fontSize: 16, fontWeight: '500' },
+  btnCerrar:        { backgroundColor: zc.noche, borderRadius: radios.boton, padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
+  btnCerrarText:    { color: '#fff', fontSize: 16, fontWeight: '500' },
+  btnAnular:        { backgroundColor: zc.rojo },
+  btnRefrescar:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, marginBottom: 6 },
+  btnRefrescarText: { color: zc.azul, fontSize: 14, fontWeight: '500' },
   dragHandleWrap:   { alignItems: 'center', paddingTop: spacing.sm, paddingBottom: spacing.xs },
-  dragHandle:       { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border },
-  modalHeader:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingBottom: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
-  modalTitle:       { fontSize: font.xl, fontWeight: '800', color: colors.textPrimary },
-  label:            { fontSize: font.sm, fontWeight: '600', color: colors.textSecondary, marginBottom: spacing.xs },
-  input:            { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.xl, fontWeight: '700', color: colors.textPrimary, backgroundColor: colors.surface },
-  hint:             { fontSize: font.sm - 1, color: colors.textMuted, marginTop: spacing.xs },
-  diferenciaCard:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.md, marginTop: spacing.md, borderWidth: 1, borderColor: colors.border },
-  diferenciaLabel:  { fontSize: font.md, fontWeight: '600', color: colors.textSecondary },
-  diferenciaValue:  { fontSize: font.xl, fontWeight: '800' },
+  dragHandle:       { width: 36, height: 4, borderRadius: 2, backgroundColor: '#d5dae2' },
+  modalSafe:        { flex: 1, backgroundColor: zc.fondo },
+  modalHeader:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: zc.linea },
+  modalTitle:       { fontSize: 19, fontWeight: '500', color: zc.tinta },
+  resumenCaja:      { ...caja, paddingHorizontal: 16, paddingVertical: 4 },
+  label:            { fontSize: 13, color: zc.gris, marginBottom: 6 },
+  input:            { ...campo, padding: 12, fontSize: 20, fontWeight: '700', color: zc.tinta },
+  hint:             { fontSize: 12.5, color: zc.grisSuave, marginTop: 6, lineHeight: 18 },
+  diferenciaCard:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', ...caja, padding: 14, marginTop: 12 },
+  diferenciaLabel:  { fontSize: 14, color: zc.gris },
+  diferenciaValue:  { fontSize: 20, fontWeight: '700', fontVariant: ['tabular-nums'] },
 
   // Movimientos de caja
-  movHeader:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
-  btnMovAgregar:    { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  btnMovAgregarText:{ color: colors.primary, fontSize: font.sm, fontWeight: '700' },
-  movVacio:         { color: colors.textMuted, fontSize: font.sm, textAlign: 'center', paddingVertical: spacing.md },
-  movItem:          { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
+  movHeader:        { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
+  btnMovAgregar:    { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: zc.azulSuave, borderRadius: radios.chip, paddingHorizontal: 11, paddingVertical: 6 },
+  btnMovAgregarText:{ color: zc.azul, fontSize: 13, fontWeight: '500' },
+  movVacio:         { color: zc.grisSuave, fontSize: 13.5, textAlign: 'center', paddingVertical: 12 },
+  movItem:          { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderTopWidth: 1, borderTopColor: zc.linea },
   movItemAnulado:   { opacity: 0.55 },
-  movBadge:         { backgroundColor: colors.background, borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 2 },
-  movBadgeText:     { fontSize: font.sm - 2, fontWeight: '700', color: colors.textSecondary },
-  movMotivo:        { fontSize: font.sm, color: colors.textPrimary, fontWeight: '600' },
-  movMeta:          { fontSize: font.sm - 2, color: colors.textMuted },
-  movMonto:         { fontSize: font.sm, fontWeight: '700' },
+  movBadge:         { backgroundColor: zc.fondo, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
+  movBadgeText:     { fontSize: 12, color: zc.gris },
+  movMotivo:        { fontSize: 14, color: zc.tinta },
+  movMeta:          { fontSize: 12, color: zc.grisSuave, marginTop: 1 },
+  movMonto:         { fontSize: 14, fontWeight: '700', fontVariant: ['tabular-nums'] },
   movMontoAnulado:  { textDecorationLine: 'line-through' },
-  movError:         { color: colors.danger, fontSize: font.sm, marginTop: spacing.md },
+  movError:         { color: zc.rojo, fontSize: 13.5, marginTop: spacing.md },
   movTipoRow:       { flexDirection: 'row', gap: spacing.sm },
-  movTipoBtn:       { flex: 1, alignItems: 'center', gap: 2, paddingVertical: spacing.md, borderWidth: 2, borderColor: colors.border, borderRadius: radius.md },
-  movTipoBtnActivo: { borderColor: colors.primary },
-  movTipoLbl:       { fontSize: font.sm, fontWeight: '700', color: colors.textSecondary },
-  movTipoSub:       { fontSize: font.sm - 3, color: colors.textMuted, textAlign: 'center', paddingHorizontal: 2 },
+  movTipoBtn:       { flex: 1, alignItems: 'center', gap: 3, paddingVertical: 14, ...caja, borderRadius: radios.boton, borderWidth: 1.5, borderColor: 'transparent' },
+  movTipoBtnActivo: { borderColor: zc.azul, backgroundColor: zc.azulSuave },
+  movTipoLbl:       { fontSize: 14, fontWeight: '500', color: zc.tinta },
+  movTipoSub:       { fontSize: 11, color: zc.grisSuave, textAlign: 'center', paddingHorizontal: 2 },
 });
