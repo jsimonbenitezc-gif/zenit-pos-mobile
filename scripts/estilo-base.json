@@ -1,13 +1,6 @@
 {
-  "base": "8f25c2b",
-  "bloque": "PLAN_REDISENO_V1 Bloque 1",
+  "base": "232345f",
+  "bloque": "PLAN_REDISENO_V1 Bloque 2",
   "grupos": {},
-  "permitidos": [
-    {
-      "archivo": "src/screens/main/AjustesScreen.js",
-      "cambio": "desapareció",
-      "codigo": "onPress=abrirBusquedaImpresoras",
-      "motivo": "Había DOS filas que abrían el mismo modal: 'Impresora Bluetooth' (en Apariencia y Ticket) e 'Impresora predeterminada' (en Ajustes Generales). Al juntar todo en la página Ticket quedaban una debajo de la otra. Se conserva la primera; la repetida se quita. No cambia lo que hace la app."
-    }
-  ]
+  "permitidos": []
 }

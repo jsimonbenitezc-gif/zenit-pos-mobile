@@ -5,8 +5,7 @@ import {
   TextInput, Alert, ActivityIndicator, Modal, ScrollView,
   KeyboardAvoidingView, Platform, Animated, PanResponder,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import IconoProducto from '../../components/IconoProducto';
 import SvgIcon from '../../components/SvgIcon';
 import * as SecureStore from 'expo-secure-store';
@@ -29,8 +28,8 @@ import {
 } from '../../utils/promos';
 import { imprimirTicketPedido } from '../../utils/imprimirTicket';
 import { precioConModificadores, resumenModificadores, productoTieneModificadores } from '../../utils/modificadores';
-import { colors, spacing, radius, font } from '../../theme';
-import LogoTitle from '../../components/LogoTitle';
+import { colors, spacing, radius, font, zc, tonos, radios, sombra } from '../../theme';
+import { Cabecera, Icono, BarraDeCobrar } from '../../components/ui';
 import OfflineIndicator from '../../components/OfflineIndicator';
 import { createSSE } from '../../utils/sse';
 import { formatMoney } from '../../utils/money';
@@ -59,16 +58,18 @@ function ProductCard({ product, onPress, currency, mostrarStock, stockMap }) {
   let stockEl = null;
   if (mostrarStock && stock !== null) {
     if (stock === 0) {
-      stockEl = <Text style={{ fontSize: 10, color: '#ef4444', fontWeight: '600', marginTop: 2 }}>Sin stock</Text>;
+      stockEl = <Text style={styles.stockAgotado}>Sin stock</Text>;
     } else if (stock <= 3) {
-      stockEl = <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}><SvgIcon name="triangle-alert" size={10} color="#f59e0b" /><Text style={{ fontSize: 10, color: '#f59e0b', fontWeight: '600', marginLeft: 2 }}>{stock} disponibles</Text></View>;
+      stockEl = <View style={styles.stockPocoFila}><SvgIcon name="triangle-alert" size={11} color={zc.ambar} /><Text style={styles.stockPoco}>{stock} disponibles</Text></View>;
     } else {
-      stockEl = <Text style={{ fontSize: 10, color: '#10b981', marginTop: 2 }}>{stock} disponibles</Text>;
+      stockEl = <Text style={styles.stockHay}>{stock} disponibles</Text>;
     }
   }
   return (
     <TouchableOpacity style={[styles.productCard, mostrarStock && stock === 0 && { opacity: 0.5 }]} onPress={() => onPress(product)}>
-      <IconoProducto valor={product.emoji || 'svg:shopping-bag'} imagen={product.image} size={32} color={colors.textSecondary} />
+      <View style={[styles.productFoto, product.image && styles.productFotoBlanca]}>
+        <IconoProducto valor={product.emoji || 'svg:shopping-bag'} imagen={product.image} size={48} color={zc.gris} />
+      </View>
       <Text style={styles.productName} numberOfLines={2}>{product.name}</Text>
       <Text style={styles.productPrice}>{formatMoney(parseFloat(product.price), currency)}</Text>
       {stockEl}
@@ -78,10 +79,10 @@ function ProductCard({ product, onPress, currency, mostrarStock, stockMap }) {
 
 // ─── Fila del carrito ─────────────────────────────────────────────────────────
 
-function CartItem({ item, onDelete, onEditNota, onEditMods, currency }) {
+function CartItem({ item, imagen, onDelete, onEditNota, onEditMods, currency }) {
   return (
     <View style={styles.cartItem}>
-      <IconoProducto valor={item.emoji || 'svg:shopping-bag'} size={24} color={colors.textSecondary} />
+      <IconoProducto valor={item.emoji || 'svg:shopping-bag'} imagen={imagen} size={36} color={zc.gris} />
       <View style={{ flex: 1 }}>
         <Text style={styles.cartName} numberOfLines={1}>{item.nombre}</Text>
         {/* Modificadores (BLOQUE 11): van resaltados y no como nota gris — cambian
@@ -93,21 +94,21 @@ function CartItem({ item, onDelete, onEditNota, onEditMods, currency }) {
         ) : null}
         {item.nota ? (
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Ionicons name="document-text-outline" size={12} color={colors.textMuted} />
+            <Icono nombre="document-text-outline" size={12} color={colors.textMuted} />
             <Text style={[styles.cartNota, { marginLeft: 2 }]} numberOfLines={1}>{item.nota}</Text>
           </View>
         ) : null}
         <Text style={styles.cartPrice}>{formatMoney(item.precio, currency)}</Text>
       </View>
       <TouchableOpacity style={styles.iconBtn} onPress={() => onEditNota(item)}>
-        <Ionicons
-          name={item.nota ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline'}
+        <Icono
+          nombre={item.nota ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline'}
           size={20}
           color={item.nota ? colors.primary : colors.textMuted}
         />
       </TouchableOpacity>
       <TouchableOpacity style={styles.iconBtn} onPress={() => onDelete(item.uid)}>
-        <Ionicons name="trash-outline" size={20} color={colors.danger} />
+        <Icono nombre="trash-outline" size={20} color={colors.danger} />
       </TouchableOpacity>
     </View>
   );
@@ -119,7 +120,7 @@ function CartItem({ item, onDelete, onEditNota, onEditMods, currency }) {
 function PromoCartItem({ item, onDelete, currency }) {
   return (
     <View style={[styles.cartItem, styles.cartPromo]}>
-      <Ionicons name="gift-outline" size={22} color="#7c3aed" />
+      <Icono nombre="gift-outline" size={20} color={tonos.lila.icono} />
       <View style={{ flex: 1, marginLeft: spacing.xs }}>
         <Text style={styles.cartName} numberOfLines={1}>{item.nombre}</Text>
         {item.productos.map((p, i) => (
@@ -133,7 +134,7 @@ function PromoCartItem({ item, onDelete, currency }) {
         <Text style={styles.cartPrice}>{formatMoney(item.precio, currency)}</Text>
       </View>
       <TouchableOpacity style={styles.iconBtn} onPress={() => onDelete(item.uid)}>
-        <Ionicons name="trash-outline" size={20} color={colors.danger} />
+        <Icono nombre="trash-outline" size={20} color={colors.danger} />
       </TouchableOpacity>
     </View>
   );
@@ -227,6 +228,7 @@ export default function NuevaVentaScreen() {
   const [stockMap, setStockMap]           = useState(null); // { productId: qty | null }
 
   // ── Swipe para cerrar carrito ─────────────────────────────────────────────
+  const insets        = useSafeAreaInsets();
   const cartPan       = useRef(new Animated.Value(0)).current;
   const cartPanRef    = useRef(0);
   const cartScrollYRef = useRef(0);
@@ -932,22 +934,11 @@ export default function NuevaVentaScreen() {
   const tipoActivo = TIPO_PEDIDO.find(t => t.key === tipoPedido);
 
   return (
-    <SafeAreaView style={styles.safe}>
-      {/* Header */}
-      <View style={styles.header}>
-        <LogoTitle title="Nueva Venta" titleStyle={styles.title} />
-        <OfflineIndicator />
-        {carrito.length > 0 && (
-          <TouchableOpacity style={styles.carritoBtn} onPress={openCartPanel}>
-            <Ionicons name="cart" size={16} color="#fff" />
-            <Text style={styles.carritoBtnText}> {totalItems}  ·  {formatMoney(totalFinal, currency)}</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Búsqueda de producto */}
-      <View style={styles.searchWrap}>
-        <Ionicons name="search-outline" size={18} color={colors.textMuted} style={styles.searchIcon} />
+    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+      {/* Cabecera azul noche con el buscador dentro (carcasa A) */}
+      <Cabecera titulo="Nueva venta" derecha={<OfflineIndicator />}>
+      <View style={[styles.searchWrap, styles.searchEnCabecera]}>
+        <Icono nombre="search-outline" size={18} color={colors.textMuted} style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
           value={busqueda}
@@ -957,27 +948,28 @@ export default function NuevaVentaScreen() {
         />
         {busqueda.length > 0 && (
           <TouchableOpacity onPress={() => setBusqueda('')}>
-            <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+            <Icono nombre="close-circle" size={18} color={colors.textMuted} />
           </TouchableOpacity>
         )}
       </View>
+      </Cabecera>
 
       {/* Búsqueda de cliente inline */}
       {clienteSeleccionado ? (
         <View style={styles.clienteChip}>
-          <Ionicons name="person" size={16} color={colors.primary} />
+          <Icono nombre="person" size={16} color={zc.azul} />
           <Text style={styles.clienteChipText}>{clienteSeleccionado.name}</Text>
           {clienteSeleccionado.phone && (
             <Text style={styles.clienteChipSub}>{clienteSeleccionado.phone}</Text>
           )}
           <TouchableOpacity onPress={limpiarCliente} style={{ marginLeft: spacing.xs }}>
-            <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+            <Icono nombre="close-circle" size={18} color={colors.textMuted} />
           </TouchableOpacity>
         </View>
       ) : (
         <View style={styles.clienteInputRow}>
           <View style={[styles.searchWrap, { flex: 1, marginHorizontal: 0, marginRight: spacing.xs }]}>
-            <Ionicons name="person-outline" size={16} color={colors.textMuted} style={styles.searchIcon} />
+            <Icono nombre="person-outline" size={16} color={colors.textMuted} style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
               value={busqNombre}
@@ -988,7 +980,7 @@ export default function NuevaVentaScreen() {
             />
           </View>
           <View style={[styles.searchWrap, { flex: 1, marginHorizontal: 0 }]}>
-            <Ionicons name="call-outline" size={16} color={colors.textMuted} style={styles.searchIcon} />
+            <Icono nombre="call-outline" size={16} color={colors.textMuted} style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
               value={busqTelefono}
@@ -1007,7 +999,7 @@ export default function NuevaVentaScreen() {
         <View style={styles.sugerencias}>
           {sugerencias.map(c => (
             <TouchableOpacity key={c.id} style={styles.sugerenciaItem} onPress={() => seleccionarCliente(c)}>
-              <Ionicons name="person-outline" size={16} color={colors.textMuted} />
+              <Icono nombre="person-outline" size={16} color={colors.textMuted} />
               <Text style={styles.sugerenciaNombre}>{c.name}</Text>
               {c.phone && <Text style={styles.sugerenciaTel}>{c.phone}</Text>}
             </TouchableOpacity>
@@ -1027,7 +1019,7 @@ export default function NuevaVentaScreen() {
             onPress={() => { setCatActiva(c.id); setShowSug(false); }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <IconoProducto valor={c.emoji} size={16} color={catActiva === c.id ? '#fff' : colors.textSecondary} />
+              <IconoProducto valor={c.emoji} size={16} color={catActiva === c.id ? '#fff' : zc.gris} />
               <Text style={[styles.catChipText, catActiva === c.id && styles.catChipTextActive]}>
                 {c.name}
               </Text>
@@ -1043,7 +1035,10 @@ export default function NuevaVentaScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.promosRow} contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.sm }}>
           {promosActivas.map(p => (
             <TouchableOpacity key={p.id} style={styles.promoChip} onPress={() => { setShowSug(false); setHojaPromo(p); }}>
-              <Text style={styles.promoChipNombre} numberOfLines={1}>🎁 {p.name}</Text>
+              <View style={styles.promoChipFila}>
+                <Icono nombre="regalo" size={15} color={tonos.lila.icono} />
+                <Text style={styles.promoChipNombre} numberOfLines={1}>{p.name}</Text>
+              </View>
               <Text style={styles.promoChipSub} numberOfLines={1}>
                 {textoHuecos(p, productos, categories)} · {textoCobro(p, currency)}
               </Text>
@@ -1057,13 +1052,25 @@ export default function NuevaVentaScreen() {
         data={productosFiltrados}
         keyExtractor={p => String(p.id)}
         numColumns={2}
-        contentContainerStyle={styles.grid}
+        contentContainerStyle={[styles.grid, carrito.length > 0 && { paddingBottom: 96 }]}
         columnWrapperStyle={{ gap: spacing.sm }}
         ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
         renderItem={({ item }) => <ProductCard product={item} onPress={agregarAlCarrito} currency={currency} mostrarStock={mostrarStock} stockMap={stockMap} />}
         ListEmptyComponent={<Text style={styles.empty}>No hay productos en esta categoría</Text>}
         onScrollBeginDrag={() => setShowSug(false)}
       />
+
+      {/* La barra oscura que flota (carcasa A). Es el botón del carrito de
+          siempre, movido abajo: al tocarla se abre el ticket, igual que antes. */}
+      {carrito.length > 0 && (
+        <BarraDeCobrar
+          style={styles.barraCobrar}
+          etiqueta={`Ticket · ${totalItems} ${totalItems === 1 ? 'producto' : 'productos'}`}
+          total={formatMoney(totalFinal, currency)}
+          textoBoton="Ver ticket"
+          onPress={openCartPanel}
+        />
+      )}
 
       {/* Panel carrito */}
       {showCarrito && (
@@ -1079,20 +1086,20 @@ export default function NuevaVentaScreen() {
             }}
             {...cartHeaderPan.panHandlers}
           >
-            <View>
+            <View style={[styles.ticketCab, { paddingTop: insets.top }]}>
               <View style={styles.dragHandleWrap}>
-                <View style={styles.dragHandle} />
+                <View style={[styles.dragHandle, styles.dragHandleNoche]} />
               </View>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Ticket actual</Text>
+              <View style={[styles.modalHeader, styles.ticketCabFila]}>
+                <Text style={[styles.modalTitle, styles.ticketCabTitulo]}>Ticket actual</Text>
                 <View style={{ flexDirection: 'row', gap: spacing.md, alignItems: 'center' }}>
                   {carrito.length > 0 && (
                     <TouchableOpacity onPress={vaciarCarrito}>
-                      <Text style={{ color: colors.danger, fontWeight: '700', fontSize: font.sm }}>Vaciar</Text>
+                      <Text style={styles.vaciarTxt}>Vaciar</Text>
                     </TouchableOpacity>
                   )}
                   <TouchableOpacity onPress={() => closeCartPanel()}>
-                    <Ionicons name="close" size={24} color={colors.textSecondary} />
+                    <Icono nombre="close" size={24} color={zc.enNocheSuave} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1112,7 +1119,7 @@ export default function NuevaVentaScreen() {
                     style={[styles.tipoBtn, tipoPedido === t.key && styles.tipoBtnActive]}
                     onPress={() => setTipoPedido(t.key)}
                   >
-                    <Ionicons name={t.icon} size={18} color={tipoPedido === t.key ? '#fff' : colors.textSecondary} />
+                    <Icono nombre={t.icon} size={18} color={tipoPedido === t.key ? '#fff' : zc.gris} />
                     <Text style={[styles.tipoBtnText, tipoPedido === t.key && { color: '#fff' }]}>{t.label}</Text>
                   </TouchableOpacity>
                 ))}
@@ -1121,7 +1128,7 @@ export default function NuevaVentaScreen() {
               {/* Cliente */}
               {clienteSeleccionado && (
                 <View style={[styles.sectionLabel, { flexDirection: 'row', alignItems: 'center', marginTop: spacing.md }]}>
-                  <Ionicons name="person" size={14} color={colors.textSecondary} />
+                  <Icono nombre="person" size={14} color={colors.textSecondary} />
                   <Text style={[styles.sectionLabel, { marginBottom: 0, marginLeft: spacing.xs }]}>{clienteSeleccionado.name}</Text>
                 </View>
               )}
@@ -1134,7 +1141,7 @@ export default function NuevaVentaScreen() {
               {sugerencia && (
                 <View style={styles.sugerenciaPromo}>
                   <Text style={styles.sugerenciaPromoTexto}>
-                    ¿Convertir a <Text style={{ fontWeight: '800' }}>{sugerencia.promo.name}</Text>? Ahorra {formatMoney(sugerencia.ahorro, currency)}
+                    ¿Convertir a <Text style={{ fontWeight: '700' }}>{sugerencia.promo.name}</Text>? Ahorra {formatMoney(sugerencia.ahorro, currency)}
                   </Text>
                   <TouchableOpacity style={styles.sugerenciaPromoBtn} onPress={aplicarSugerencia}>
                     <Text style={styles.sugerenciaPromoBtnText}>Convertir</Text>
@@ -1144,12 +1151,12 @@ export default function NuevaVentaScreen() {
               {carrito.map(item => item.tipo === 'promo' ? (
                 <PromoCartItem key={item.uid} item={item} onDelete={eliminarDelCarrito} currency={currency} />
               ) : (
-                <CartItem key={item.uid} item={item} onDelete={eliminarDelCarrito} onEditNota={abrirNota} onEditMods={editarModificadores} currency={currency} />
+                <CartItem key={item.uid} item={item} imagen={(productos.find(p => p.id === item.product_id) || {}).image} onDelete={eliminarDelCarrito} onEditNota={abrirNota} onEditMods={editarModificadores} currency={currency} />
               ))}
 
               {carrito.length === 0 && (
                 <View style={styles.emptyCart}>
-                  <Ionicons name="cart-outline" size={48} color={colors.textMuted} />
+                  <Icono nombre="cart-outline" size={48} color={colors.textMuted} />
                   <Text style={styles.emptyCartText}>El ticket está vacío</Text>
                 </View>
               )}
@@ -1218,7 +1225,7 @@ export default function NuevaVentaScreen() {
                 {notaModal && <Text style={styles.modalSub}>{notaModal.nombre}</Text>}
               </View>
               <TouchableOpacity onPress={() => setNotaModal(null)}>
-                <Ionicons name="close" size={24} color={colors.textSecondary} />
+                <Icono nombre="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
             <ScrollView contentContainerStyle={{ padding: spacing.lg }}>
@@ -1268,7 +1275,7 @@ export default function NuevaVentaScreen() {
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Cobrar</Text>
             <TouchableOpacity onPress={() => { setCobrandoModal(false); openCartPanel(); }}>
-              <Ionicons name="close" size={24} color={colors.textSecondary} />
+              <Icono nombre="close" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -1278,7 +1285,7 @@ export default function NuevaVentaScreen() {
               {/* Cliente */}
               {clienteSeleccionado && (
                 <View style={styles.resumenCliente}>
-                  <Ionicons name="person" size={16} color={colors.textSecondary} />
+                  <Icono nombre="person" size={16} color={colors.textSecondary} />
                   <Text style={[styles.resumenClienteText, { marginLeft: spacing.xs }]}>{clienteSeleccionado.name}</Text>
                 </View>
               )}
@@ -1303,10 +1310,10 @@ export default function NuevaVentaScreen() {
                   )}
                   {descuentoPuntos > 0 && (
                     <View style={styles.totalDesgloseRow}>
-                      <Text style={[styles.totalDesgloseLabel, { color: '#7c3aed' }]}>
+                      <Text style={[styles.totalDesgloseLabel, { color: tonos.lila.icono }]}>
                         Puntos canjeados
                       </Text>
-                      <Text style={[styles.totalDesgloseValor, { color: '#7c3aed' }]}>
+                      <Text style={[styles.totalDesgloseValor, { color: tonos.lila.icono }]}>
                         -{formatMoney(descuentoPuntos, currency)}
                       </Text>
                     </View>
@@ -1323,11 +1330,11 @@ export default function NuevaVentaScreen() {
                   )}
                 </View>
               ) : null}
-              <Text style={[styles.totalValue, { fontSize: 40, marginBottom: spacing.xs }]}>
+              <Text style={[styles.totalValue, styles.totalGrande]}>
                 {formatMoney(totalFinal, currency)}
               </Text>
               <View style={[styles.resumenCliente, { marginBottom: spacing.xl }]}>
-                <Ionicons name={tipoActivo?.icon} size={14} color={colors.textSecondary} />
+                <Icono nombre={tipoActivo?.icon} size={14} color={colors.textSecondary} />
                 <Text style={[styles.resumenClienteText, { marginLeft: spacing.xs }]}>
                   {tipoActivo?.label}  ·  {totalItems} {totalItems === 1 ? 'producto' : 'productos'}
                 </Text>
@@ -1345,7 +1352,7 @@ export default function NuevaVentaScreen() {
                   style={[styles.metodoPagoBtn, metodoPago === m.key && styles.metodoPagoBtnActive]}
                   onPress={() => setMetodoPago(m.key)}
                 >
-                  <Ionicons name={m.icon} size={20} color={metodoPago === m.key ? '#fff' : colors.textSecondary} />
+                  <Icono nombre={m.icon} size={20} color={metodoPago === m.key ? '#fff' : zc.gris} />
                   <Text style={[styles.metodoPagoText, metodoPago === m.key && { color: '#fff' }]}>{m.label}</Text>
                 </TouchableOpacity>
               ))}
@@ -1354,8 +1361,8 @@ export default function NuevaVentaScreen() {
                   es una alternativa a elegir UNO: o se paga con un método, o se
                   reparte. Arranca cerrado: la venta normal no cambia. */}
               <TouchableOpacity style={styles.dividirBtn} onPress={alternarPagoDividido}>
-                <Ionicons
-                  name={pagoDividido ? 'close-circle-outline' : 'git-branch-outline'}
+                <Icono
+                  nombre={pagoDividido ? 'close-circle-outline' : 'git-branch-outline'}
                   size={16}
                   color={colors.primary}
                 />
@@ -1427,7 +1434,7 @@ export default function NuevaVentaScreen() {
                           />
                         )}
                         <TouchableOpacity style={styles.pagoQuitar} onPress={() => quitarPago(i)}>
-                          <Ionicons name="close" size={16} color={colors.danger} />
+                          <Icono nombre="close" size={16} color={colors.danger} />
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -1580,12 +1587,12 @@ export default function NuevaVentaScreen() {
                         <Text style={styles.descuentoAplicadoMonto}>-{formatMoney(descuento, currency)}</Text>
                       </View>
                       <TouchableOpacity onPress={quitarDescuento} style={styles.btnQuitarDesc}>
-                        <Ionicons name="close-circle" size={20} color={colors.danger} />
+                        <Icono nombre="close-circle" size={20} color={colors.danger} />
                       </TouchableOpacity>
                     </View>
                   ) : (
                     <TouchableOpacity style={styles.btnAplicarDesc} onPress={abrirDescuentos}>
-                      <Ionicons name="pricetag-outline" size={16} color={colors.primary} />
+                      <Icono nombre="pricetag-outline" size={16} color={colors.primary} />
                       <Text style={styles.btnAplicarDescText}>Aplicar descuento</Text>
                     </TouchableOpacity>
                   )}
@@ -1625,10 +1632,10 @@ export default function NuevaVentaScreen() {
                       style={[styles.btnPuntos, puntosUsados && styles.btnPuntosActivo]}
                       onPress={togglePuntos}
                     >
-                      <Ionicons
-                        name={puntosUsados ? 'checkmark-circle' : 'star-outline'}
+                      <Icono
+                        nombre={puntosUsados ? 'checkmark-circle' : 'star-outline'}
                         size={16}
-                        color={puntosUsados ? '#fff' : '#7c3aed'}
+                        color={puntosUsados ? '#fff' : tonos.lila.icono}
                       />
                       <Text style={[styles.btnPuntosText, puntosUsados && { color: '#fff' }]}>
                         {puntosUsados ? `Puntos aplicados (-${formatMoney(descuentoPuntos, currency)})` : 'Usar puntos como descuento'}
@@ -1677,7 +1684,7 @@ export default function NuevaVentaScreen() {
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Aplicar descuento</Text>
             <TouchableOpacity onPress={() => setShowDescuentoModal(false)}>
-              <Ionicons name="close" size={24} color={colors.textSecondary} />
+              <Icono nombre="close" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={{ padding: spacing.lg }}>
@@ -1692,7 +1699,7 @@ export default function NuevaVentaScreen() {
               <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: spacing.xl }} />
             ) : descuentos.length === 0 ? (
               <View style={styles.emptyCart}>
-                <Ionicons name="pricetag-outline" size={40} color={colors.textMuted} />
+                <Icono nombre="pricetag-outline" size={40} color={colors.textMuted} />
                 <Text style={styles.emptyCartText}>No hay descuentos activos</Text>
                 <Text style={{ color: colors.textMuted, fontSize: font.sm, textAlign: 'center', marginTop: spacing.xs }}>
                   Crea descuentos desde la sección Ofertas
@@ -1777,193 +1784,209 @@ export default function NuevaVentaScreen() {
   );
 }
 
+// Diseño A (PLAN_REDISENO_V1): tarjetas blancas que flotan, negrita solo en
+// números y títulos, el azul noche para lo activo y el azul para la acción.
+const campo = { backgroundColor: zc.tarjeta, borderRadius: radios.boton, borderWidth: 1, borderColor: zc.linea };
+const caja  = { backgroundColor: zc.tarjeta, borderRadius: radios.tarjeta, ...sombra };
+
 const styles = StyleSheet.create({
-  safe:           { flex: 1, backgroundColor: colors.background },
+  safe:           { flex: 1, backgroundColor: zc.fondo },
   centered:       { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.lg, paddingBottom: spacing.sm },
-  title:          { fontSize: font.xl, fontWeight: '800', color: colors.textPrimary },
-  carritoBtn:     { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary, paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2, borderRadius: radius.xl },
-  carritoBtnText: { color: '#fff', fontWeight: '700', fontSize: font.sm },
-  searchWrap:     { flexDirection: 'row', alignItems: 'center', marginHorizontal: spacing.lg, marginBottom: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, paddingHorizontal: spacing.md },
-  searchIcon:     { marginRight: spacing.xs },
-  searchInput:    { flex: 1, paddingVertical: spacing.md, paddingLeft: 0, fontSize: font.md, color: colors.textPrimary },
-  clienteInputRow:{ flexDirection: 'row', marginHorizontal: spacing.lg, marginBottom: spacing.sm, gap: spacing.sm },
-  clienteChip:    { flexDirection: 'row', alignItems: 'center', marginHorizontal: spacing.lg, marginBottom: spacing.sm, backgroundColor: colors.primary + '15', borderWidth: 1, borderColor: colors.primary + '44', borderRadius: radius.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: spacing.xs },
-  clienteChipText:{ fontSize: font.sm, fontWeight: '700', color: colors.primary, flex: 1 },
-  clienteChipSub: { fontSize: font.sm - 2, color: colors.primary + 'aa' },
-  sugerencias:    { marginHorizontal: spacing.lg, marginTop: -spacing.xs, marginBottom: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', zIndex: 100 },
-  sugerenciaItem: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, gap: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
-  sugerenciaNombre:{ fontSize: font.sm, fontWeight: '600', color: colors.textPrimary, flex: 1 },
-  sugerenciaTel:  { fontSize: font.sm - 1, color: colors.textMuted },
+  searchWrap:     { flexDirection: 'row', alignItems: 'center', marginHorizontal: 14, marginBottom: spacing.sm, ...campo, paddingHorizontal: 12 },
+  searchEnCabecera:{ marginHorizontal: 0, marginBottom: 0, marginTop: 14, borderWidth: 0 },
+  searchIcon:     { marginRight: spacing.sm },
+  searchInput:    { flex: 1, paddingVertical: 10, paddingLeft: 0, fontSize: 14.5, color: zc.tinta },
+  clienteInputRow:{ flexDirection: 'row', marginHorizontal: 14, marginTop: 12, marginBottom: spacing.sm, gap: spacing.sm },
+  clienteChip:    { flexDirection: 'row', alignItems: 'center', marginHorizontal: 14, marginTop: 12, marginBottom: spacing.sm, backgroundColor: zc.azulSuave, borderRadius: radios.boton, paddingHorizontal: 12, paddingVertical: 10, gap: spacing.xs },
+  clienteChipText:{ fontSize: 14, fontWeight: '500', color: zc.azul, flex: 1 },
+  clienteChipSub: { fontSize: 12.5, color: zc.azul },
+  sugerencias:    { marginHorizontal: 14, marginTop: -spacing.xs, marginBottom: spacing.sm, ...caja, overflow: 'hidden', zIndex: 100 },
+  sugerenciaItem: { flexDirection: 'row', alignItems: 'center', padding: 12, gap: spacing.sm, borderBottomWidth: 1, borderBottomColor: zc.linea },
+  sugerenciaNombre:{ fontSize: 14, fontWeight: '500', color: zc.tinta, flex: 1 },
+  sugerenciaTel:  { fontSize: 12.5, color: zc.grisSuave },
   sugerenciaClose:{ padding: spacing.sm, alignItems: 'center' },
-  catScroll:      { flexGrow: 0, marginBottom: spacing.sm },
-  catChip:        { paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2, borderRadius: radius.xl, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  catChipActive:  { backgroundColor: colors.primary, borderColor: colors.primary },
-  catChipText:    { fontSize: font.sm, fontWeight: '600', color: colors.textSecondary },
+  catScroll:      { flexGrow: 0, marginBottom: 10, paddingVertical: 2 },
+  catChip:        { paddingHorizontal: 13, paddingVertical: 7, borderRadius: radios.chip, backgroundColor: zc.tarjeta, elevation: 1, shadowColor: zc.noche, shadowOpacity: 0.05, shadowRadius: 2, shadowOffset: { width: 0, height: 1 } },
+  catChipActive:  { backgroundColor: zc.noche },
+  catChipText:    { fontSize: 13.5, color: zc.gris },
   catChipTextActive:{ color: '#fff' },
-  grid:           { padding: spacing.lg, paddingTop: spacing.sm },
-  productCard:    { flex: 1, backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, alignItems: 'center', borderWidth: 1, borderColor: colors.border },
+  grid:           { paddingHorizontal: 14, paddingTop: 2, paddingBottom: 16 },
+  productCard:    { flex: 1, ...caja, padding: 12 },
+  productFotoBlanca:{ backgroundColor: zc.tarjeta },
+  productFoto:    { height: 62, borderRadius: 12, backgroundColor: '#f3f5f9', alignItems: 'center', justifyContent: 'center', marginBottom: 9 },
   productEmoji:   { fontSize: 32, marginBottom: spacing.xs },
-  productName:    { fontSize: font.sm, fontWeight: '600', color: colors.textPrimary, textAlign: 'center', marginBottom: spacing.xs },
-  productPrice:   { fontSize: font.md, fontWeight: '800', color: colors.primary },
-  empty:          { textAlign: 'center', color: colors.textMuted, marginTop: spacing.xxl, fontSize: font.md },
+  productName:    { fontSize: 13.5, fontWeight: '500', color: zc.tinta, lineHeight: 17, marginBottom: 2 },
+  productPrice:   { fontSize: 15, fontWeight: '700', color: zc.azul },
+  stockAgotado:   { alignSelf: 'flex-start', fontSize: 11.5, color: zc.ambarTexto, backgroundColor: zc.ambarSuave, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1, marginTop: 3, overflow: 'hidden' },
+  stockPocoFila:  { flexDirection: 'row', alignItems: 'center', marginTop: 3, gap: 3 },
+  stockPoco:      { fontSize: 11.5, color: zc.ambarTexto },
+  stockHay:       { fontSize: 11.5, color: zc.grisSuave, marginTop: 3 },
+  empty:          { textAlign: 'center', color: zc.grisSuave, marginTop: spacing.xxl, fontSize: 14.5 },
+  barraCobrar:    { position: 'absolute', left: 0, right: 0, bottom: 10, zIndex: 20, borderRadius: 18, elevation: 8, shadowOpacity: 0.3, shadowRadius: 24, shadowOffset: { width: 0, height: 10 } },
   cartLayer:      { ...StyleSheet.absoluteFillObject, zIndex: 30 },
   cartOverlayPressable: { ...StyleSheet.absoluteFillObject },
   cartOverlay:    { flex: 1, backgroundColor: '#000' },
-  cartPanel:      { ...StyleSheet.absoluteFillObject, backgroundColor: colors.background },
+  cartPanel:      { ...StyleSheet.absoluteFillObject, backgroundColor: zc.fondo },
+  ticketCab:      { backgroundColor: zc.noche },
+  ticketCabFila:  { borderBottomWidth: 0 },
+  ticketCabTitulo:{ color: zc.enNoche },
+  dragHandleNoche:{ backgroundColor: 'rgba(255,255,255,0.25)' },
+  vaciarTxt:      { color: zc.bajaTexto, fontWeight: '500', fontSize: 14 },
   dragHandleWrap: { alignItems: 'center', paddingTop: spacing.sm, paddingBottom: spacing.xs },
-  dragHandle:     { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border },
-  modalHeader:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingBottom: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
-  modalTitle:     { fontSize: font.xl, fontWeight: '800', color: colors.textPrimary },
-  modalSub:       { fontSize: font.sm, color: colors.textMuted, marginTop: 2 },
-  sectionLabel:   { fontSize: font.sm, fontWeight: '700', color: colors.textSecondary, marginBottom: spacing.sm },
-  tipoPedidoRow:  { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
-  tipoBtn:        { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingVertical: spacing.sm, backgroundColor: colors.surface },
-  tipoBtnActive:  { backgroundColor: colors.primary, borderColor: colors.primary },
-  tipoBtnText:    { fontSize: font.sm - 1, fontWeight: '700', color: colors.textSecondary },
-  cartItem:       { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm, borderWidth: 1, borderColor: colors.border },
+  dragHandle:     { width: 36, height: 4, borderRadius: 2, backgroundColor: '#d5dae2' },
+  modalHeader:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: zc.linea },
+  modalTitle:     { fontSize: 19, fontWeight: '500', color: zc.tinta },
+  modalSub:       { fontSize: 13, color: zc.grisSuave, marginTop: 2 },
+  sectionLabel:   { fontSize: 13, color: zc.gris, marginBottom: spacing.sm },
+  tipoPedidoRow:  { flexDirection: 'row', gap: 6, marginBottom: spacing.md },
+  tipoBtn:        { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, borderRadius: radios.boton, paddingVertical: 11, ...caja },
+  tipoBtnActive:  { backgroundColor: zc.noche },
+  tipoBtnText:    { fontSize: 13.5, fontWeight: '500', color: zc.gris },
+  cartItem:       { flexDirection: 'row', alignItems: 'center', gap: 10, ...caja, padding: 12, marginBottom: 10 },
   cartEmoji:      { fontSize: 24, marginRight: spacing.sm },
-  cartName:       { fontSize: font.sm, fontWeight: '600', color: colors.textPrimary },
-  cartNota:       { fontSize: font.sm - 1, color: colors.textMuted, marginTop: 1, marginBottom: 1 },
+  cartName:       { fontSize: 14.5, fontWeight: '500', color: zc.tinta },
+  cartNota:       { fontSize: 12.5, color: zc.grisSuave, marginTop: 1, marginBottom: 1 },
   // Los extras van en ámbar: cambian el precio y lo que se prepara (BLOQUE 11).
-  cartMods:       { fontSize: font.sm - 1, color: '#b45309', fontWeight: '600', marginTop: 1 },
-  cartPrice:      { fontSize: font.md, fontWeight: '800', color: colors.primary },
-  iconBtn:        { padding: spacing.sm, marginLeft: spacing.xs },
+  cartMods:       { fontSize: 12.5, color: zc.ambarTexto, marginTop: 1 },
+  cartPrice:      { fontSize: 15, fontWeight: '700', color: zc.tinta, marginTop: 2 },
+  iconBtn:        { padding: spacing.sm },
   emptyCart:      { alignItems: 'center', paddingVertical: spacing.xxl, gap: spacing.sm },
-  emptyCartText:  { color: colors.textMuted, fontSize: font.md },
+  emptyCartText:  { color: zc.grisSuave, fontSize: 14.5 },
   tagsWrap:       { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  tag:            { paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2, borderRadius: radius.xl, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  tagText:        { fontSize: font.sm, fontWeight: '600', color: colors.textSecondary },
-  notaInput:      { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.md, color: colors.textPrimary, textAlignVertical: 'top', minHeight: 80 },
-  carritoFooter:  { padding: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface },
-  totalLabel:     { fontSize: font.sm, color: colors.textSecondary, fontWeight: '600' },
-  totalValue:     { fontSize: font.xxl, fontWeight: '800', color: colors.textPrimary },
-  btnCobrar:      { backgroundColor: colors.success, borderRadius: radius.md, padding: spacing.md + 2, alignItems: 'center' },
-  btnCobrarText:  { color: '#fff', fontSize: font.lg, fontWeight: '700' },
-  btnSecundario:  { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md + 2, alignItems: 'center', backgroundColor: colors.surface },
-  btnSecundarioText:{ color: colors.textSecondary, fontSize: font.md, fontWeight: '600' },
-  resumenCliente: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.sm + 2, marginBottom: spacing.md, borderWidth: 1, borderColor: colors.border },
-  resumenClienteText:{ fontSize: font.sm, fontWeight: '600', color: colors.textSecondary },
-  metodoPagoBtn:  { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm, backgroundColor: colors.surface },
-  metodoPagoBtnActive:{ backgroundColor: colors.primary, borderColor: colors.primary },
-  metodoPagoText: { fontSize: font.md, fontWeight: '600', color: colors.textPrimary },
+  tag:            { paddingHorizontal: 14, paddingVertical: 8, borderRadius: radios.chip, backgroundColor: zc.tarjeta, elevation: 1, shadowColor: zc.noche, shadowOpacity: 0.05, shadowRadius: 2, shadowOffset: { width: 0, height: 1 } },
+  tagText:        { fontSize: 13.5, color: zc.gris },
+  notaInput:      { ...campo, padding: 12, fontSize: 14.5, color: zc.tinta, textAlignVertical: 'top', minHeight: 80 },
+  carritoFooter:  { padding: 16, paddingBottom: 18, backgroundColor: zc.tarjeta, borderTopLeftRadius: 18, borderTopRightRadius: 18, ...sombra, elevation: 10 },
+  totalLabel:     { fontSize: 13, color: zc.gris },
+  totalValue:     { fontSize: 24, fontWeight: '700', color: zc.tinta, fontVariant: ['tabular-nums'] },
+  totalGrande:    { fontSize: 36, letterSpacing: -0.5, marginBottom: spacing.sm },
+  btnCobrar:      { backgroundColor: zc.azul, borderRadius: radios.boton, paddingVertical: 14, alignItems: 'center' },
+  btnCobrarText:  { color: '#fff', fontSize: 16, fontWeight: '500' },
+  btnSecundario:  { borderRadius: radios.boton, paddingVertical: 14, alignItems: 'center', backgroundColor: zc.azulSuave },
+  btnSecundarioText:{ color: zc.azul, fontSize: 15, fontWeight: '500' },
+  resumenCliente: { flexDirection: 'row', alignItems: 'center', ...caja, borderRadius: radios.boton, padding: 11, marginBottom: spacing.md },
+  resumenClienteText:{ fontSize: 13.5, color: zc.gris },
+  metodoPagoBtn:  { flexDirection: 'row', alignItems: 'center', gap: 10, ...caja, borderRadius: radios.boton, padding: 13, marginBottom: 8 },
+  metodoPagoBtnActive:{ backgroundColor: zc.noche },
+  metodoPagoText: { fontSize: 15, fontWeight: '500', color: zc.tinta },
 
   // Desglose de total con descuentos
-  totalDesglose:      { backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.sm },
-  totalDesgloseRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.xs },
-  totalDesgloseLabel: { fontSize: font.sm, color: colors.textSecondary, fontWeight: '600' },
-  totalDesgloseValor: { fontSize: font.sm, color: colors.textSecondary, fontWeight: '700' },
+  totalDesglose:      { ...caja, borderRadius: radios.boton, padding: 12, marginVertical: spacing.sm },
+  totalDesgloseRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 3 },
+  totalDesgloseLabel: { fontSize: 13.5, color: zc.gris },
+  totalDesgloseValor: { fontSize: 13.5, color: zc.gris, fontWeight: '500', fontVariant: ['tabular-nums'] },
 
   // Efectivo
-  efectivoBox:    { backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginTop: spacing.lg, marginBottom: spacing.sm },
-  efectivoInput:  { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.xl, fontWeight: '700', color: colors.textPrimary, textAlign: 'center', marginBottom: spacing.sm, backgroundColor: colors.background },
-  cambioRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border },
-  cambioLabel:    { fontSize: font.sm, fontWeight: '600', color: colors.textSecondary },
-  cambioValor:    { fontSize: font.lg, fontWeight: '800' },
+  efectivoBox:    { ...caja, padding: 14, marginTop: 14, marginBottom: spacing.sm },
+  efectivoInput:  { ...campo, backgroundColor: zc.fondo, borderWidth: 0, padding: 12, fontSize: 22, fontWeight: '700', color: zc.tinta, textAlign: 'center', marginBottom: spacing.sm },
+  cambioRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: zc.linea },
+  cambioLabel:    { fontSize: 13.5, color: zc.gris },
+  cambioValor:    { fontSize: 18, fontWeight: '700' },
 
-  // Propina (BLOQUE 9) — en verde para distinguirla del dinero de la venta:
-  // no es ingreso del negocio, es del empleado.
   // ── Pago dividido (BLOQUE 10) ─────────────────────────────────────────────
-  dividirBtn:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, paddingVertical: spacing.sm, marginTop: spacing.sm, borderRadius: radius.md, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border, backgroundColor: colors.surface },
-  dividirBtnText:    { fontSize: font.sm, fontWeight: '700', color: colors.primary },
-  pagosBox:          { backgroundColor: colors.primary + '10', borderRadius: radius.md, borderWidth: 1, borderColor: colors.primary + '55', padding: spacing.md, marginTop: spacing.sm },
+  dividirBtn:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, marginTop: 4, borderRadius: radios.boton, backgroundColor: zc.azulSuave },
+  dividirBtnText:    { fontSize: 14, fontWeight: '500', color: zc.azul },
+  pagosBox:          { ...caja, padding: 14, marginTop: 10 },
   pagosHeader:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
-  pagosTitulo:       { fontSize: font.sm, fontWeight: '700', color: colors.primary },
-  pagosFaltante:     { fontSize: font.sm, fontWeight: '800', color: colors.primary },
-  pagosPartesRow:    { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginBottom: spacing.sm },
-  pagosPartesLabel:  { fontSize: font.xs, color: colors.textSecondary },
-  pagosParteBtn:     { paddingHorizontal: spacing.md, paddingVertical: 4, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.primary + '55', backgroundColor: colors.surface },
-  pagosParteBtnText: { fontSize: font.sm, fontWeight: '700', color: colors.primary },
-  pagoRow:           { marginBottom: spacing.sm, gap: 4 },
-  pagoMetodos:       { flexDirection: 'row', gap: 4 },
-  pagoMetodoChip:    { flex: 1, alignItems: 'center', paddingVertical: 6, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  pagoMetodoChipActive: { borderColor: colors.primary, backgroundColor: colors.primary },
-  pagoMetodoChipText:{ fontSize: font.xs, fontWeight: '600', color: colors.textSecondary },
-  pagoInputs:        { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  pagoInput:         { flex: 1, paddingHorizontal: spacing.sm, paddingVertical: 8, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, color: colors.text, fontSize: font.sm, textAlign: 'right' },
-  pagoInputPropina:  { borderColor: colors.success + '77', backgroundColor: colors.success + '10' },
-  pagoQuitar:        { padding: 8, borderRadius: radius.sm, backgroundColor: colors.danger + '20' },
-  pagoAgregar:       { paddingVertical: spacing.sm, alignItems: 'center', borderRadius: radius.sm, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.primary + '77', backgroundColor: colors.surface },
-  pagoAgregarText:   { fontSize: font.sm, fontWeight: '700', color: colors.primary },
-  pagosTotalRow:     { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.primary + '33' },
-  pagosTotalLabel:   { fontSize: font.xs, color: colors.primary },
-  pagosTotalValor:   { fontSize: font.xs, fontWeight: '700', color: colors.primary },
+  pagosTitulo:       { fontSize: 15, fontWeight: '500', color: zc.tinta },
+  pagosFaltante:     { fontSize: 13.5, fontWeight: '500', color: zc.azul },
+  pagosPartesRow:    { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
+  pagosPartesLabel:  { fontSize: 13, color: zc.gris },
+  pagosParteBtn:     { paddingHorizontal: 14, paddingVertical: 5, borderRadius: radios.chip, backgroundColor: zc.azulSuave },
+  pagosParteBtnText: { fontSize: 13.5, fontWeight: '500', color: zc.azul },
+  pagoRow:           { marginBottom: 10, gap: 6 },
+  pagoMetodos:       { flexDirection: 'row', gap: 6 },
+  pagoMetodoChip:    { flex: 1, alignItems: 'center', paddingVertical: 7, borderRadius: radios.chip, backgroundColor: zc.fondo },
+  pagoMetodoChipActive: { backgroundColor: zc.noche },
+  pagoMetodoChipText:{ fontSize: 13, color: zc.gris },
+  pagoInputs:        { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  pagoInput:         { flex: 1, paddingHorizontal: 10, paddingVertical: 8, borderRadius: radios.boton, backgroundColor: zc.fondo, color: zc.tinta, fontSize: 14, textAlign: 'right' },
+  pagoInputPropina:  { backgroundColor: zc.verdeSuave },
+  pagoQuitar:        { padding: 9, borderRadius: radios.boton, backgroundColor: zc.rojoSuave },
+  pagoAgregar:       { paddingVertical: 10, alignItems: 'center', borderRadius: radios.boton, borderWidth: 1, borderStyle: 'dashed', borderColor: '#bcd0f7' },
+  pagoAgregarText:   { fontSize: 14, fontWeight: '500', color: zc.azul },
+  pagosTotalRow:     { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: zc.linea },
+  pagosTotalLabel:   { fontSize: 13.5, color: zc.gris },
+  pagosTotalValor:   { fontSize: 13.5, fontWeight: '700', color: zc.tinta },
 
-  propinaBox:        { backgroundColor: colors.success + '10', borderRadius: radius.md, borderWidth: 1, borderColor: colors.success + '55', padding: spacing.md, marginTop: spacing.lg, marginBottom: spacing.sm },
+  // Propina (BLOQUE 9) — el verde la distingue del dinero de la venta: no es
+  // ingreso del negocio, es del empleado.
+  propinaBox:        { ...caja, padding: 14, marginTop: 14, marginBottom: spacing.sm },
   propinaHeader:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
-  propinaMonto:      { fontSize: font.lg, fontWeight: '800', color: colors.success },
-  propinaBotones:    { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.sm },
-  propinaBtn:        { flex: 1, minWidth: 64, alignItems: 'center', paddingVertical: spacing.sm, borderRadius: radius.md, borderWidth: 2, borderColor: colors.border, backgroundColor: colors.surface },
-  propinaBtnActive:  { borderColor: colors.success, backgroundColor: colors.success },
-  propinaBtnNinguna: { borderColor: colors.textSecondary, backgroundColor: colors.textSecondary },
-  propinaBtnPct:     { fontSize: font.sm, fontWeight: '700', color: colors.textPrimary },
-  propinaBtnMonto:   { fontSize: 11, fontWeight: '500', color: colors.textSecondary },
-  propinaInput:      { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.md, color: colors.textPrimary, backgroundColor: colors.background },
-  propinaMetodoRow:  { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm },
-  propinaMetodoBtn:  { flex: 1, alignItems: 'center', paddingVertical: spacing.sm, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  propinaMetodoBtnActive: { borderColor: colors.success, backgroundColor: colors.success },
-  propinaMetodoText: { fontSize: 11, fontWeight: '600', color: colors.textSecondary },
-  propinaEntregaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.success + '55' },
-  propinaEntregaLabel: { fontSize: font.sm, fontWeight: '700', color: colors.success },
-  propinaEntregaValor: { fontSize: font.lg, fontWeight: '800', color: colors.success },
+  propinaMonto:      { fontSize: 18, fontWeight: '700', color: zc.verde },
+  propinaBotones:    { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: spacing.sm },
+  propinaBtn:        { flex: 1, minWidth: 64, alignItems: 'center', paddingVertical: 8, borderRadius: radios.boton, backgroundColor: zc.fondo },
+  propinaBtnActive:  { backgroundColor: zc.verde },
+  propinaBtnNinguna: { backgroundColor: zc.noche },
+  propinaBtnPct:     { fontSize: 14, fontWeight: '500', color: zc.tinta },
+  propinaBtnMonto:   { fontSize: 11, color: zc.gris },
+  propinaInput:      { borderRadius: radios.boton, padding: 11, fontSize: 14.5, color: zc.tinta, backgroundColor: zc.fondo },
+  propinaMetodoRow:  { flexDirection: 'row', gap: 6, marginTop: spacing.sm },
+  propinaMetodoBtn:  { flex: 1, alignItems: 'center', paddingVertical: 7, borderRadius: radios.chip, backgroundColor: zc.fondo },
+  propinaMetodoBtnActive: { backgroundColor: zc.verde },
+  propinaMetodoText: { fontSize: 12, color: zc.gris },
+  propinaEntregaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: zc.linea },
+  propinaEntregaLabel: { fontSize: 13.5, color: zc.gris },
+  propinaEntregaValor: { fontSize: 18, fontWeight: '700', color: zc.tinta },
 
   // Domicilio
-  domicilioBox:   { backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginTop: spacing.lg, marginBottom: spacing.sm },
-  domicilioInput: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.md, color: colors.textPrimary, backgroundColor: colors.background },
+  domicilioBox:   { ...caja, padding: 14, marginTop: 14, marginBottom: spacing.sm },
+  domicilioInput: { borderRadius: radios.boton, padding: 11, fontSize: 14.5, color: zc.tinta, backgroundColor: zc.fondo },
 
   // Descuento
-  descuentoSection:   { marginTop: spacing.lg, marginBottom: spacing.sm },
-  btnAplicarDesc:     { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderWidth: 1, borderColor: colors.primary + '66', borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.primary + '0d' },
-  btnAplicarDescText: { fontSize: font.md, fontWeight: '600', color: colors.primary },
-  descuentoAplicado:  { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.success + '15', borderRadius: radius.md, borderWidth: 1, borderColor: colors.success + '44', padding: spacing.md },
-  descuentoAplicadoNombre: { fontSize: font.sm, fontWeight: '700', color: colors.success },
-  descuentoAplicadoMonto:  { fontSize: font.md, fontWeight: '800', color: colors.success },
+  descuentoSection:   { marginTop: 18, marginBottom: spacing.sm },
+  btnAplicarDesc:     { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: radios.boton, padding: 13, backgroundColor: zc.azulSuave },
+  btnAplicarDescText: { fontSize: 15, fontWeight: '500', color: zc.azul },
+  descuentoAplicado:  { flexDirection: 'row', alignItems: 'center', ...caja, borderRadius: radios.boton, padding: 13 },
+  descuentoAplicadoNombre: { fontSize: 14, color: zc.tinta },
+  descuentoAplicadoMonto:  { fontSize: 15, fontWeight: '700', color: zc.verde },
   btnQuitarDesc:      { padding: spacing.xs },
 
-  // Puntos de fidelidad
-  puntosBox:      { backgroundColor: '#f5f3ff', borderRadius: radius.md, borderWidth: 1, borderColor: '#ddd6fe', padding: spacing.md, marginTop: spacing.lg, marginBottom: spacing.sm },
+  // Puntos de fidelidad — el lila de la pastilla de puntos de Clientes
+  puntosBox:      { ...caja, padding: 14, marginTop: 14, marginBottom: spacing.sm },
   puntosHeader:   { marginBottom: spacing.sm },
-  puntosBalance:  { fontSize: font.md, fontWeight: '700', color: '#6d28d9' },
-  puntosValor:    { fontSize: font.sm, color: '#7c3aed', marginTop: 2 },
-  puntosGanar:    { fontSize: font.sm - 1, color: '#8b5cf6', marginTop: 2 },
-  btnPuntos:      { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderWidth: 2, borderColor: '#7c3aed', borderRadius: radius.md, padding: spacing.sm + 2, backgroundColor: '#fff', justifyContent: 'center' },
-  btnPuntosActivo:{ backgroundColor: '#7c3aed', borderColor: '#6d28d9' },
-  btnPuntosText:  { fontSize: font.sm, fontWeight: '700', color: '#7c3aed' },
+  puntosBalance:  { fontSize: 15, fontWeight: '500', color: zc.tinta },
+  puntosValor:    { fontSize: 13, color: tonos.lila.icono, marginTop: 2 },
+  puntosGanar:    { fontSize: 12.5, color: zc.grisSuave, marginTop: 2 },
+  btnPuntos:      { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: radios.boton, padding: 11, backgroundColor: tonos.lila.fondo, justifyContent: 'center' },
+  btnPuntosActivo:{ backgroundColor: tonos.lila.icono },
+  btnPuntosText:  { fontSize: 14, fontWeight: '500', color: tonos.lila.icono },
 
   // Lista de descuentos en modal
-  descuentoItem:      { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.sm },
-  descuentoItemNombre:{ fontSize: font.md, fontWeight: '700', color: colors.textPrimary },
-  descuentoItemEtiqueta: { fontSize: font.sm, color: colors.textMuted, marginTop: 2 },
-  descuentoItemMonto: { fontSize: font.lg, fontWeight: '800', color: colors.success },
+  descuentoItem:      { flexDirection: 'row', alignItems: 'center', ...caja, padding: 14, marginBottom: 10 },
+  descuentoItemNombre:{ fontSize: 15, fontWeight: '500', color: zc.tinta },
+  descuentoItemEtiqueta: { fontSize: 13, color: zc.grisSuave, marginTop: 2 },
+  descuentoItemMonto: { fontSize: 17, fontWeight: '700', color: zc.verde },
 
-  // Promos (PLAN_OFERTAS_V1) — en violeta, para distinguirlas de los productos.
-  avisoPromoDesc:     { fontSize: font.sm - 1, color: '#7c3aed', marginBottom: spacing.md },
-  promosRow:          { flexGrow: 0, marginBottom: spacing.sm },
-  promoChip:          { maxWidth: 220, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.lg, backgroundColor: '#f5f3ff', borderWidth: 1, borderColor: '#c4b5fd' },
-  promoChipNombre:    { fontSize: font.sm, fontWeight: '800', color: '#6d28d9' },
-  promoChipSub:       { fontSize: font.sm - 2, color: '#7c3aed', marginTop: 1 },
-  cartPromo:          { backgroundColor: '#f5f3ff', borderColor: '#c4b5fd' },
-  cartPromoProd:      { fontSize: font.sm - 1, color: '#5b21b6', marginTop: 1 },
-  cartPromoAhorro:    { fontSize: font.sm - 2, color: colors.success, fontWeight: '700', marginTop: 2 },
-  sugerenciaPromo:    { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: '#f5f3ff', borderWidth: 1, borderColor: '#c4b5fd', borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.md },
-  sugerenciaPromoTexto: { flex: 1, fontSize: font.sm, color: '#5b21b6' },
-  sugerenciaPromoBtn: { backgroundColor: '#7c3aed', borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2 },
-  sugerenciaPromoBtnText: { color: '#fff', fontWeight: '800', fontSize: font.sm },
+  // Promos (PLAN_OFERTAS_V1): el lila las distingue de los productos
+  avisoPromoDesc:     { fontSize: 13, color: tonos.lila.icono, marginBottom: spacing.md },
+  promosRow:          { flexGrow: 0, marginBottom: 10, paddingVertical: 2 },
+  promoChip:          { maxWidth: 230, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 14, backgroundColor: zc.tarjeta, ...sombra, elevation: 2 },
+  promoChipFila:      { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  promoChipNombre:    { fontSize: 14, fontWeight: '500', color: zc.tinta, flexShrink: 1 },
+  promoChipSub:       { fontSize: 12, color: tonos.lila.icono, marginTop: 2 },
+  cartPromo:          { backgroundColor: tonos.lila.fondo },
+  cartPromoProd:      { fontSize: 12.5, color: zc.gris, marginTop: 1 },
+  cartPromoAhorro:    { fontSize: 12.5, color: zc.verde, fontWeight: '500', marginTop: 2 },
+  sugerenciaPromo:    { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: tonos.lila.fondo, borderRadius: radios.boton, padding: 12, marginBottom: spacing.md },
+  sugerenciaPromoTexto: { flex: 1, fontSize: 13.5, color: zc.tinta },
+  sugerenciaPromoBtn: { backgroundColor: tonos.lila.icono, borderRadius: radios.boton, paddingHorizontal: 12, paddingVertical: 7 },
+  sugerenciaPromoBtnText: { color: '#fff', fontWeight: '500', fontSize: 13.5 },
 
   // Advertencia efectivo
-  advertenciaEfectivo: { textAlign: 'center', color: colors.textMuted, fontSize: font.sm, marginTop: spacing.sm },
+  advertenciaEfectivo: { textAlign: 'center', color: zc.grisSuave, fontSize: 13, marginTop: spacing.sm },
 
   // Modal PIN
-  pinOverlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: spacing.xl },
-  pinBox:      { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.xl, width: '100%', maxWidth: 340 },
-  pinTitle:    { fontSize: font.lg, fontWeight: '800', color: colors.textPrimary, marginBottom: spacing.xs },
-  pinMsg:      { fontSize: font.sm, color: colors.textSecondary, marginBottom: spacing.lg, lineHeight: 20 },
-  pinInput:    { borderWidth: 1.5, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.md, color: colors.textPrimary, backgroundColor: colors.background, textAlign: 'center', letterSpacing: 6, marginBottom: spacing.xs },
-  pinErrorText:{ fontSize: font.sm, color: colors.danger, marginBottom: spacing.sm },
+  pinOverlay:  { flex: 1, backgroundColor: 'rgba(17,24,39,0.55)', justifyContent: 'center', alignItems: 'center', padding: spacing.xl },
+  pinBox:      { ...caja, padding: 22, width: '100%', maxWidth: 340 },
+  pinTitle:    { fontSize: 18, fontWeight: '500', color: zc.tinta, marginBottom: spacing.xs },
+  pinMsg:      { fontSize: 13.5, color: zc.gris, marginBottom: spacing.lg, lineHeight: 20 },
+  pinInput:    { borderWidth: 1.5, borderColor: zc.linea, borderRadius: radios.boton, padding: 12, fontSize: 18, color: zc.tinta, backgroundColor: zc.fondo, textAlign: 'center', letterSpacing: 6, marginBottom: spacing.xs },
+  pinErrorText:{ fontSize: 13, color: zc.rojo, marginBottom: spacing.sm },
   pinActions:  { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
-  pinBtn:      { flex: 1, borderRadius: radius.md, padding: spacing.md, alignItems: 'center' },
-  pinBtnCancel:{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  pinBtnCancelText: { color: colors.textSecondary, fontWeight: '600' },
-  pinBtnConfirm:{ backgroundColor: colors.primary },
-  pinBtnConfirmText: { color: '#fff', fontWeight: '700' },
+  pinBtn:      { flex: 1, borderRadius: radios.boton, padding: 13, alignItems: 'center' },
+  pinBtnCancel:{ backgroundColor: zc.fondo },
+  pinBtnCancelText: { color: zc.gris, fontWeight: '500' },
+  pinBtnConfirm:{ backgroundColor: zc.azul },
+  pinBtnConfirmText: { color: '#fff', fontWeight: '500' },
 });
