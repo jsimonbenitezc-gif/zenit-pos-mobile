@@ -4,7 +4,6 @@ import {
   RefreshControl, ActivityIndicator, Alert, Modal, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../api/client';
 import {
   verificarPinPuesto, pinBloqueado, minutosBloqueoPin,
@@ -13,8 +12,8 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { useNetwork } from '../../context/NetworkContext';
 import { ventasParaMostrar } from '../../offline/ventasOffline';
-import { colors, spacing, radius, font } from '../../theme';
-import LogoTitle from '../../components/LogoTitle';
+import { colors, spacing, radius, font, zc, tonos, radios, sombra } from '../../theme';
+import { Cabecera, Icono } from '../../components/ui';
 import OfflineIndicator from '../../components/OfflineIndicator';
 import SelectorSucursal from '../../components/SelectorSucursal';
 import { formatMoney } from '../../utils/money';
@@ -31,13 +30,14 @@ const ESTADOS = [
   { key: 'cancelado',  label: 'Cancelados' },
 ];
 
-const ESTADO_COLOR = {
-  registrado: colors.warning,
-  completado: colors.primary,
-  entregado:  colors.success,
-  cancelado:  colors.danger,
-  'por subir': '#f59e0b',   // venta offline aún no sincronizada
-  error:       colors.danger,
+// El estado se pinta con los tonos del diseño A (pastel con el texto fuerte).
+const ESTADO_TONO = {
+  registrado: 'ambar',
+  completado: 'azul',
+  entregado:  'verde',
+  cancelado:  'rojo',
+  'por subir': 'ambar',   // venta offline aún no sincronizada
+  error:       'rojo',
 };
 
 // 'multiple' = la cuenta se dividió entre varios métodos (§31). Salía tal cual.
@@ -46,7 +46,7 @@ const PAGO_ICON  = { efectivo: 'cash-outline', tarjeta: 'card-outline', transfer
 
 function PedidoCard({ pedido, onCambiarEstado, onReimprimir, currency }) {
   const fecha = new Date(pedido.createdAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-  const color = ESTADO_COLOR[pedido.status] || colors.textMuted;
+  const tono = tonos[ESTADO_TONO[pedido.status]] || tonos.gris;
 
   return (
     <View style={styles.card}>
@@ -54,21 +54,21 @@ function PedidoCard({ pedido, onCambiarEstado, onReimprimir, currency }) {
         <View>
           {pedido._offline ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-              <Ionicons name="cloud-upload-outline" size={13} color="#f59e0b" />
-              <Text style={[styles.pedidoId, { color: '#b45309' }]}>Sin subir</Text>
+              <Icono nombre="cloud-upload-outline" size={14} color={zc.ambar} />
+              <Text style={styles.sinSubir}>Sin subir</Text>
             </View>
           ) : (
             <Text style={styles.pedidoId}>#{pedido.id}</Text>
           )}
           <View style={styles.pedidoFechaRow}>
             <Text style={styles.pedidoFecha}>{fecha} · </Text>
-            <Ionicons name={PAGO_ICON[pedido.payment_method] || 'cash-outline'} size={12} color={colors.textMuted} />
+            <Icono nombre={PAGO_ICON[pedido.payment_method] || 'cash-outline'} size={13} color={zc.grisSuave} />
             <Text style={styles.pedidoFecha}> {PAGO_LABEL[pedido.payment_method] || pedido.payment_method}</Text>
           </View>
         </View>
         <View>
-          <View style={[styles.badge, { backgroundColor: color + '22' }]}>
-            <Text style={[styles.badgeText, { color }]}>{pedido.status}</Text>
+          <View style={[styles.badge, { backgroundColor: tono.fondo }]}>
+            <Text style={[styles.badgeText, { color: tono.icono }]}>{pedido.status}</Text>
           </View>
           <Text style={styles.pedidoTotal}>{formatMoney(parseFloat(pedido.total), currency)}</Text>
         </View>
@@ -76,13 +76,13 @@ function PedidoCard({ pedido, onCambiarEstado, onReimprimir, currency }) {
 
       {pedido.table && (
         <View style={styles.clienteRow}>
-          <Ionicons name="grid-outline" size={13} color={colors.primary} />
-          <Text style={[styles.cliente, { color: colors.primary }]}> {pedido.table.name}</Text>
+          <Icono nombre="grid-outline" size={14} color={zc.azul} />
+          <Text style={[styles.cliente, { color: zc.azul }]}> {pedido.table.name}</Text>
         </View>
       )}
       {pedido.customer && (
         <View style={styles.clienteRow}>
-          <Ionicons name="person-outline" size={13} color={colors.textSecondary} />
+          <Icono nombre="person-outline" size={14} color={zc.gris} />
           <Text style={styles.cliente}> {pedido.customer.name}</Text>
         </View>
       )}
@@ -91,9 +91,12 @@ function PedidoCard({ pedido, onCambiarEstado, onReimprimir, currency }) {
         <View style={styles.items}>
           {/* Una PROMO se enseña junta, como se vendió (PLAN_OFERTAS_V1). */}
           {agruparRenglones(pedido.items).filter(g => g.promo).map(g => (
-            <Text key={g.promo.grupo} style={styles.itemText}>
-              1× 🎁 {g.promo.nombre}: {g.items.map(it => it.product?.name || 'Producto').join(', ')}
-            </Text>
+            <View key={g.promo.grupo} style={styles.itemPromoFila}>
+              <Icono nombre="regalo" size={14} color={tonos.lila.icono} style={{ marginTop: 2 }} />
+              <Text style={[styles.itemText, { flex: 1 }]}>
+                1× {g.promo.nombre}: {g.items.map(it => it.product?.name || 'Producto').join(', ')}
+              </Text>
+            </View>
           ))}
           {pedido.items.filter(item => !item.promo_group).map(item => (
             <View key={item.id}>
@@ -121,25 +124,25 @@ function PedidoCard({ pedido, onCambiarEstado, onReimprimir, currency }) {
       {!pedido._local && pedido.status === 'registrado' && (
         <View style={styles.acciones}>
           <TouchableOpacity
-            style={[styles.accionBtn, { backgroundColor: colors.primary }]}
+            style={[styles.accionBtn, styles.accionCompletar]}
             onPress={() => onCambiarEstado(pedido.id, 'completado')}
           >
             <Text style={styles.accionBtnText}>Completar</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.accionBtn, { backgroundColor: colors.danger }]}
+            style={[styles.accionBtn, styles.accionCancelar]}
             onPress={() => onCambiarEstado(pedido.id, 'cancelado')}
           >
-            <Text style={styles.accionBtnText}>Cancelar</Text>
+            <Text style={[styles.accionBtnText, styles.accionCancelarText]}>Cancelar</Text>
           </TouchableOpacity>
         </View>
       )}
       {!pedido._local && pedido.status === 'completado' && (
         <TouchableOpacity
-          style={[styles.accionBtn, { backgroundColor: colors.success, alignSelf: 'flex-start', marginTop: spacing.sm }]}
+          style={[styles.accionBtn, styles.accionEntregar]}
           onPress={() => onCambiarEstado(pedido.id, 'entregado')}
         >
-          <Text style={styles.accionBtnText}>Marcar entregado</Text>
+          <Text style={[styles.accionBtnText, styles.accionEntregarText]}>Marcar entregado</Text>
         </TouchableOpacity>
       )}
 
@@ -152,7 +155,7 @@ function PedidoCard({ pedido, onCambiarEstado, onReimprimir, currency }) {
           style={styles.btnReimprimir}
           onPress={() => onReimprimir(pedido)}
         >
-          <Ionicons name="print-outline" size={14} color={colors.textSecondary} />
+          <Icono nombre="print-outline" size={15} color={zc.gris} />
           <Text style={styles.btnReimprimirText}>Reimprimir ticket</Text>
         </TouchableOpacity>
       )}
@@ -339,14 +342,14 @@ export default function PedidosScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={[styles.header, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
-        <LogoTitle title="Pedidos" titleStyle={styles.title} />
-        <OfflineIndicator />
-      </View>
-
-      {/* Ver los pedidos de otra sucursal (solo lectura) */}
-      <SelectorSucursal value={sucursalVista} onChange={setSucursalVista} />
+    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+      {/* Cabecera azul noche (diseño A), con el selector de sucursal dentro */}
+      <Cabecera titulo="Pedidos" derecha={<OfflineIndicator />}>
+        {/* Ver los pedidos de otra sucursal (solo lectura) */}
+        <View style={styles.sucursalEnCabecera}>
+          <SelectorSucursal value={sucursalVista} onChange={setSucursalVista} enNoche />
+        </View>
+      </Cabecera>
 
       {/* Filtros — ScrollView (no FlatList) con flexGrow:0 para que la fila no se
           estire verticalmente. minHeight + alignItems:center dan aire arriba/abajo
@@ -355,7 +358,7 @@ export default function PedidosScreen() {
         horizontal
         style={{ flexGrow: 0 }}
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.sm, alignItems: 'center', minHeight: 48 }}
+        contentContainerStyle={{ paddingHorizontal: 14, gap: spacing.sm, alignItems: 'center', minHeight: 56 }}
       >
         {ESTADOS.map(item => (
           <TouchableOpacity
@@ -371,8 +374,8 @@ export default function PedidosScreen() {
       <FlatList
         data={pedidos}
         keyExtractor={p => String(p.id)}
-        contentContainerStyle={{ padding: spacing.lg, paddingTop: spacing.sm }}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+        contentContainerStyle={{ padding: 14, paddingTop: 10 }}
+        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
         renderItem={({ item }) => <PedidoCard pedido={item} onCambiarEstado={cambiarEstado} onReimprimir={reimprimirTicket} currency={currency} />}
         ListEmptyComponent={<Text style={styles.empty}>No hay pedidos con este filtro</Text>}
@@ -433,50 +436,58 @@ export default function PedidosScreen() {
   );
 }
 
+const caja = { backgroundColor: zc.tarjeta, borderRadius: radios.tarjeta, ...sombra };
+
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
+  safe: { flex: 1, backgroundColor: zc.fondo },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { padding: spacing.lg, paddingBottom: spacing.sm },
-  title: { fontSize: font.xl, fontWeight: '800', color: colors.textPrimary },
-  chip: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2, borderRadius: radius.xl, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: font.sm, fontWeight: '600', color: colors.textSecondary },
+  sucursalEnCabecera: { marginTop: 12, marginHorizontal: -18 },
+  chip: { paddingHorizontal: 13, paddingVertical: 7, borderRadius: radios.chip, backgroundColor: zc.tarjeta, elevation: 1, shadowColor: zc.noche, shadowOpacity: 0.05, shadowRadius: 2, shadowOffset: { width: 0, height: 1 } },
+  chipActive: { backgroundColor: zc.noche },
+  chipText: { fontSize: 13.5, color: zc.gris },
   chipTextActive: { color: '#fff' },
-  card: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.border },
+  card: { ...caja, padding: 16 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  pedidoId: { fontSize: font.md, fontWeight: '800', color: colors.textPrimary },
-  pedidoFechaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
-  pedidoFecha: { fontSize: font.sm - 1, color: colors.textMuted },
-  pedidoTotal: { fontSize: font.lg, fontWeight: '800', color: colors.textPrimary, textAlign: 'right', marginTop: 4 },
-  badge: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: radius.sm, alignSelf: 'flex-end' },
-  badgeText: { fontSize: font.sm - 2, fontWeight: '700', textTransform: 'uppercase' },
-  clienteRow: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.xs },
-  cliente: { fontSize: font.sm, color: colors.textSecondary },
-  items: { marginTop: spacing.xs, paddingTop: spacing.xs, borderTopWidth: 1, borderTopColor: colors.border },
-  itemText: { fontSize: font.sm - 1, color: colors.textSecondary },
+  pedidoId: { fontSize: 16, fontWeight: '700', color: zc.tinta },
+  sinSubir: { fontSize: 14, fontWeight: '500', color: zc.ambarTexto },
+  pedidoFechaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 3 },
+  pedidoFecha: { fontSize: 12.5, color: zc.grisSuave },
+  pedidoTotal: { fontSize: 18, fontWeight: '700', color: zc.tinta, textAlign: 'right', marginTop: 6, fontVariant: ['tabular-nums'] },
+  badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, alignSelf: 'flex-end' },
+  badgeText: { fontSize: 12, fontWeight: '500', textTransform: 'capitalize' },
+  clienteRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
+  cliente: { fontSize: 13.5, color: zc.gris },
+  items: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: zc.linea, gap: 2 },
+  itemText: { fontSize: 13.5, color: zc.tinta },
+  itemPromoFila: { flexDirection: 'row', alignItems: 'flex-start', gap: 5 },
   // Los extras van en ámbar: cambian el precio y lo que prepara la cocina.
-  itemMods: { fontSize: font.sm - 2, color: '#b45309', fontWeight: '600' },
+  itemMods: { fontSize: 12.5, color: zc.ambarTexto },
   btnReimprimir: {
     flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start',
-    marginTop: spacing.sm, paddingVertical: 4,
+    marginTop: 10, paddingVertical: 4,
   },
-  btnReimprimirText: { fontSize: font.sm - 1, color: colors.textSecondary },
-  acciones: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
-  accionBtn: { flex: 1, padding: spacing.sm, borderRadius: radius.sm, alignItems: 'center' },
-  accionBtnText: { color: '#fff', fontWeight: '700', fontSize: font.sm },
-  empty: { textAlign: 'center', color: colors.textMuted, marginTop: spacing.xxl, fontSize: font.md },
+  btnReimprimirText: { fontSize: 13, color: zc.gris },
+  acciones: { flexDirection: 'row', gap: spacing.sm, marginTop: 12 },
+  accionBtn: { flex: 1, paddingVertical: 10, paddingHorizontal: 16, borderRadius: radios.boton, alignItems: 'center' },
+  accionBtnText: { color: '#fff', fontWeight: '500', fontSize: 14 },
+  accionCompletar: { backgroundColor: zc.azul },
+  accionCancelar: { backgroundColor: zc.rojoSuave },
+  accionCancelarText: { color: zc.rojo },
+  accionEntregar: { backgroundColor: zc.verdeSuave, alignSelf: 'flex-start', marginTop: 12 },
+  accionEntregarText: { color: zc.verde },
+  empty: { textAlign: 'center', color: zc.grisSuave, marginTop: spacing.xxl, fontSize: 14.5 },
   // Modal de PIN
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: spacing.lg },
-  modalBox: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.xl, width: '100%', maxWidth: 360, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 12, elevation: 8 },
-  modalTitle: { fontSize: font.lg, fontWeight: '800', color: colors.textPrimary, marginBottom: spacing.sm, textAlign: 'center' },
-  modalMsg: { fontSize: font.sm, color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.lg, lineHeight: 20 },
-  pinInput: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.xl, textAlign: 'center', letterSpacing: 8, color: colors.textPrimary, backgroundColor: colors.background, marginBottom: spacing.sm },
-  pinInputError: { borderColor: colors.danger },
-  pinErrorText: { color: colors.danger, fontSize: font.sm - 1, textAlign: 'center', marginBottom: spacing.sm },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(17,24,39,0.55)', justifyContent: 'center', alignItems: 'center', padding: spacing.xl },
+  modalBox: { ...caja, padding: 22, width: '100%', maxWidth: 360 },
+  modalTitle: { fontSize: 18, fontWeight: '500', color: zc.tinta, marginBottom: spacing.sm, textAlign: 'center' },
+  modalMsg: { fontSize: 13.5, color: zc.gris, textAlign: 'center', marginBottom: spacing.lg, lineHeight: 20 },
+  pinInput: { borderWidth: 1.5, borderColor: zc.linea, borderRadius: radios.boton, padding: 12, fontSize: 18, textAlign: 'center', letterSpacing: 6, color: zc.tinta, backgroundColor: zc.fondo, marginBottom: spacing.sm },
+  pinInputError: { borderColor: zc.rojo },
+  pinErrorText: { color: zc.rojo, fontSize: 13, textAlign: 'center', marginBottom: spacing.sm },
   modalActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
-  modalBtn: { flex: 1, padding: spacing.md, borderRadius: radius.md, alignItems: 'center' },
-  modalBtnCancel: { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
-  modalBtnCancelText: { color: colors.textSecondary, fontWeight: '600', fontSize: font.sm },
-  modalBtnConfirm: { backgroundColor: colors.danger },
-  modalBtnConfirmText: { color: '#fff', fontWeight: '700', fontSize: font.sm },
+  modalBtn: { flex: 1, padding: 13, borderRadius: radios.boton, alignItems: 'center' },
+  modalBtnCancel: { backgroundColor: zc.fondo },
+  modalBtnCancelText: { color: zc.gris, fontWeight: '500', fontSize: 14 },
+  modalBtnConfirm: { backgroundColor: zc.rojo },
+  modalBtnConfirmText: { color: '#fff', fontWeight: '500', fontSize: 14 },
 });
