@@ -730,6 +730,23 @@ export function huecoPendiente(promo, elegidos) {
   return promo.huecos.findIndex((h, i) => (elegidos || []).filter((x) => x.hueco === i).length < h.quantity);
 }
 
+/**
+ * El producto que la hoja puede poner SOLA: si al hueco pendiente solo le cabe
+ * UN producto a la venta y no tiene extras que preguntar, no hay nada que
+ * elegir. Un combo de productos fijos ("1 pizza + 2 cocas") hacía tocar tres
+ * botones que no tenían alternativa (visto en el emulador). Con extras sí se
+ * pregunta: quien decide el queso es el cliente.
+ * `tieneExtras(id)` → boolean. Devuelve el producto o null.
+ */
+export function eleccionAutomatica(promo, elegidos, productos, tieneExtras) {
+  if (!promo) return null;
+  const h = huecoPendiente(promo, elegidos);
+  if (h === -1) return null;
+  const opciones = productosDelHueco(promo.huecos[h], productos);
+  if (opciones.length !== 1) return null;
+  return tieneExtras && tieneExtras(opciones[0].id) ? null : opciones[0];
+}
+
 // ── Textos para la pantalla ─────────────────────────────────────────────────
 
 const _DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];

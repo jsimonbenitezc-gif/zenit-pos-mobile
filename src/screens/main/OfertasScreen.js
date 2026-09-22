@@ -494,7 +494,9 @@ export default function OfertasScreen() {
                   onChangeText={v => setFormPromo(f => ({ ...f, paga: v.replace(/[^\d]/g, '') }))}
                   keyboardType="number-pad"
                 />
-                <Text style={styles.radioSub}>de {promoForm.lleva}</Text>
+                {/* Lo que la promo lleva según los renglones, aunque falte elegir qué entra
+                    en alguno: antes decía "de 0" hasta que se elegía (visto en el emulador). */}
+                <Text style={styles.radioSub}>de {formPromo.huecos.reduce((s, h) => s + (parseInt(h.quantity, 10) || 0), 0)}</Text>
               </View>
             )}
             <TouchableOpacity style={styles.radioRow} onPress={() => setFormPromo(f => ({ ...f, tipo: 'precio_fijo' }))}>

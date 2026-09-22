@@ -197,6 +197,16 @@ const elegidos = [
   ok('"10% los lunes" solo vale el lunes', P.descuentoVigenteLocal({ active: true, calendario: { dias: [1] } }, new Date(2026, 8, 21, 12)) &&
     !P.descuentoVigenteLocal({ active: true, calendario: { dias: [1] } }, martes));
 
+  // Lo encontrado en el emulador: un combo de productos fijos hacía tocar
+  // productos que no tenían alternativa.
+  const fijo = P.promoDeCatalogo({ id: 3, name: 'Parejas', price: 200, items: [{ product_id: 11, quantity: 1 }, { product_id: 21, quantity: 2 }] });
+  const sinExtras = () => false;
+  ok('hoja: si al hueco solo le cabe UN producto, se pone solo', (P.eleccionAutomatica(fijo, [], productos, sinExtras) || {}).id === 11);
+  ok('…y sigue con el siguiente hueco', (P.eleccionAutomatica(fijo, [{ hueco: 0 }], productos, sinExtras) || {}).id === 21);
+  ok('…pero si ese producto tiene extras, se pregunta (el queso lo decide el cliente)', P.eleccionAutomatica(fijo, [], productos, (id) => id === 11) === null);
+  ok('con varios productos posibles no se elige nada solo', P.eleccionAutomatica(promo, [], productos, sinExtras) === null);
+  ok('con la promo completa, nada más', P.eleccionAutomatica(fijo, [{ hueco: 0 }, { hueco: 1 }, { hueco: 1 }], productos, sinExtras) === null);
+
   console.log('\n── 3. Juntar ofertas: la base del descuento (§3.4) ──\n');
   const r35 = P.armarRenglonPromo(promo, [{ product_id: 11, nombre: 'Pastor', precio: 25 }, { product_id: 12, nombre: 'Arrachera', precio: 35 }], { grupo: 'g-2' });
   const carrito = [r35, { product_id: 21, nombre: 'Coca', precio: 20, precio_base: 20 }];
@@ -344,6 +354,10 @@ const elegidos = [
   ok('Nueva Venta manda los renglones con renglonParaVenta', /items:\s*carrito\.map\(renglonParaVenta\)/.test(venta));
   ok('Nueva Venta calcula el descuento sobre baseDescuentoDe', /montoDescuento\(descuentoDef,\s*baseDesc\)/.test(venta) && /baseDescuentoDe\(carrito/.test(venta));
   ok('Nueva Venta ofrece solo las promos de promosActivasAhora', /promosActivasAhora\(promos,\s*productos/.test(venta));
+  ok('Nueva Venta vuelve a leer las promos al ENTRAR (una recién creada sale sin reiniciar)',
+    /useFocusEffect\(\s*useCallback\(\(\) => \{\s*let vivo = true;\s*obtenerPromos\(\)/.test(venta));
+  const hoja = soloCodigo(fs.readFileSync(path.join(RAIZ, 'src/components/HojaPromo.js'), 'utf8'));
+  ok('la hoja usa eleccionAutomatica y enseña la foto del producto', /eleccionAutomatica\(promo, elegidos/.test(hoja) && /imagen=\{p\.image\}/.test(hoja));
   const mesas = soloCodigo(fs.readFileSync(path.join(RAIZ, 'src/screens/main/MesasScreen.js'), 'utf8'));
   ok('Mesas arma la clave con claveCarritoMesa (trampa 2)', /claveCarritoMesa\(\{ producto, modificadores \}\)/.test(mesas) && !/claveCarrito\(producto\.id/.test(mesas));
   ok('Mesas divide con unidadesDeCuenta (trampa 5)', /useMemo\(\(\) => unidadesDeCuenta\(itemsCuenta\)/.test(mesas) && /flatMap\(u => u\.item_ids\)/.test(mesas));

@@ -330,6 +330,20 @@ export default function NuevaVentaScreen() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Las promos se vuelven a leer cada vez que se ENTRA a la venta: una promo que
+  // el dueño acaba de crear en Ofertas tiene que salir sin reiniciar la app
+  // (encontrado en el emulador: solo se leían al abrir la app). Sin red salen de
+  // la caché, y obtenerPromos nunca lanza.
+  useFocusEffect(
+    useCallback(() => {
+      let vivo = true;
+      obtenerPromos()
+        .then((combos) => { if (vivo) setPromos((combos || []).map(promoDeCatalogo).filter(Boolean)); })
+        .catch(() => {});
+      return () => { vivo = false; };
+    }, [])
+  );
+
   // Un tic por minuto: la promo que termina a las 20:00 deja de ofrecerse a las
   // 20:00, no en la próxima vez que alguien recargue la pantalla.
   useEffect(() => {

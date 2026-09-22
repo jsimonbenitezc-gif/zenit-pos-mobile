@@ -19,7 +19,7 @@ import { colors, spacing, radius, font } from '../theme';
 import { formatMoney } from '../utils/money';
 import { productoTieneModificadores, resumenModificadores, deltaDeModificadores } from '../utils/modificadores';
 import {
-  productosDelHueco, huecoPendiente, nombreDeHueco, eleccionCabe, armarPromo,
+  productosDelHueco, huecoPendiente, nombreDeHueco, eleccionCabe, armarPromo, eleccionAutomatica,
 } from '../utils/promos';
 
 export default function HojaPromo({
@@ -36,6 +36,19 @@ export default function HojaPromo({
   const [modsDe, setModsDe] = useState(null); // producto esperando sus extras
 
   useEffect(() => { if (visible) { setElegidos([]); setModsDe(null); } }, [visible, promo]);
+
+  // Lo que no tiene alternativa se pone solo (ver eleccionAutomatica). Se hace
+  // de uno en uno: cada vez que cambia la elección se mira el siguiente hueco.
+  useEffect(() => {
+    if (!visible || !promo || modsDe) return;
+    const auto = eleccionAutomatica(promo, elegidos, productos, (id) => productoTieneModificadores(catalogoMods, id));
+    if (!auto) return;
+    const h = huecoPendiente(promo, elegidos);
+    setElegidos((prev) => [...prev, {
+      hueco: h, product_id: auto.id, nombre: auto.name, emoji: auto.emoji,
+      precio: parseFloat(auto.price) || 0, modificadores: [],
+    }]);
+  }, [visible, promo, elegidos, productos, catalogoMods, modsDe]);
 
   if (!promo) return null;
   const h = huecoPendiente(promo, elegidos);
@@ -94,7 +107,7 @@ export default function HojaPromo({
         <ScrollView contentContainerStyle={styles.grid}>
           {opciones.map((p) => (
             <TouchableOpacity key={p.id} style={styles.prod} onPress={() => tocar(p)}>
-              <IconoProducto valor={p.emoji || 'svg:shopping-bag'} size={26} color={colors.textSecondary} />
+              <IconoProducto valor={p.emoji || 'svg:shopping-bag'} imagen={p.image} size={26} color={colors.textSecondary} />
               <Text style={styles.prodNombre} numberOfLines={2}>{p.name}</Text>
               <Text style={styles.prodPrecio}>{formatMoney(parseFloat(p.price) || 0, currency)}</Text>
             </TouchableOpacity>
