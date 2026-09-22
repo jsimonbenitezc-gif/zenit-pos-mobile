@@ -20,6 +20,10 @@ import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
+import * as SecureStore from 'expo-secure-store';
+import { accionAlCompletar, comandasVisibles, agregarOculta, leerOcultas } from '../../utils/cocina';
+
+const CLAVE_OCULTAS = 'kds_ocultas';
 
 const KDS_WEB_BASE = 'https://zenit-pos-backend.onrender.com/kds';
 
@@ -118,7 +122,7 @@ function OrderCard({ order, onComplete }) {
       {/* Botón completar */}
       <TouchableOpacity
         style={styles.btnComplete}
-        onPress={() => onComplete(order.id)}
+        onPress={() => onComplete(order)}
         activeOpacity={0.7}
       >
         <Text style={styles.btnCompleteText}>Completado</Text>
@@ -140,6 +144,14 @@ export default function KDSScreen({ navigation }) {
   const [qrError, setQrError]     = useState(null);
   const [codigoPair, setCodigoPair] = useState(null);
   const intervalRef = useRef(null);
+  // Comandas de MESA que la cocina ya terminó. Solo se esconden aquí: la mesa
+  // sigue abierta hasta que se cobra (utils/cocina.js). Se guardan en el equipo
+  // para que no vuelvan a salir al reabrir la pantalla.
+  const [ocultas, setOcultas] = useState([]);
+  useEffect(() => {
+    SecureStore.getItemAsync(CLAVE_OCULTAS).then((t) => setOcultas(leerOcultas(t))).catch(() => {});
+  }, []);
+  const visibles = comandasVisibles(orders, ocultas);
 
   // EL QR YA NO ES UNA CREDENCIAL (BLOQUE 13).
   //
@@ -200,11 +212,22 @@ export default function KDSScreen({ navigation }) {
 
   // ── Marcar como completado ──────────────────────────────────────────────
 
-  async function completarPedido(id) {
+  async function completarPedido(order) {
+    // 🔴 Una comanda de MESA solo se esconde: mandar 'completado' cerraba la
+    // mesa y la dejaba en el corte como efectivo que nadie cobró (§60.4). La de
+    // mostrador sí se marca: esa venta ya está cobrada.
+    if (accionAlCompletar(order) === 'ocultar') {
+      setOcultas((prev) => {
+        const nuevas = agregarOculta(prev, order.id);
+        SecureStore.setItemAsync(CLAVE_OCULTAS, JSON.stringify(nuevas)).catch(() => {});
+        return nuevas;
+      });
+      return;
+    }
     // Quitar de la lista inmediatamente (optimista)
-    setOrders(prev => prev.filter(o => o.id !== id));
+    setOrders(prev => prev.filter(o => o.id !== order.id));
     try {
-      await api.updateOrderStatus(id, 'completado');
+      await api.updateOrderStatus(order.id, 'completado');
     } catch {
       // Si falla, recargar para recuperar estado real
       loadOrders();
@@ -229,8 +252,8 @@ export default function KDSScreen({ navigation }) {
             <Text style={styles.headerTitle}>Pantalla de Cocina</Text>
           </View>
           <Text style={styles.headerSub}>
-            {orders.length > 0
-              ? `${orders.length} pedido${orders.length !== 1 ? 's' : ''} pendiente${orders.length !== 1 ? 's' : ''}`
+            {visibles.length > 0
+              ? `${visibles.length} pedido${visibles.length !== 1 ? 's' : ''} pendiente${visibles.length !== 1 ? 's' : ''}`
               : 'Sin pedidos pendientes'
             }
             {' · '}{hora}
@@ -299,7 +322,7 @@ export default function KDSScreen({ navigation }) {
           <ActivityIndicator color={KDS.indigo} size="large" />
           <Text style={[styles.headerSub, { marginTop: 12 }]}>Cargando pedidos...</Text>
         </View>
-      ) : orders.length === 0 ? (
+      ) : visibles.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="checkmark-circle-outline" size={56} color={KDS.green} />
           <Text style={styles.emptyTitle}>Todo listo</Text>
@@ -320,7 +343,7 @@ export default function KDSScreen({ navigation }) {
             />
           }
         >
-          {orders.map(order => (
+          {visibles.map(order => (
             <OrderCard
               key={order.id}
               order={order}

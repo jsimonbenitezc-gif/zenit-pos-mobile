@@ -8,7 +8,7 @@
  */
 
 import { Platform, NativeModules } from 'react-native';
-import { resumenModificadores, leerModificadores } from './modificadores';
+import { lineasDeProductos, lineaAhorro } from './ticketLineas';
 
 // react-native-bluetooth-classic inicializa código Java nativo al importarse.
 // Solo lo cargamos si el módulo nativo existe, para evitar crash en devices
@@ -282,18 +282,11 @@ export async function printReceipt(address, opts = {}) {
   if (orderType) ticket.line(`Tipo: ${TIPO[orderType] || orderType}`);
   ticket.separator();
 
-  // Productos
-  for (const item of items) {
-    const qty      = item.qty || item.quantity || 1;
-    const price    = parseFloat(item.price || item.unit_price || 0);
-    const subtotal = price * qty;
-    ticket.splitLine(`${qty}x ${item.name}`, `${currency}${subtotal.toFixed(2)}`);
-    // MODIFICADORES (BLOQUE 11). Van bajo el renglón, NO como cargo aparte: el
-    // precio del renglón ya los incluye, así que un renglón propio haría que el
-    // ticket pareciera cobrar dos veces.
-    const extras = resumenModificadores(leerModificadores(item.modifiers ?? item.modificadores));
-    if (extras) ticket.left(`   ${extras}`);
-    if (item.notes) ticket.left(`   * ${item.notes}`);
+  // Productos. Las PROMOS salen juntas, con sus productos debajo
+  // (PLAN_OFERTAS_V1): utils/ticketLineas.js decide el texto.
+  for (const l of lineasDeProductos(items, currency)) {
+    if (l.izq !== undefined) ticket.splitLine(l.izq, l.der);
+    else ticket.left(l.texto);
   }
   ticket.separator();
 
@@ -349,6 +342,10 @@ export async function printReceipt(address, opts = {}) {
       ticket.splitLine(`  ${metodo}`, detalle);
     }
   }
+
+  // "Ahorraste $X" (PLAN_OFERTAS_V1 §3.5): lo que la promo le dejó al cliente.
+  const ahorro = lineaAhorro(items, currency);
+  if (ahorro) ticket.cmd(CMD.ALIGN_CENTER).cmd(CMD.BOLD_ON).line(ahorro).cmd(CMD.BOLD_OFF);
 
   // Pie configurable (ticket_footer). Antes estaba escrito a mano en el código,
   // así que el negocio no podía cambiarlo desde la app aunque el ajuste exista.

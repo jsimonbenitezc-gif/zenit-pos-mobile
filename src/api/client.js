@@ -476,6 +476,37 @@ class ApiClient {
     return this.request(`/offers/discounts/${id}`, { method: 'DELETE' });
   }
 
+  // Los descuentos que valen AHORA: activos, en sus fechas y en su calendario
+  // ("10% los lunes"), evaluado por el servidor en la zona del negocio.
+  getActiveDiscounts() {
+    return this.request('/offers/discounts/active');
+  }
+
+  // ─── Promos (PLAN_OFERTAS_V1) ──────────────────────────────────────────
+  // Una promo es un COMBO. La forma nueva ("2 de [Tacos]") viaja en `slots`;
+  // `items` trae solo los renglones de producto fijo (trampa 1 del plan).
+  getCombos() {
+    return this.request('/offers/combos');
+  }
+
+  createCombo(data) {
+    return this.request('/offers/combos', { method: 'POST', body: data });
+  }
+
+  updateCombo(id, data) {
+    return this.request(`/offers/combos/${id}`, { method: 'PUT', body: data });
+  }
+
+  // Reemplaza QUÉ LLEVA la promo: [{ product_id | category_id, quantity }].
+  setComboItems(id, items) {
+    return this.request(`/offers/combos/${id}/items`, { method: 'POST', body: { items } });
+  }
+
+  // Borrado SUAVE (trampa 6): los tickets ya cobrados conservan nombre y precio.
+  deleteCombo(id) {
+    return this.request(`/offers/combos/${id}`, { method: 'DELETE' });
+  }
+
   // ─── Modificadores (BLOQUE 11) ───────────────────────────────────────────
   // La biblioteca del negocio: grupos ("Extras", "Tamaño") con sus opciones, y
   // qué producto usa cuáles. Viene entera en UNA llamada porque es lo que se
@@ -540,6 +571,17 @@ class ApiClient {
     return this.request(`/orders/${orderId}/items`, {
       method: 'POST',
       body: { items, client_uuid: clientUuid || null },
+    });
+  }
+
+  // Quitar un renglón de una mesa abierta. Si es de una PROMO, el servidor quita
+  // la promo ENTERA (trampa 4) y devuelve sus insumos. Queda en la auditoría a
+  // nombre del PUESTO (PLAN_OFERTAS_V1, Bloque 0): sin `nombreEnPuesto` quedaría
+  // a nombre de la cuenta del negocio, no de quien estaba en la caja.
+  removeOrderItem(orderId, itemId, nombreEnPuesto = '') {
+    return this.request(`/orders/${orderId}/items/${itemId}`, {
+      method: 'DELETE',
+      body: nombreEnPuesto ? { employee_name: nombreEnPuesto } : undefined,
     });
   }
 

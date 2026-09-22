@@ -12,12 +12,14 @@ import {
   guardarCatalogo, leerCatalogo, hayCatalogoCacheado,
   guardarClientes, leerClientes,
   guardarCatalogoModificadores, leerCatalogoModificadores,
+  guardarCatalogoPromos, leerCatalogoPromos,
   encolarVenta, obtenerVentas, marcarVenta, limpiarVentasSubidas,
   obtenerVentasParaMostrar,
 } from './db';
 import {
   esModoLocal, catalogoLocalAgrupado, registrarVentaLocal, listarPedidosLocales,
 } from './local';
+import { aplanarRenglonesVenta } from '../utils/promos';
 
 // La pantalla de Pedidos pide por aquí lo que tiene que mostrar sin backend.
 // Con cuenta son las ventas encoladas ("por subir"); en modo local son TODAS las
@@ -70,6 +72,26 @@ export async function obtenerCatalogoModificadores() {
     return catalogo;
   } catch {
     return await leerCatalogoModificadores().catch(() => ({ groups: [], product_groups: [] }));
+  }
+}
+
+/**
+ * Las promos del negocio (PLAN_OFERTAS_V1, Bloque 3): online cachea; sin red,
+ * la caché. NUNCA lanza — un negocio sin promos y uno sin caché se ven igual
+ * desde la venta, y en los dos casos la caja tiene que poder cobrar.
+ *
+ * En MODO LOCAL no hay ninguna: Ofertas es Premium (§8) y el modo sin cuenta
+ * es Free (§41). Tampoco se le pregunta al servidor: no hay cuenta a la que
+ * preguntar.
+ */
+export async function obtenerPromos() {
+  if (await esModoLocal()) return [];
+  try {
+    const combos = await api.getCombos();
+    guardarCatalogoPromos(combos).catch((e) => console.warn('[offline] cache promos:', e?.message));
+    return Array.isArray(combos) ? combos : [];
+  } catch {
+    return await leerCatalogoPromos().catch(() => []);
   }
 }
 
@@ -167,14 +189,27 @@ export async function registrarVenta(orderBody, online, meta = {}) {
       tax_included: body.tax_included,
       order_type: body.order_type,
       payments: body.payments || [],
-      items: (body.items || []).map((it, i) => ({
+      // Una promo viaja como UN renglón con sus productos dentro: se APLANA
+      // como la guardará el servidor (un renglón por producto, con su parte), y
+      // los nombres de meta.resumen vienen en ese mismo orden (nombresAplanados).
+      items: aplanarRenglonesVenta(body.items).map((it, i) => ({
         name: meta.resumen?.items?.[i]?.name || 'Producto',
         quantity: it.quantity,
         // El precio del papel es el que se COBRÓ: base + extras (BLOQUE 11).
-        unit_price: (parseFloat(it.base_unit_price ?? it.unit_price) || 0)
-          + (it.modifiers || []).reduce((s, m) => s + (parseFloat(m.price_delta) || 0), 0),
+        unit_price: it.promo_group
+          ? it.unit_price
+          : (parseFloat(it.base_unit_price ?? it.unit_price) || 0)
+            + (it.modifiers || []).reduce((s, m) => s + (parseFloat(m.price_delta) || 0), 0),
         modifiers: it.modifiers,
         notes: it.notes,
+        ...(it.promo_group ? {
+          subtotal: it.subtotal,
+          base_unit_price: it.base_unit_price,
+          list_price: it.list_price,
+          promo_id: it.promo_id,
+          promo_group: it.promo_group,
+          promo_name: it.promo_name,
+        } : {}),
       })),
     },
   };

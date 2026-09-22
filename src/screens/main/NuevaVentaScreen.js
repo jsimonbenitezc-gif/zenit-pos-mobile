@@ -17,8 +17,15 @@ import {
 } from '../../offline/credenciales';
 import { useAuth } from '../../context/AuthContext';
 import { useNetwork } from '../../context/NetworkContext';
-import { obtenerCatalogo, obtenerClientes, obtenerCatalogoModificadores, registrarVenta, sincronizarVentasPendientes } from '../../offline/ventasOffline';
+import { obtenerCatalogo, obtenerClientes, obtenerCatalogoModificadores, obtenerPromos, registrarVenta, sincronizarVentasPendientes } from '../../offline/ventasOffline';
 import ModalModificadores from '../../components/ModalModificadores';
+import HojaPromo from '../../components/HojaPromo';
+import { generarUuid } from '../../utils/uuid';
+import {
+  promoDeCatalogo, promosActivasAhora, armarRenglonPromo, renglonParaVenta, nombresAplanados,
+  baseDescuentoDe, ofertasAcumulablesDe, montoDescuento, descuentoVigenteLocal,
+  sugerirPromo, convertirEnPromo, textoHuecos, textoCobro,
+} from '../../utils/promos';
 import { imprimirTicketPedido } from '../../utils/imprimirTicket';
 import { precioConModificadores, resumenModificadores, productoTieneModificadores } from '../../utils/modificadores';
 import { colors, spacing, radius, font } from '../../theme';
@@ -105,6 +112,32 @@ function CartItem({ item, onDelete, onEditNota, onEditMods, currency }) {
   );
 }
 
+// ─── Renglón de PROMO en el carrito (PLAN_OFERTAS_V1) ─────────────────────────
+// UN renglón con sus productos debajo. Borrarlo quita la promo entera: nunca
+// queda "medio 2x1" cobrado a precio de promo.
+function PromoCartItem({ item, onDelete, currency }) {
+  return (
+    <View style={[styles.cartItem, styles.cartPromo]}>
+      <Ionicons name="gift-outline" size={22} color="#7c3aed" />
+      <View style={{ flex: 1, marginLeft: spacing.xs }}>
+        <Text style={styles.cartName} numberOfLines={1}>{item.nombre}</Text>
+        {item.productos.map((p, i) => (
+          <Text key={i} style={styles.cartPromoProd} numberOfLines={1}>
+            · {p.nombre}{resumenModificadores(p.modificadores) ? ` (${resumenModificadores(p.modificadores)})` : ''}
+          </Text>
+        ))}
+        {item.ahorro > 0 ? (
+          <Text style={styles.cartPromoAhorro}>Ahorra {formatMoney(item.ahorro, currency)}</Text>
+        ) : null}
+        <Text style={styles.cartPrice}>{formatMoney(item.precio, currency)}</Text>
+      </View>
+      <TouchableOpacity style={styles.iconBtn} onPress={() => onDelete(item.uid)}>
+        <Ionicons name="trash-outline" size={20} color={colors.danger} />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 
 export default function NuevaVentaScreen() {
@@ -121,6 +154,12 @@ export default function NuevaVentaScreen() {
   // poder ofrecer y cobrar los extras sin internet, igual que el impuesto (§29).
   const [catalogoMods, setCatalogoMods] = useState({ groups: [], product_groups: [] });
   const [modsModal, setModsModal] = useState(null); // { producto, previa, uid }
+  // PROMOS (PLAN_OFERTAS_V1, Bloque 3). Se cachean como los extras: la caja las
+  // vende sin internet y su calendario se evalúa con el reloj del teléfono.
+  const [promos, setPromos]       = useState([]);
+  const [hojaPromo, setHojaPromo] = useState(null); // la promo que se está eligiendo
+  // Un tic por minuto: a la hora en que la promo termina, su botón se va solo.
+  const [, setRelojPromos]        = useState(0);
   const [busqueda, setBusqueda]     = useState('');
   const [loading, setLoading]       = useState(true);
 
@@ -161,9 +200,13 @@ export default function NuevaVentaScreen() {
 
   // Descuentos. El id viaja con la venta: es la autorización que el backend exige
   // para aceptar el monto (el canje de puntos va aparte y no requiere autorización).
-  const [descuento, setDescuento]         = useState(0);
-  const [descuentoId, setDescuentoId]     = useState(null);
-  const [descuentoNombre, setDescuentoNombre] = useState('');
+  // Se guarda el DESCUENTO elegido, no su monto: el monto se recalcula en vivo
+  // sobre la base de la cuenta (ver `baseDesc` abajo). Guardar un número fijo
+  // dejaba el 10% de un carrito que después cambió, y con las promos la base
+  // tiene que ser la MISMA del servidor o el cobro se rechaza.
+  const [descuentoDef, setDescuentoDef]   = useState(null);
+  const descuentoId = descuentoDef ? descuentoDef.id : null;
+  const descuentoNombre = descuentoDef ? descuentoDef.name : '';
   const [descuentos, setDescuentos]       = useState([]);
   const [cargandoDesc, setCargandoDesc]   = useState(false);
 
@@ -262,12 +305,14 @@ export default function NuevaVentaScreen() {
 
   const load = useCallback(async () => {
     try {
-      const [grouped, clts, mods] = await Promise.all([
+      const [grouped, clts, mods, combos] = await Promise.all([
         obtenerCatalogo(),   // online: backend + cachea; offline: caché local
         obtenerClientes(),   // online: backend + cachea; offline: caché local
         obtenerCatalogoModificadores(), // idem; nunca lanza (ver ventasOffline)
+        obtenerPromos(),     // idem; nunca lanza, y en modo local no hay ninguna
       ]);
       setCatalogoMods(mods);
+      setPromos((combos || []).map(promoDeCatalogo).filter(Boolean));
       const cats = grouped.map(g => ({ id: g.id, name: g.name, emoji: g.emoji }));
       const all  = grouped.flatMap(g => (g.products || []).map(p => ({ ...p, category_id: g.id })));
       setCategories([{ id: null, name: 'Todos', emoji: 'svg:search' }, ...cats]);
@@ -284,6 +329,13 @@ export default function NuevaVentaScreen() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Un tic por minuto: la promo que termina a las 20:00 deja de ofrecerse a las
+  // 20:00, no en la próxima vez que alguien recargue la pantalla.
+  useEffect(() => {
+    const t = setInterval(() => setRelojPromos((n) => n + 1), 60000);
+    return () => clearInterval(t);
+  }, []);
 
   useEffect(() => {
     let sse = null;
@@ -406,6 +458,21 @@ export default function NuevaVentaScreen() {
     setModsModal(null);
   }
 
+  /** La hoja de la promo terminó: entra al carrito como UN renglón. */
+  function agregarPromoAlCarrito(elegidos) {
+    const promo = hojaPromo;
+    setHojaPromo(null);
+    if (!promo) return;
+    setCarrito(prev => [...prev, armarRenglonPromo(promo, elegidos, { grupo: generarUuid() })]);
+  }
+
+  /** "¿Convertir a 2x1?" — solo se convierte cuando la cajera lo toca. */
+  function aplicarSugerencia() {
+    const s = sugerirPromo(carrito, promosActivas, productos);
+    if (!s) return;
+    setCarrito(prev => convertirEnPromo(prev, s, { grupo: generarUuid() }));
+  }
+
   function eliminarDelCarrito(uid) {
     setCarrito(prev => prev.filter(i => i.uid !== uid));
   }
@@ -438,6 +505,19 @@ export default function NuevaVentaScreen() {
 
   const subtotal    = carrito.reduce((s, i) => s + i.precio, 0);
   const totalItems  = carrito.length;
+
+  // JUNTAR OFERTAS (PLAN_OFERTAS_V1 §3.4). Con el interruptor APAGADO —el de
+  // fábrica— el descuento de la cuenta no toca lo que ya está en promo. Es la
+  // MISMA base del servidor: con otra, cada venta con descuento se rechazaría.
+  const ofertasAcumulables = ofertasAcumulablesDe(settings);
+  const baseDesc  = baseDescuentoDe(carrito, ofertasAcumulables);
+  const descuento = descuentoDef ? montoDescuento(descuentoDef, baseDesc) : 0;
+  const hayPromoEnCarrito = carrito.some((i) => i.tipo === 'promo');
+
+  // Las promos que se pueden vender AHORA (activas, en su calendario, con algo
+  // que elegir). Sin Premium o sin cuenta, ninguna.
+  const promosActivas = promosActivasAhora(promos, productos, { premium: isPremium && !modoLocal });
+  const sugerencia = sugerirPromo(carrito, promosActivas, productos);
 
   // Fidelidad
   const loyaltyEnabled     = settings?.puntos_activos === true || settings?.puntos_activos === 'true';
@@ -558,8 +638,11 @@ export default function NuevaVentaScreen() {
     setShowDescuentoModal(true);
     setCargandoDesc(true);
     try {
-      const data = await api.getDiscounts();
-      setDescuentos((data || []).filter(d => d.active));
+      // Solo los que valen AHORA: activos, en sus fechas y en su calendario
+      // ("10% los lunes"), que el servidor evalúa en la zona del negocio. El
+      // filtro local repite el del calendario por si la lista llega de caché.
+      const data = await api.getActiveDiscounts();
+      setDescuentos((data || []).filter(d => d.active && descuentoVigenteLocal(d)));
     } catch {
       setDescuentos([]);
     } finally {
@@ -581,12 +664,9 @@ export default function NuevaVentaScreen() {
   }
 
   function _aplicarDescuentoFinal(d) {
-    const monto = d.type === 'percentage'
-      ? parseFloat((subtotal * parseFloat(d.value) / 100).toFixed(2))
-      : parseFloat(d.value);
-    setDescuento(Math.min(monto, subtotal));
-    setDescuentoId(d.id);
-    setDescuentoNombre(d.name);
+    // El monto NO se congela aquí: se recalcula en vivo sobre la base de la
+    // cuenta (`descuento`, arriba), que sin "juntar ofertas" deja fuera las promos.
+    setDescuentoDef(d);
     setShowDescuentoModal(false);
   }
 
@@ -615,16 +695,14 @@ export default function NuevaVentaScreen() {
       _aplicarDescuentoFinal(d);
       setPinDescModal(false);
       setDescPendiente(null);
-      const monto = d.type === 'percentage'
-        ? parseFloat((subtotal * parseFloat(d.value) / 100).toFixed(2))
-        : parseFloat(d.value);
+      const monto = montoDescuento(d, baseDesc);
       api.request('/audit', {
         method: 'POST',
         body: {
           employee_name: nombreActivo || '',
           action_type: 'apply_discount',
           target_description: `Descuento: "${d.name}"`,
-          after_data: { discount_name: d.name, amount: Math.min(monto, subtotal) },
+          after_data: { discount_name: d.name, amount: monto },
         }
       }).catch(() => {});
     } catch (e) {
@@ -635,9 +713,7 @@ export default function NuevaVentaScreen() {
   }
 
   function quitarDescuento() {
-    setDescuento(0);
-    setDescuentoId(null);
-    setDescuentoNombre('');
+    setDescuentoDef(null);
   }
 
   // ── Puntos de fidelidad ───────────────────────────────────────────────────
@@ -695,14 +771,11 @@ export default function NuevaVentaScreen() {
         // ⚠️ `unit_price` es el precio BASE, sin extras: el backend suma los
         // modificadores por su cuenta a partir del option_id (BLOQUE 11), y
         // compara ESE precio contra el catálogo al auditar ventas diferidas.
-        items: carrito.map(i => ({
-          product_id: i.product_id,
-          quantity: 1,
-          unit_price: i.precio_base != null ? i.precio_base : i.precio,
-          base_unit_price: i.precio_base != null ? i.precio_base : i.precio,
-          modifiers: i.modificadores && i.modificadores.length ? i.modificadores : undefined,
-          notes: i.nota || undefined,
-        })),
+        // PROMOS (PLAN_OFERTAS_V1): una promo viaja como UN renglón con sus
+        // productos dentro, más `promo_price` y el `list_price` de cada uno. Online
+        // el servidor los ignora y aplica su regla; si la venta cae a la cola
+        // offline, sube como DIFERIDA y con eso reparte igual que aquí.
+        items: carrito.map(renglonParaVenta),
         // PAGOS DIVIDIDOS (BLOQUE 10). Con varios métodos el pedido se guarda
         // como 'multiple' y el reparto real viaja en `payments`; con uno solo se
         // guarda ese método y no se crea ninguna fila (venta de siempre).
@@ -764,8 +837,10 @@ export default function NuevaVentaScreen() {
         impuesto: desglose.impuesto,
         resumen: {
           payment_method: metodoPago,
-          items: carrito.map(i => ({
-            name: i.nombre,
+          // En el MISMO orden en que se aplanan los renglones (una promo = un
+          // renglón por producto): así el ticket offline pone cada nombre en su lugar.
+          items: nombresAplanados(carrito).map(i => ({
+            name: i.name,
             quantity: 1,
             modificadores: resumenModificadores(i.modificadores),
           })),
@@ -787,8 +862,7 @@ export default function NuevaVentaScreen() {
       limpiarCliente();
       setShowCarrito(false);
       setCobrandoModal(false);
-      setDescuento(0);
-      setDescuentoNombre('');
+      setDescuentoDef(null);
       setPuntosUsados(false);
       // Ni la propina ni la división se heredan a la siguiente venta: un reparto
       // viejo cobraría mal la venta nueva.
@@ -929,6 +1003,22 @@ export default function NuevaVentaScreen() {
         ))}
       </ScrollView>
 
+      {/* PROMOS (PLAN_OFERTAS_V1). Arriba de los productos, marcadas, y SOLO
+          mientras están activas: fuera de su día y su hora no existen aquí, así
+          nadie cobra el 2x1 del martes un miércoles. */}
+      {promosActivas.length > 0 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.promosRow} contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.sm }}>
+          {promosActivas.map(p => (
+            <TouchableOpacity key={p.id} style={styles.promoChip} onPress={() => { setShowSug(false); setHojaPromo(p); }}>
+              <Text style={styles.promoChipNombre} numberOfLines={1}>🎁 {p.name}</Text>
+              <Text style={styles.promoChipSub} numberOfLines={1}>
+                {textoHuecos(p, productos, categories)} · {textoCobro(p, currency)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
+
       {/* Grid de productos */}
       <FlatList
         data={productosFiltrados}
@@ -1007,7 +1097,20 @@ export default function NuevaVentaScreen() {
               <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>
                 Productos ({totalItems})
               </Text>
-              {carrito.map(item => (
+              {/* "¿Convertir a 2x1?" — sugiere, NUNCA convierte sola (§1 del plan). */}
+              {sugerencia && (
+                <View style={styles.sugerenciaPromo}>
+                  <Text style={styles.sugerenciaPromoTexto}>
+                    ¿Convertir a <Text style={{ fontWeight: '800' }}>{sugerencia.promo.name}</Text>? Ahorra {formatMoney(sugerencia.ahorro, currency)}
+                  </Text>
+                  <TouchableOpacity style={styles.sugerenciaPromoBtn} onPress={aplicarSugerencia}>
+                    <Text style={styles.sugerenciaPromoBtnText}>Convertir</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              {carrito.map(item => item.tipo === 'promo' ? (
+                <PromoCartItem key={item.uid} item={item} onDelete={eliminarDelCarrito} currency={currency} />
+              ) : (
                 <CartItem key={item.uid} item={item} onDelete={eliminarDelCarrito} onEditNota={abrirNota} onEditMods={editarModificadores} currency={currency} />
               ))}
 
@@ -1052,6 +1155,18 @@ export default function NuevaVentaScreen() {
         currency={currency}
         onCancel={() => setModsModal(null)}
         onConfirm={confirmarModificadores}
+      />
+
+      {/* ── Hoja de la promo: "Elige 2 de Tacos" ── */}
+      <HojaPromo
+        visible={hojaPromo !== null}
+        promo={hojaPromo}
+        productos={productos}
+        categorias={categories}
+        catalogoMods={catalogoMods}
+        currency={currency}
+        onCancel={() => setHojaPromo(null)}
+        onConfirm={agregarPromoAlCarrito}
       />
 
       {/* ── Modal notas por producto ── */}
@@ -1533,6 +1648,13 @@ export default function NuevaVentaScreen() {
             </TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={{ padding: spacing.lg }}>
+            {/* Sin "juntar ofertas" el descuento no toca las promos (§3.4): se
+                dice aquí, antes de elegir, para que el número no sorprenda. */}
+            {hayPromoEnCarrito && !ofertasAcumulables && (
+              <Text style={styles.avisoPromoDesc}>
+                Los productos en promoción no llevan descuento: se calcula sobre {formatMoney(baseDesc, currency)}.
+              </Text>
+            )}
             {cargandoDesc ? (
               <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: spacing.xl }} />
             ) : descuentos.length === 0 ? (
@@ -1545,9 +1667,7 @@ export default function NuevaVentaScreen() {
               </View>
             ) : (
               descuentos.map(d => {
-                const monto = d.type === 'percentage'
-                  ? parseFloat((subtotal * parseFloat(d.value) / 100).toFixed(2))
-                  : parseFloat(d.value);
+                const monto = montoDescuento(d, baseDesc);
                 const etiqueta = d.type === 'percentage'
                   ? `${parseFloat(d.value)}%`
                   : formatMoney(parseFloat(d.value), currency);
@@ -1782,6 +1902,20 @@ const styles = StyleSheet.create({
   descuentoItemNombre:{ fontSize: font.md, fontWeight: '700', color: colors.textPrimary },
   descuentoItemEtiqueta: { fontSize: font.sm, color: colors.textMuted, marginTop: 2 },
   descuentoItemMonto: { fontSize: font.lg, fontWeight: '800', color: colors.success },
+
+  // Promos (PLAN_OFERTAS_V1) — en violeta, para distinguirlas de los productos.
+  avisoPromoDesc:     { fontSize: font.sm - 1, color: '#7c3aed', marginBottom: spacing.md },
+  promosRow:          { flexGrow: 0, marginBottom: spacing.sm },
+  promoChip:          { maxWidth: 220, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.lg, backgroundColor: '#f5f3ff', borderWidth: 1, borderColor: '#c4b5fd' },
+  promoChipNombre:    { fontSize: font.sm, fontWeight: '800', color: '#6d28d9' },
+  promoChipSub:       { fontSize: font.sm - 2, color: '#7c3aed', marginTop: 1 },
+  cartPromo:          { backgroundColor: '#f5f3ff', borderColor: '#c4b5fd' },
+  cartPromoProd:      { fontSize: font.sm - 1, color: '#5b21b6', marginTop: 1 },
+  cartPromoAhorro:    { fontSize: font.sm - 2, color: colors.success, fontWeight: '700', marginTop: 2 },
+  sugerenciaPromo:    { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: '#f5f3ff', borderWidth: 1, borderColor: '#c4b5fd', borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.md },
+  sugerenciaPromoTexto: { flex: 1, fontSize: font.sm, color: '#5b21b6' },
+  sugerenciaPromoBtn: { backgroundColor: '#7c3aed', borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2 },
+  sugerenciaPromoBtnText: { color: '#fff', fontWeight: '800', fontSize: font.sm },
 
   // Advertencia efectivo
   advertenciaEfectivo: { textAlign: 'center', color: colors.textMuted, fontSize: font.sm, marginTop: spacing.sm },

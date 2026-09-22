@@ -21,6 +21,7 @@ import { formatMoney } from '../../utils/money';
 import { friendlyError } from '../../utils/errors';
 import { resumenModificadores, leerModificadores } from '../../utils/modificadores';
 import { imprimirTicketPedido } from '../../utils/imprimirTicket';
+import { agruparRenglones } from '../../utils/promos';
 
 const ESTADOS = [
   { key: null,         label: 'Todos' },
@@ -87,7 +88,13 @@ function PedidoCard({ pedido, onCambiarEstado, onReimprimir, currency }) {
 
       {pedido.items?.length > 0 && (
         <View style={styles.items}>
-          {pedido.items.map(item => (
+          {/* Una PROMO se enseña junta, como se vendió (PLAN_OFERTAS_V1). */}
+          {agruparRenglones(pedido.items).filter(g => g.promo).map(g => (
+            <Text key={g.promo.grupo} style={styles.itemText}>
+              1× 🎁 {g.promo.nombre}: {g.items.map(it => it.product?.name || 'Producto').join(', ')}
+            </Text>
+          ))}
+          {pedido.items.filter(item => !item.promo_group).map(item => (
             <View key={item.id}>
               <Text style={styles.itemText}>
                 {item.quantity}× {item.product?.name || 'Producto'}

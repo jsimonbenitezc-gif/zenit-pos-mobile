@@ -52,6 +52,14 @@ async function _abrir() {
       id           INTEGER PRIMARY KEY,
       payload_json TEXT NOT NULL
     );
+    -- Las PROMOS del negocio (PLAN_OFERTAS_V1, Bloque 3): el mismo JSON de
+    -- GET /offers/combos, entero. La caja las vende SIN internet —su calendario se
+    -- evalúa con el reloj del teléfono— pero crearlas pide conexión (trampa 9):
+    -- los ids son los del backend, igual que los modificadores.
+    CREATE TABLE IF NOT EXISTS catalogo_promos (
+      id           INTEGER PRIMARY KEY,
+      payload_json TEXT NOT NULL
+    );
     -- ── MODO LOCAL (BLOQUE 18) ───────────────────────────────────────────
     -- El negocio SIN CUENTA. Ids propios y un uuid por fila (el uuid es lo que
     -- sobrevive si algún día crea su cuenta y se lleva todo).
@@ -328,6 +336,35 @@ export async function leerCatalogoModificadores() {
   }
 }
 
+// ─── PROMOS (PLAN_OFERTAS_V1, Bloque 3) ────────────────────────────────────
+
+/** Reemplaza las promos cacheadas con lo que devolvió GET /offers/combos. */
+export async function guardarCatalogoPromos(combos) {
+  if (!Array.isArray(combos)) return;
+  const db = await initDB();
+  await db.runAsync(
+    'INSERT OR REPLACE INTO catalogo_promos (id, payload_json) VALUES (1, ?)',
+    [JSON.stringify(combos)]
+  );
+}
+
+/**
+ * Las promos cacheadas, en la forma de GET /offers/combos. Sin caché o con un
+ * JSON roto: ninguna. La venta sigue funcionando, simplemente sin promos.
+ */
+export async function leerCatalogoPromos() {
+  try {
+    const db = await initDB();
+    const row = await db.getFirstAsync('SELECT payload_json FROM catalogo_promos WHERE id = 1');
+    if (!row?.payload_json) return [];
+    const parsed = JSON.parse(row.payload_json);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    console.warn('[offline/db] Promos:', e?.message);
+    return [];
+  }
+}
+
 /** ¿Hay catálogo cacheado? (para decidir si podemos operar offline) */
 export async function hayCatalogoCacheado() {
   const db = await initDB();
@@ -513,7 +550,7 @@ export async function limpiarSesionLocal() {
   try {
     const db = await initDB();
     await db.execAsync(
-      'DELETE FROM sesion_local; DELETE FROM catalogo_categorias; DELETE FROM catalogo_productos; DELETE FROM catalogo_clientes; DELETE FROM catalogo_modificadores;'
+      'DELETE FROM sesion_local; DELETE FROM catalogo_categorias; DELETE FROM catalogo_productos; DELETE FROM catalogo_clientes; DELETE FROM catalogo_modificadores; DELETE FROM catalogo_promos;'
     );
   } catch (e) {
     console.warn('[offline/db] limpiarSesionLocal:', e?.message);

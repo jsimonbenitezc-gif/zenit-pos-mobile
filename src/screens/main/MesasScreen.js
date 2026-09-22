@@ -24,7 +24,13 @@ import { configPropina, hayPropinas, normalizarPropina, normalizarMetodo as norm
 import { dividirEnPartes, montoDeItems, cuadrarUltimoPago, faltantePago, pagosCuadran, validarPagos, metodoResumen as metodoResumenPagos, metodoDePago, PAGO_MAX } from '../../utils/pagos';
 import ModalModificadores from '../../components/ModalModificadores';
 import { imprimirTicketPedido } from '../../utils/imprimirTicket';
-import { claveCarrito, precioConModificadores, productoTieneModificadores, resumenModificadores, leerModificadores } from '../../utils/modificadores';
+import { precioConModificadores, productoTieneModificadores, resumenModificadores, leerModificadores } from '../../utils/modificadores';
+import HojaPromo from '../../components/HojaPromo';
+import { obtenerPromos } from '../../offline/ventasOffline';
+import {
+  promoDeCatalogo, promosActivasAhora, armarRenglonPromo, claveCarritoMesa, renglonParaMesa,
+  totalCarritoMesa, unidadesDeCuenta, agruparRenglones, textoHuecos, textoCobro,
+} from '../../utils/promos';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -80,7 +86,7 @@ function MesaCard({ mesa, onPress, currency }) {
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 
 export default function MesasScreen() {
-  const { isOwner, settings, sucursalId, puedeRegistrarEnSucursal, nombreActivo } = useAuth();
+  const { isOwner, isPremium, modoLocal, settings, sucursalId, puedeRegistrarEnSucursal, nombreActivo } = useAuth();
   const currency = settings?.currency_symbol || '$';
   // Config de propinas (BLOQUE 9). Se declara arriba porque la usan tanto el
   // cobro como el render del modal.
@@ -111,6 +117,12 @@ export default function MesasScreen() {
   // abre al agregar un producto que ofrece extras.
   const [catalogoMods, setCatalogoMods]          = useState({ groups: [], product_groups: [] });
   const [modsModal, setModsModal]                = useState(null); // { producto }
+  // PROMOS (PLAN_OFERTAS_V1). Se bajan con el catálogo; la hoja se abre al
+  // tocar una promo activa y la promo entra al carrito como UN renglón.
+  const [promosMesa, setPromosMesa]              = useState([]);
+  const [categoriasMesa, setCategoriasMesa]      = useState([]);
+  const [hojaPromo, setHojaPromo]                = useState(null);
+  const [quitando, setQuitando]                  = useState(false);
   const [loadingProductos, setLoadingProductos]  = useState(false);
   const [agregando, setAgregando]                = useState(false);
   // Idempotencia del envío en curso (abrir mesa / agregar productos). Es un ref y
@@ -180,30 +192,11 @@ export default function MesasScreen() {
    * fórmula compartida con el backend y el desktop (§31)— sigue funcionando SIN
    * TOCARLA: la suma de las unidades es la suma de los renglones.
    */
-  const unidadesCuenta = useMemo(() => {
-    const out = [];
-    for (const it of itemsCuenta) {
-      const sub = parseFloat(it.subtotal);
-      const monto = Number.isFinite(sub) && sub > 0
-        ? sub
-        : (parseFloat(it.unit_price) || 0) * (parseFloat(it.quantity) || 0);
-      const cant = parseInt(it.quantity, 10);
-      // Una cantidad fraccionaria o rara se trata como un solo bloque: partir
-      // "0.75 kg de queso" en unidades no significaría nada.
-      const piezas = Number.isFinite(cant) && cant > 1 ? cant : 1;
-      for (let k = 0; k < piezas; k++) {
-        out.push({
-          id: `${it.id}#${k}`,
-          item_id: it.id,
-          nombre: it.product ? it.product.name : 'Producto',
-          subtotal: monto / piezas,
-          pieza: k + 1,
-          de: piezas,
-        });
-      }
-    }
-    return out;
-  }, [itemsCuenta]);
+  // ⚠️ Y una PROMO es UNA unidad que va entera a un pago (trampa 5 de
+  // PLAN_OFERTAS_V1): cada taco lleva su parte y dividirlo cuadraría, pero dos
+  // amigos acabarían peleándose por un taco de $14.58. La regla vive en
+  // utils/promos.js → unidadesDeCuenta.
+  const unidadesCuenta = useMemo(() => unidadesDeCuenta(itemsCuenta), [itemsCuenta]);
   const faltaCuenta = faltantePago(pagosMesa, totalCuenta);
   const divisionCuadra = pagosMesa.length > 0 && pagosCuadran(pagosMesa, totalCuenta);
 
@@ -238,7 +231,7 @@ export default function MesasScreen() {
       // ids REALES (sin repetir), que es lo que el backend sabe validar. Un
       // renglón partido entre dos pagos aparece en los dos: es la verdad. El
       // cuadre lo hace el amount, nunca esta lista (§31).
-      base[i].item_ids = [...new Set(suyas.map(u => u.item_id))];
+      base[i].item_ids = [...new Set(suyas.flatMap(u => u.item_ids))];
       base[i].amount = montoDeItems(unidadesCuenta, suyas.map(u => u.id), totalCuenta);
     }
     // Las proporciones dejan centavos sueltos: se le cargan al último pago para
@@ -402,15 +395,20 @@ export default function MesasScreen() {
     uuidEnvioRef.current = null; // carrito nuevo = envío nuevo
     setBusquedaP('');
     try {
-      const [grouped, mods] = await Promise.all([
+      const [grouped, mods, combos] = await Promise.all([
         api.getProductsGrouped(),
         // Los extras se bajan junto al catálogo: sin ellos el mesero no podría
         // mandar 'sin cebolla' a la cocina (BLOQUE 11). No es crítico.
         api.getModifiers().catch(() => ({ groups: [], product_groups: [] })),
+        // Las promos tampoco: sin ellas la mesa se sigue pudiendo servir.
+        obtenerPromos().catch(() => []),
       ]);
-      const all = grouped.flatMap(g => (g.products || []).map(p => ({ ...p, categoryName: g.name })));
+      // `category_id` hace falta para saber qué entra en "2 de [Tacos]".
+      const all = grouped.flatMap(g => (g.products || []).map(p => ({ ...p, categoryName: g.name, category_id: g.id })));
       setProductos(all.filter(p => p.active !== false));
       setCatalogoMods(mods);
+      setCategoriasMesa(grouped.map(g => ({ id: g.id, name: g.name })));
+      setPromosMesa((combos || []).map(promoDeCatalogo).filter(Boolean));
     } catch {
       Alert.alert('Error', 'No se pudieron cargar los productos.');
     } finally {
@@ -451,7 +449,7 @@ export default function MesasScreen() {
    */
   function _sumarAlCarritoMesa(producto, modificadores) {
     uuidEnvioRef.current = null; // el envío cambió: ya no es el mismo lote
-    const clave = claveCarrito(producto.id, modificadores);
+    const clave = claveCarritoMesa({ producto, modificadores });
     setCarritoAgregar(prev => ({
       ...prev,
       [clave]: {
@@ -472,7 +470,7 @@ export default function MesasScreen() {
     setCarritoAgregar(prev => {
       // El "−" del catálogo solo conoce el producto, no la variante: se quita de
       // la ÚLTIMA que el cajero tocó, que es la que acaba de agregar.
-      const claves = Object.keys(prev).filter(k => prev[k].producto.id === productoId);
+      const claves = Object.keys(prev).filter(k => prev[k].producto && prev[k].producto.id === productoId);
       if (claves.length === 0) return prev;
       const clave = claves.sort((a, b) => (prev[b].tocado || 0) - (prev[a].tocado || 0))[0];
       const qty = (prev[clave]?.qty || 0) - 1;
@@ -483,14 +481,28 @@ export default function MesasScreen() {
     });
   }
 
+  /** La hoja de la promo terminó: entra al carrito de la mesa como UN renglón. */
+  function agregarPromoMesa(elegidos) {
+    const promo = hojaPromo;
+    setHojaPromo(null);
+    if (!promo) return;
+    uuidEnvioRef.current = null; // el envío cambió: ya no es el mismo lote
+    const renglon = armarRenglonPromo(promo, elegidos, { grupo: generarUuid() });
+    const entrada = { tipo: 'promo', renglon, qty: 1 };
+    // La clave lleva el GRUPO (trampa 2): dos 2x1 iguales son dos renglones, y
+    // el taco de la promo nunca se funde con un taco suelto.
+    setCarritoAgregar(prev => ({ ...prev, [claveCarritoMesa(entrada)]: entrada }));
+  }
+
+  function quitarPromoDelCarrito(clave) {
+    uuidEnvioRef.current = null;
+    setCarritoAgregar(prev => { const next = { ...prev }; delete next[clave]; return next; });
+  }
+
   async function confirmarAgregar() {
-    const items = Object.values(carritoAgregar).map(({ producto, qty, modificadores }) => ({
-      product_id: producto.id,
-      quantity: qty,
-      // Solo viaja QUÉ se eligió: el delta lo pone el backend desde su base
-      // (BLOQUE 11), nunca el cliente.
-      ...(modificadores && modificadores.length ? { modifiers: modificadores } : {}),
-    }));
+    // Solo viaja QUÉ se eligió: el delta lo pone el backend desde su base
+    // (BLOQUE 11), y el precio de la promo también (online, siempre).
+    const items = Object.values(carritoAgregar).map(renglonParaMesa);
     if (items.length === 0) return;
     // Mirando otra sucursal la vista es SOLO LECTURA: abrir una mesa de Norte con
     // una venta que se guarda en Centro cruzaría los datos de las dos.
@@ -550,6 +562,43 @@ export default function MesasScreen() {
     } finally {
       setAgregando(false);
     }
+  }
+
+  // ── Quitar un renglón de la mesa ─────────────────────────────────────────────
+
+  /**
+   * Quita un producto de la cuenta abierta. Si es de una PROMO, el servidor
+   * quita la promo ENTERA con sus insumos de vuelta (trampa 4): quitar un solo
+   * taco dejaría "medio 2x1" cobrado a precio de promo. Queda en la auditoría a
+   * nombre del puesto (Bloque 0).
+   */
+  function quitarRenglonMesa(item, nombrePromo) {
+    if (!ordenActiva || !item) return;
+    if (sucursalVista !== sucursalId) {
+      Alert.alert('Solo lectura', 'Estás viendo las mesas de otra sucursal.');
+      return;
+    }
+    const titulo = nombrePromo ? '¿Quitar la promo?' : '¿Quitar el producto?';
+    const mensaje = nombrePromo
+      ? `Se quita "${nombrePromo}" completa, con todos sus productos.`
+      : `Se quita ${item.product?.name || 'el producto'} de la cuenta.`;
+    Alert.alert(titulo, mensaje, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Quitar', style: 'destructive', onPress: async () => {
+          setQuitando(true);
+          try {
+            const actualizado = await api.removeOrderItem(ordenActiva.id, item.id, nombreActivo || '');
+            if (actualizado) setOrdenActiva(actualizado);
+            load();
+          } catch (e) {
+            Alert.alert('Error', friendlyError(e));
+          } finally {
+            setQuitando(false);
+          }
+        },
+      },
+    ]);
   }
 
   // ── Cobrar ───────────────────────────────────────────────────────────────────
@@ -667,10 +716,10 @@ export default function MesasScreen() {
     !busquedaP || p.name.toLowerCase().includes(busquedaP.toLowerCase())
   );
 
-  const totalCarrito = Object.values(carritoAgregar)
-    // El precio del renglón ya trae los extras; los renglones sin modificadores
-    // no lo llevan y caen al del catálogo, igual que antes del BLOQUE 11.
-    .reduce((s, { producto, qty, precio }) => s + parseFloat(precio != null ? precio : producto.price) * qty, 0);
+  // El precio del renglón ya trae los extras; una promo cuenta una vez.
+  const totalCarrito = totalCarritoMesa(carritoAgregar);
+  const promosActivasMesa = promosActivasAhora(promosMesa, productos, { premium: isPremium && !modoLocal });
+  const promosEnCarrito = Object.entries(carritoAgregar).filter(([, e]) => e.tipo === 'promo');
 
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -773,20 +822,43 @@ export default function MesasScreen() {
           </View>
 
           <ScrollView contentContainerStyle={{ padding: spacing.lg }}>
-            {ordenActiva?.items?.map((item, i) => (
-              <View key={i} style={styles.itemRow}>
-                <IconoProducto valor={item.product?.emoji || 'svg:shopping-bag'} size={22} color={colors.textSecondary} />
+            {agruparRenglones(ordenActiva?.items || []).map((g, i) => g.promo ? (
+              // PROMO (PLAN_OFERTAS_V1): la cuenta la enseña JUNTA, como se pidió.
+              // Quitarla quita la promo entera (trampa 4): nunca "medio 2x1".
+              <View key={`p${i}`} style={[styles.itemRow, styles.itemPromo]}>
+                <Ionicons name="gift-outline" size={20} color="#7c3aed" />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.itemName}>{item.product?.name || 'Producto'}</Text>
+                  <Text style={styles.itemName}>{g.promo.nombre}</Text>
+                  {g.items.map((it, j) => (
+                    <Text key={j} style={styles.itemPromoProd}>
+                      · {it.product?.name || 'Producto'}
+                      {resumenModificadores(leerModificadores(it.modifiers)) ? ` (${resumenModificadores(leerModificadores(it.modifiers))})` : ''}
+                    </Text>
+                  ))}
+                  {g.promo.ahorro > 0 ? <Text style={styles.itemPromoAhorro}>Ahorra {formatMoney(g.promo.ahorro, currency)}</Text> : null}
+                </View>
+                <Text style={styles.itemPrice}>{formatMoney(g.promo.total, currency)}</Text>
+                <TouchableOpacity style={styles.itemQuitar} disabled={quitando} onPress={() => quitarRenglonMesa(g.items[0], g.promo.nombre)}>
+                  <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View key={i} style={styles.itemRow}>
+                <IconoProducto valor={g.item.product?.emoji || 'svg:shopping-bag'} size={22} color={colors.textSecondary} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.itemName}>{g.item.product?.name || 'Producto'}</Text>
                   {/* Extras del renglón (BLOQUE 11). El precio del renglón ya
                       los incluye, así que van como detalle, no como cargo aparte. */}
-                  {resumenModificadores(leerModificadores(item.modifiers)) ? (
-                    <Text style={styles.itemMods}>{resumenModificadores(leerModificadores(item.modifiers))}</Text>
+                  {resumenModificadores(leerModificadores(g.item.modifiers)) ? (
+                    <Text style={styles.itemMods}>{resumenModificadores(leerModificadores(g.item.modifiers))}</Text>
                   ) : null}
-                  {item.notes ? <View style={{ flexDirection: 'row', alignItems: 'center' }}><Ionicons name="document-text-outline" size={12} color={colors.textMuted} /><Text style={[styles.itemNota, { marginLeft: 2 }]}>{item.notes}</Text></View> : null}
+                  {g.item.notes ? <View style={{ flexDirection: 'row', alignItems: 'center' }}><Ionicons name="document-text-outline" size={12} color={colors.textMuted} /><Text style={[styles.itemNota, { marginLeft: 2 }]}>{g.item.notes}</Text></View> : null}
                 </View>
-                <Text style={styles.itemQty}>×{item.quantity}</Text>
-                <Text style={styles.itemPrice}>{formatMoney(parseFloat(item.subtotal || 0), currency)}</Text>
+                <Text style={styles.itemQty}>×{g.item.quantity}</Text>
+                <Text style={styles.itemPrice}>{formatMoney(parseFloat(g.item.subtotal || 0), currency)}</Text>
+                <TouchableOpacity style={styles.itemQuitar} disabled={quitando} onPress={() => quitarRenglonMesa(g.item, null)}>
+                  <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                </TouchableOpacity>
               </View>
             ))}
             {(!ordenActiva?.items || ordenActiva.items.length === 0) && (
@@ -838,6 +910,27 @@ export default function MesasScreen() {
             <Ionicons name="search-outline" size={16} color={colors.textMuted} />
             <TextInput style={styles.searchInput} value={busquedaP} onChangeText={setBusquedaP} placeholder="Buscar producto..." placeholderTextColor={colors.textMuted} />
           </View>
+          {/* PROMOS (PLAN_OFERTAS_V1): solo las activas AHORA, arriba. */}
+          {!loadingProductos && promosActivasMesa.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ paddingHorizontal: spacing.md, gap: spacing.sm, paddingBottom: spacing.sm }}>
+              {promosActivasMesa.map(p => (
+                <TouchableOpacity key={p.id} style={styles.promoChip} onPress={() => setHojaPromo(p)}>
+                  <Text style={styles.promoChipNombre} numberOfLines={1}>🎁 {p.name}</Text>
+                  <Text style={styles.promoChipSub} numberOfLines={1}>{textoHuecos(p, productos, categoriasMesa)} · {textoCobro(p, currency)}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
+          {promosEnCarrito.map(([clave, e]) => (
+            <View key={clave} style={styles.promoEnCarrito}>
+              <Text style={styles.promoEnCarritoTexto} numberOfLines={2}>
+                🎁 {e.renglon.nombre}: {e.renglon.productos.map(p => p.nombre).join(', ')} · {formatMoney(e.renglon.precio, currency)}
+              </Text>
+              <TouchableOpacity onPress={() => quitarPromoDelCarrito(clave)}>
+                <Ionicons name="close-circle" size={20} color={colors.danger} />
+              </TouchableOpacity>
+            </View>
+          ))}
           {loadingProductos ? (
             <View style={styles.centered}><ActivityIndicator color={colors.primary} /></View>
           ) : (
@@ -851,7 +944,7 @@ export default function MesasScreen() {
               renderItem={({ item }) => {
                 // Suma de TODAS las variantes de este producto en el carrito.
                 const qty = Object.values(carritoAgregar)
-                  .filter(e => e.producto.id === item.id)
+                  .filter(e => e.producto && e.producto.id === item.id)
                   .reduce((s, e) => s + e.qty, 0);
                 const recipeStock = stockMap ? stockMap[item.id] : undefined;
                 const rawStock = recipeStock !== undefined ? recipeStock : (item.stock ?? null);
@@ -904,6 +997,18 @@ export default function MesasScreen() {
               _sumarAlCarritoMesa(modsModal.producto, seleccion);
               setModsModal(null);
             }}
+          />
+          {/* La hoja de la promo va DENTRO del modal del catálogo, para que se
+              dibuje encima de él y no detrás (igual que los extras). */}
+          <HojaPromo
+            visible={hojaPromo !== null}
+            promo={hojaPromo}
+            productos={productos}
+            categorias={categoriasMesa}
+            catalogoMods={catalogoMods}
+            currency={currency}
+            onCancel={() => setHojaPromo(null)}
+            onConfirm={agregarPromoMesa}
           />
           {Object.keys(carritoAgregar).length > 0 && (
             <View style={styles.agregarFooter}>
@@ -1055,7 +1160,7 @@ export default function MesasScreen() {
                     {unidadesCuenta.map(u => (
                       <View key={u.id} style={styles.divisionItemRow}>
                         <Text style={styles.divisionItemNombre} numberOfLines={1}>
-                          {u.nombre}{u.de > 1 ? ` · ${u.pieza} de ${u.de}` : ''}
+                          {u.promo ? '🎁 ' : ''}{u.nombre}{u.de > 1 ? ` · ${u.pieza} de ${u.de}` : ''}
                         </Text>
                         <View style={styles.divisionItemPagos}>
                           {pagosMesa.map((_, i) => (
@@ -1274,6 +1379,16 @@ export default function MesasScreen() {
 // ─── Estilos ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  // Promos (PLAN_OFERTAS_V1) — en violeta, para distinguirlas de los productos.
+  itemPromo:           { backgroundColor: '#f5f3ff', borderRadius: radius.md, paddingHorizontal: spacing.sm },
+  itemPromoProd:       { fontSize: font.sm - 1, color: '#5b21b6', marginTop: 1 },
+  itemPromoAhorro:     { fontSize: font.sm - 2, color: colors.success, fontWeight: '700', marginTop: 2 },
+  itemQuitar:          { padding: spacing.xs, marginLeft: spacing.xs },
+  promoChip:           { maxWidth: 220, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.lg, backgroundColor: '#f5f3ff', borderWidth: 1, borderColor: '#c4b5fd' },
+  promoChipNombre:     { fontSize: font.sm, fontWeight: '800', color: '#6d28d9' },
+  promoChipSub:        { fontSize: font.sm - 2, color: '#7c3aed', marginTop: 1 },
+  promoEnCarrito:      { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginHorizontal: spacing.md, marginBottom: spacing.xs, padding: spacing.sm, borderRadius: radius.md, backgroundColor: '#f5f3ff', borderWidth: 1, borderColor: '#c4b5fd' },
+  promoEnCarritoTexto: { flex: 1, fontSize: font.sm - 1, color: '#5b21b6', fontWeight: '600' },
   safe:             { flex: 1, backgroundColor: colors.background },
   centered:         { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header:           { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.lg, paddingBottom: spacing.sm },

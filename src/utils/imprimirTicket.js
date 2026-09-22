@@ -54,6 +54,13 @@ export async function imprimirTicketPedido(pedido, settings = {}, extra = {}) {
       unit_price: parseFloat(it.unit_price ?? it.price ?? 0),
       modifiers: it.modifiers,
       notes: it.notes,
+      // PROMOS (PLAN_OFERTAS_V1): con esto el ticket las agrupa y dice cuánto
+      // se ahorró. Sin promo, todo va en null y el renglón sale como siempre.
+      subtotal: it.subtotal,
+      base_unit_price: it.base_unit_price,
+      list_price: it.list_price,
+      promo_group: it.promo_group || null,
+      promo_name: it.promo_name || null,
     }));
 
     await printReceipt(address, {
