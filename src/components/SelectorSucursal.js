@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import { colors, spacing, radius, font } from '../theme';
+import { colors, spacing, radius, font, zc } from '../theme';
 
 /**
  * Tabs para MIRAR otra sucursal + aviso de solo-lectura.
@@ -17,8 +17,10 @@ import { colors, spacing, radius, font } from '../theme';
  *
  * @param {number|null} value       sucursal que se está viendo (null = todas)
  * @param {function}    onChange    recibe el id nuevo (o null)
+ * @param {boolean}     enNoche     va sobre la cabecera oscura del diseño A
+ *                                  (PLAN_REDISENO_V1): píldoras de vidrio
  */
-export default function SelectorSucursal({ value, onChange }) {
+export default function SelectorSucursal({ value, onChange, enNoche }) {
   const { sucursalId } = useAuth();
   const [branches, setBranches] = useState([]);
 
@@ -54,17 +56,17 @@ export default function SelectorSucursal({ value, onChange }) {
         {ordenadas.map(b => (
           <TouchableOpacity
             key={b.id}
-            style={[styles.tab, value === b.id && styles.tabActive]}
+            style={[styles.tab, enNoche && styles.tabNoche, value === b.id && (enNoche ? styles.tabNocheOn : styles.tabActive)]}
             onPress={() => onChange(b.id)}
           >
-            <Text style={[styles.tabText, value === b.id && styles.tabTextActive]}>{b.name}</Text>
+            <Text style={[styles.tabText, enNoche && styles.tabTextNoche, value === b.id && (enNoche ? styles.tabTextNocheOn : styles.tabTextActive)]}>{b.name}</Text>
           </TouchableOpacity>
         ))}
         <TouchableOpacity
-          style={[styles.tab, value === null && styles.tabActive]}
+          style={[styles.tab, enNoche && styles.tabNoche, value === null && (enNoche ? styles.tabNocheOn : styles.tabActive)]}
           onPress={() => onChange(null)}
         >
-          <Text style={[styles.tabText, value === null && styles.tabTextActive]}>Todas</Text>
+          <Text style={[styles.tabText, enNoche && styles.tabTextNoche, value === null && (enNoche ? styles.tabTextNocheOn : styles.tabTextActive)]}>Todas</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -109,6 +111,10 @@ const styles = StyleSheet.create({
   tabActive:     { backgroundColor: colors.primary, borderColor: colors.primary },
   tabText:       { fontSize: font.sm, fontWeight: '600', color: colors.textSecondary },
   tabTextActive: { color: '#fff' },
+  tabNoche:       { backgroundColor: zc.vidrio, borderColor: 'transparent' },
+  tabNocheOn:     { backgroundColor: '#fff', borderColor: '#fff' },
+  tabTextNoche:   { fontWeight: '400', color: zc.enNocheSuave },
+  tabTextNocheOn: { fontWeight: '500', color: zc.tinta },
   aviso: {
     flexDirection: 'row',
     alignItems: 'flex-start',

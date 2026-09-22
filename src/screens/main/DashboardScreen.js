@@ -1,26 +1,32 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl,
-  ActivityIndicator, Modal,
+  ActivityIndicator, Modal, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path, Circle, Defs, LinearGradient, Stop, Text as SvgText } from 'react-native-svg';
-import SvgIcon from '../../components/SvgIcon';
 import IconoProducto from '../../components/IconoProducto';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
-import { colors, spacing, radius, font } from '../../theme';
-import LogoTitle from '../../components/LogoTitle';
+import { zc, letra, espacios } from '../../theme';
 import VerificacionBanner from '../../components/VerificacionBanner';
 import SelectorSucursal from '../../components/SelectorSucursal';
+import {
+  Cabecera, FranjaSuperior, Tarjeta, Fila, IconoEnCuadro, Icono, NumeroGrande, Variacion,
+  tonoPorColor,
+} from '../../components/ui';
 import { formatMoney, formatMoneyCompact } from '../../utils/money';
 import { createSSE } from '../../utils/sse';
 import { configImpuesto } from '../../utils/impuestos';
 
+// Resumen con el diseño A de PLAN_REDISENO_V1 (Bloque 0). Mismos datos y mismos
+// botones que antes: solo cambió cómo se ven. El guardián `npm run revisar:estilo`
+// vigila que siga así.
+
+const logo = require('../../../assets/logo.png');
+
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-const MEDAL_COLORS = ['#ca8a04', '#94a3b8', '#b45309'];
 
 const fmtYAxis = (val, currency) => formatMoneyCompact(val, currency);
 
@@ -28,36 +34,15 @@ const fmt = (n, currency) => formatMoney(n, currency);
 
 const fmtNum = (n) => (parseInt(n) || 0).toLocaleString('es-MX');
 
-// ─── StatCard ────────────────────────────────────────────────────────────────
-function StatCard({ label, value, sub, color }) {
-  return (
-    <View style={[styles.statCard, { borderLeftColor: color || colors.primary }]}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-      {sub ? <Text style={styles.statSub}>{sub}</Text> : null}
-    </View>
-  );
-}
-
-// ─── SectionTitle ────────────────────────────────────────────────────────────
-function SectionTitle({ children, icon, color }) {
-  return (
-    <View style={styles.sectionTitleRow}>
-      {icon ? <Ionicons name={icon} size={15} color={color || colors.textPrimary} /> : null}
-      <Text style={[styles.sectionTitle, color ? { color } : null]}>{children}</Text>
-    </View>
-  );
-}
-
 // ─── Gráfica de línea — últimos 7 días ───────────────────────────────────────
 function LineChart7Days({ data, currency }) {
   const [w, setW] = useState(0);
 
   const CHART_H = 140;
   const PAD_TOP  = 12;
-  const PAD_BOT  = 28;
-  const PAD_LEFT = 40; // espacio para etiquetas del eje Y
-  const PAD_RIGHT = 4;
+  const PAD_BOT  = 26;
+  const PAD_LEFT = 44; // espacio para etiquetas del eje Y
+  const PAD_RIGHT = 14; // que la etiqueta de "hoy" no se corte
 
   const chartH = CHART_H - PAD_TOP - PAD_BOT;
   const chartW = Math.max(w - PAD_LEFT - PAD_RIGHT, 0);
@@ -96,72 +81,54 @@ function LineChart7Days({ data, currency }) {
   const yMax = PAD_TOP;
   const yMid = PAD_TOP + chartH / 2;
   const yMin = PAD_TOP + chartH;
+  const hoy = pts[6];
+  // Sin ventas en la semana, el tope es un 1 de relleno: no se rotula.
+  const sinVentas = days.every((d) => d.monto === 0);
 
   return (
-    <View style={styles.chartCard}>
-      <View onLayout={(e) => setW(e.nativeEvent.layout.width)}>
-        {w > 0 && (
-          <Svg width={w} height={CHART_H}>
-            <Defs>
-              <LinearGradient id="lineGrad" x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0" stopColor={colors.primary} stopOpacity="0.18" />
-                <Stop offset="1" stopColor={colors.primary} stopOpacity="0" />
-              </LinearGradient>
-            </Defs>
+    <View onLayout={(e) => setW(e.nativeEvent.layout.width)}>
+      {w > 0 && (
+        <Svg width={w} height={CHART_H}>
+          <Defs>
+            <LinearGradient id="lineGrad" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor={zc.azul} stopOpacity="0.28" />
+              <Stop offset="1" stopColor={zc.azul} stopOpacity="0" />
+            </LinearGradient>
+          </Defs>
 
-            {/* Líneas guía horizontales */}
-            <Path d={`M${PAD_LEFT},${yMax} L${w - PAD_RIGHT},${yMax}`} stroke={colors.border} strokeWidth="0.8" strokeDasharray="3,4" />
-            <Path d={`M${PAD_LEFT},${yMid} L${w - PAD_RIGHT},${yMid}`} stroke={colors.border} strokeWidth="0.8" strokeDasharray="3,4" />
-            <Path d={`M${PAD_LEFT},${yMin} L${w - PAD_RIGHT},${yMin}`} stroke={colors.border} strokeWidth="0.8" />
+          {/* Líneas guía horizontales */}
+          {[yMax, yMid, yMin].map((y, i) => (
+            <Path key={i} d={`M${PAD_LEFT},${y} L${w - PAD_RIGHT},${y}`} stroke={zc.rejilla} strokeWidth="1" />
+          ))}
 
-            {/* Etiquetas eje Y */}
-            <SvgText x={PAD_LEFT - 4} y={yMax + 4}  textAnchor="end" fontSize="9" fill={colors.textMuted}>{fmtYAxis(maxVal, currency)}</SvgText>
-            <SvgText x={PAD_LEFT - 4} y={yMid + 4}  textAnchor="end" fontSize="9" fill={colors.textMuted}>{fmtYAxis(maxVal / 2, currency)}</SvgText>
-            <SvgText x={PAD_LEFT - 4} y={yMin}       textAnchor="end" fontSize="9" fill={colors.textMuted}>{formatMoney(0, currency)}</SvgText>
+          {/* Etiquetas eje Y */}
+          {!sinVentas && <SvgText x={PAD_LEFT - 6} y={yMax + 4} textAnchor="end" fontSize="10" fill={zc.grisSuave}>{fmtYAxis(maxVal, currency)}</SvgText>}
+          {!sinVentas && <SvgText x={PAD_LEFT - 6} y={yMid + 4} textAnchor="end" fontSize="10" fill={zc.grisSuave}>{fmtYAxis(maxVal / 2, currency)}</SvgText>}
+          <SvgText x={PAD_LEFT - 6} y={yMin + 4} textAnchor="end" fontSize="10" fill={zc.grisSuave}>{fmtYAxis(0, currency)}</SvgText>
 
-            {/* Área rellena */}
-            <Path d={fillPath} fill="url(#lineGrad)" />
+          {/* Área rellena y línea */}
+          <Path d={fillPath} fill="url(#lineGrad)" />
+          <Path d={linePath} fill="none" stroke={zc.azul} strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round" />
 
-            {/* Línea */}
-            <Path
-              d={linePath}
-              fill="none"
-              stroke={colors.primary}
-              strokeWidth="2.5"
-              strokeLinejoin="round"
-              strokeLinecap="round"
-            />
+          {/* Solo el punto de hoy: es el que importa */}
+          <Circle cx={hoy.x} cy={hoy.y} r={4.5} fill={zc.azul} stroke="#fff" strokeWidth="2" />
 
-            {/* Puntos */}
-            {pts.map((p, i) => (
-              <Circle
-                key={i}
-                cx={p.x}
-                cy={p.y}
-                r={p.isToday ? 5 : 3.5}
-                fill={p.monto > 0 ? colors.primary : colors.border}
-                stroke={colors.surface}
-                strokeWidth="2"
-              />
-            ))}
-
-            {/* Etiquetas de día (eje X) */}
-            {pts.map((p, i) => (
-              <SvgText
-                key={i}
-                x={p.x}
-                y={CHART_H - 5}
-                textAnchor="middle"
-                fontSize="10"
-                fill={p.isToday ? colors.primary : colors.textSecondary}
-                fontWeight={p.isToday ? '700' : '400'}
-              >
-                {p.day}
-              </SvgText>
-            ))}
-          </Svg>
-        )}
-      </View>
+          {/* Etiquetas de día (eje X) */}
+          {pts.map((p, i) => (
+            <SvgText
+              key={i}
+              x={p.x}
+              y={CHART_H - 6}
+              textAnchor="middle"
+              fontSize="10"
+              fill={p.isToday ? zc.azul : zc.grisSuave}
+              fontWeight={p.isToday ? '700' : '400'}
+            >
+              {p.isToday ? 'Hoy' : p.day}
+            </SvgText>
+          ))}
+        </Svg>
+      )}
     </View>
   );
 }
@@ -170,9 +137,9 @@ function LineChart7Days({ data, currency }) {
 function HourlyChart({ data }) {
   if (!data || data.length === 0) {
     return (
-      <View style={[styles.chartCard, styles.emptyChartInner]}>
-        <Ionicons name="time-outline" size={22} color={colors.textMuted} />
-        <Text style={styles.emptyChartText}>Sin actividad registrada hoy</Text>
+      <View style={styles.vacio}>
+        <Icono nombre="reloj" size={18} color={zc.grisSuave} />
+        <Text style={styles.vacioTxt}>Sin actividad registrada hoy</Text>
       </View>
     );
   }
@@ -196,32 +163,30 @@ function HourlyChart({ data }) {
   const BAR_MAX_H = 60;
 
   return (
-    <View style={styles.chartCard}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View style={styles.hourlyRow}>
-          {fullRange.map((d, i) => {
-            const barH = Math.max((d.pedidos / maxPedidos) * BAR_MAX_H, d.pedidos > 0 ? 4 : 2);
-            return (
-              <View key={i} style={styles.hourlyBarCol}>
-                {d.pedidos > 0 ? (
-                  <Text style={styles.hourlyBarValue}>{d.pedidos}</Text>
-                ) : null}
-                <View
-                  style={[
-                    styles.hourlyBar,
-                    {
-                      height: barH,
-                      backgroundColor: d.pedidos > 0 ? colors.primary : colors.border,
-                    },
-                  ]}
-                />
-                <Text style={styles.hourlyBarLabel}>{`${d.hora}h`}</Text>
-              </View>
-            );
-          })}
-        </View>
-      </ScrollView>
-    </View>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <View style={styles.hourlyRow}>
+        {fullRange.map((d, i) => {
+          const barH = Math.max((d.pedidos / maxPedidos) * BAR_MAX_H, d.pedidos > 0 ? 4 : 2);
+          return (
+            <View key={i} style={styles.hourlyBarCol}>
+              {d.pedidos > 0 ? (
+                <Text style={styles.hourlyBarValue}>{d.pedidos}</Text>
+              ) : null}
+              <View
+                style={[
+                  styles.hourlyBar,
+                  {
+                    height: barH,
+                    backgroundColor: d.pedidos > 0 ? zc.azul : zc.pistaSuave,
+                  },
+                ]}
+              />
+              <Text style={styles.hourlyBarLabel}>{`${d.hora}h`}</Text>
+            </View>
+          );
+        })}
+      </View>
+    </ScrollView>
   );
 }
 
@@ -307,7 +272,7 @@ export default function DashboardScreen() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={zc.azul} />
       </View>
     );
   }
@@ -325,15 +290,11 @@ export default function DashboardScreen() {
   const clientesHoy = stats?.clientesHoy || 0;
   const itemsVendidos = stats?.itemsVendidosHoy || 0;
 
-  // Badge comparativa vs ayer
+  // Comparativa vs ayer
   const montoHoy = parseFloat(hoy.monto_total) || 0;
   const montoAyer = parseFloat(ayer.monto_total) || 0;
   const diffPct = montoAyer > 0 ? ((montoHoy - montoAyer) / montoAyer) * 100 : null;
   const diffUp = diffPct !== null && diffPct >= 0;
-  const diffLabel =
-    diffPct !== null
-      ? `${diffUp ? '▲' : '▼'} ${Math.abs(diffPct).toFixed(0)}% vs ayer`
-      : undefined;
 
   const dateStr = new Date().toLocaleDateString('es-MX', {
     weekday: 'long',
@@ -341,112 +302,120 @@ export default function DashboardScreen() {
     month: 'long',
   });
 
+  // Lo que el negocio cobró y NO es suyo (impuesto) o no es venta (propina).
+  const impuestoHoy = parseFloat(hoy.impuesto_total) || 0;
+  const propinasHoy = parseFloat(hoy.propinas_total) || 0;
+  const maxTop = Math.max(...topProductos.map((p) => parseFloat(p.total_vendido) || 0), 1);
+  const sinAlertas = stockBajoCount === 0 && auditLogs.length === 0;
+
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+      <FranjaSuperior />
       <ScrollView
         style={styles.scroll}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />
         }
       >
-        {/* ── Header ── */}
-        <View style={styles.header}>
-          <LogoTitle title="Resumen" titleStyle={styles.title} />
-          <Text style={styles.date}>{dateStr}</Text>
+        {/* ── Cabecera: el número del día primero ── */}
+        <Cabecera
+          titulo="Resumen"
+          subtitulo={dateStr.charAt(0).toUpperCase() + dateStr.slice(1)}
+          izquierda={<Image source={logo} style={styles.logo} resizeMode="contain" />}
+          solapa={48}
+        >
+          {/* Ver otra sucursal (solo lectura) */}
+          <View style={styles.sucursales}>
+            <SelectorSucursal
+              value={selectedBranch}
+              enNoche
+              onChange={(id) => { setSelectedBranch(id); load(false, id); }}
+            />
+          </View>
+          <NumeroGrande etiqueta="Ventas de hoy" valor={fmt(hoy.monto_total, currency)}>
+            <View style={styles.linea2}>
+              {diffPct !== null ? (
+                <>
+                  <Variacion sube={diffUp}>{`${diffUp ? '▲' : '▼'} ${Math.abs(diffPct).toFixed(0)}%`}</Variacion>
+                  <Text style={styles.linea2Txt}>vs ayer ({fmt(ayer.monto_total, currency)})</Text>
+                </>
+              ) : (
+                <Text style={styles.linea2Txt}>Ayer: {fmt(ayer.monto_total, currency)}</Text>
+              )}
+            </View>
+          </NumeroGrande>
+        </Cabecera>
+
+        {/* ── Dos tarjetas montadas sobre la cabecera ── */}
+        <View style={styles.encima}>
+          <Tarjeta style={styles.mini}>
+            <IconoEnCuadro nombre="recibo" tono="azul" />
+            <Text style={styles.miniEtq}>Pedidos</Text>
+            <Text style={styles.miniValor}>{fmtNum(hoy.total_pedidos)}</Text>
+            <Text style={styles.miniSub} numberOfLines={1}>Ticket prom. {fmt(hoy.ticket_promedio, currency)}</Text>
+          </Tarjeta>
+          <Tarjeta style={styles.mini}>
+            <IconoEnCuadro nombre="usuarios" tono="lila" />
+            <Text style={styles.miniEtq}>Clientes</Text>
+            <Text style={styles.miniValor}>{fmtNum(clientesHoy)}</Text>
+            <Text style={styles.miniSub} numberOfLines={1}>{fmtNum(itemsVendidos)} productos vendidos</Text>
+          </Tarjeta>
         </View>
 
         {/* ── Aviso suave: confirmar correo (solo dueño no verificado) ── */}
-        <View style={{ paddingHorizontal: spacing.lg }}>
+        <View style={{ paddingHorizontal: espacios.borde }}>
           <VerificacionBanner />
         </View>
 
-        {/* ── Ver otra sucursal (solo lectura) ── */}
-        <SelectorSucursal
-          value={selectedBranch}
-          onChange={(id) => { setSelectedBranch(id); load(false, id); }}
-        />
-
-        {/* ── Ventas de hoy ── */}
-        <SectionTitle icon="today-outline">Ventas de hoy</SectionTitle>
-        <View style={styles.row}>
-          <StatCard
-            label="Total"
-            value={fmt(hoy.monto_total, currency)}
-            color={colors.success}
-            sub={diffLabel}
-          />
-          <StatCard label="Pedidos" value={fmtNum(hoy.total_pedidos)} color={colors.primary} />
-        </View>
-        <View style={styles.row}>
-          <StatCard label="Ticket promedio" value={fmt(hoy.ticket_promedio, currency)} color={colors.warning} />
-          <StatCard label="Clientes únicos" value={fmtNum(clientesHoy)} color="#8b5cf6" />
-        </View>
-        {/* Impuesto recaudado hoy (BLOQUE 8). Solo aparece si el negocio cobra
-            impuesto. "Total" arriba sigue siendo lo COBRADO: aquí se ve cuánto de
-            eso es del negocio y cuánto le corresponde al fisco. */}
-        {(parseFloat(hoy.impuesto_total) || 0) > 0 && (
-          <View style={styles.row}>
-            <StatCard
-              label={`${configImpuesto(settings).nombre} recaudado`}
-              value={fmt(hoy.impuesto_total, currency)}
-              color={colors.textMuted}
-            />
-            <StatCard
-              label="Ventas netas"
-              value={fmt(hoy.monto_neto ?? (montoHoy - (parseFloat(hoy.impuesto_total) || 0)), currency)}
-              color={colors.success}
-            />
-          </View>
+        {/* Impuesto (BLOQUE 8) y propinas (BLOQUE 9): solo si hubo. "Ventas de
+            hoy" sigue siendo lo COBRADO; aquí se ve cuánto de eso es del fisco,
+            y la propina ni siquiera es del negocio, así que jamás está dentro. */}
+        {(impuestoHoy > 0 || propinasHoy > 0) && (
+          <Tarjeta titulo="Del total de hoy" icono="billete" tono="verde">
+            {impuestoHoy > 0 && (
+              <>
+                <Fila primera texto={`${configImpuesto(settings).nombre} recaudado`} valor={fmt(hoy.impuesto_total, currency)} />
+                <Fila
+                  texto="Ventas netas"
+                  valor={fmt(hoy.monto_neto ?? (montoHoy - (parseFloat(hoy.impuesto_total) || 0)), currency)}
+                  valorColor={zc.tinta}
+                />
+              </>
+            )}
+            {propinasHoy > 0 && (
+              <Fila
+                primera={impuestoHoy <= 0}
+                texto="Propinas"
+                detalle="No son ventas"
+                valor={fmt(hoy.propinas_total, currency)}
+              />
+            )}
+          </Tarjeta>
         )}
-        {/* Propinas de hoy (BLOQUE 9). Aparte por una razón más fuerte que el
-            impuesto: la propina ni siquiera es del negocio, así que jamás está
-            dentro del "Total" de arriba. */}
-        {(parseFloat(hoy.propinas_total) || 0) > 0 && (
-          <View style={styles.row}>
-            <StatCard
-              label="Propinas (no son ventas)"
-              value={fmt(hoy.propinas_total, currency)}
-              color={colors.success}
-            />
-          </View>
-        )}
-        <View style={styles.row}>
-          <StatCard label="Items vendidos" value={fmtNum(itemsVendidos)} color="#06b6d4" />
-          <StatCard
-            label="Stock bajo (insumos)"
-            value={stockBajoCount}
-            color={stockBajoCount > 0 ? colors.danger : colors.success}
-            sub={stockBajoCount > 0 ? 'productos' : 'Todo en orden'}
-          />
-        </View>
 
-        {/* ── Alertas (stock bajo + acciones con PIN) ── */}
-        <SectionTitle icon="alert-circle-outline" color={colors.danger}>
-          Alertas
-        </SectionTitle>
-        <View style={styles.card}>
-          {stockBajoCount === 0 && auditLogs.length === 0 && (
-            <View style={styles.alertOkRow}>
-              <Ionicons name="checkmark-circle-outline" size={20} color={colors.success} />
-              <Text style={styles.alertOkText}>Sin alertas por el momento</Text>
-            </View>
+        {/* ── Últimos 7 días (línea) ── */}
+        <Tarjeta titulo="Últimos 7 días" icono="tendencia">
+          <LineChart7Days data={ultimos7Dias} currency={currency} />
+          <Text style={styles.pie}>
+            Ayer: {fmt(ayer.monto_total, currency)} · {fmtNum(ayer.total_pedidos)} pedidos
+          </Text>
+        </Tarjeta>
+
+        {/* ── Necesita tu atención (stock bajo + acciones con PIN) ── */}
+        <Tarjeta titulo="Necesita tu atención" icono="aviso" tono={sinAlertas ? 'verde' : 'ambar'}>
+          {sinAlertas && (
+            <Fila primera icono="circuloOk" tono="verde" texto="Sin alertas por el momento" />
           )}
           {stockBajoCount > 0 && (
-            <View style={styles.alertRow}>
-              <View style={[styles.alertIconWrap, { backgroundColor: colors.warning + '22' }]}>
-                <Ionicons name="warning-outline" size={18} color={colors.warning} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.alertTitle}>
-                  {stockBajoCount} insumo{stockBajoCount !== 1 ? 's' : ''} con stock bajo
-                </Text>
-                <Text style={styles.alertSub}>Revisa el inventario para reponer</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-            </View>
+            <Fila
+              primera
+              texto={`${stockBajoCount} insumo${stockBajoCount !== 1 ? 's' : ''} con stock bajo`}
+              detalle="Revisa el inventario para reponer"
+              flecha
+            />
           )}
           {isOwner && auditLogs.map((log, i) => {
-            const tipo = AUDIT_TIPOS[log.action_type] || { icon: 'key-outline', label: log.action_type, color: colors.textMuted };
+            const tipo = AUDIT_TIPOS[log.action_type] || { icon: 'key-outline', label: log.action_type, color: '#9ca3af' };
             const fecha = new Date(log.createdAt);
             const horaStr = fecha.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
             const diaStr  = fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
@@ -458,145 +427,109 @@ export default function DashboardScreen() {
             return (
               <TouchableOpacity
                 key={log.id}
-                style={[styles.alertRow, (stockBajoCount > 0 || i > 0) && styles.alertRowBorder, fueraHorario && styles.auditFuera]}
+                style={[styles.auditFila, (stockBajoCount > 0 || i > 0) && styles.conLinea, fueraHorario && styles.auditFuera]}
                 onPress={() => setAuditDetalle(log)}
                 activeOpacity={0.7}
               >
-                <View style={[styles.alertIconWrap, { backgroundColor: tipo.color + '18' }]}>
-                  <Ionicons name={tipo.icon} size={18} color={tipo.color} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.alertTitle}>
-                    {tipo.label}
-                    {fueraHorario ? <Text style={styles.auditFueraEtiqueta}> · fuera de horario</Text> : null}
-                  </Text>
-                  <Text style={styles.alertSub} numberOfLines={1}>
+                <IconoEnCuadro nombre={tipo.icon} tono={tonoPorColor(tipo.color)} />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.auditTitulo} numberOfLines={1}>{tipo.label}</Text>
+                  <Text style={styles.auditSub} numberOfLines={1}>
+                    {fueraHorario ? <Text style={styles.auditFueraEtiqueta}>Fuera de horario · </Text> : null}
                     {log.employee_name}{log.target_description ? ` · ${log.target_description}` : ''}
                   </Text>
                 </View>
-                <View style={{ alignItems: 'flex-end', gap: 2 }}>
+                <View style={{ alignItems: 'flex-end' }}>
                   <Text style={styles.auditHora}>{horaStr}</Text>
                   <Text style={styles.auditDia}>{diaStr}</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={14} color={colors.textMuted} style={{ marginLeft: 2 }} />
+                <Icono nombre="derecha" size={16} color={zc.flecha} />
               </TouchableOpacity>
             );
           })}
-        </View>
-
-        {/* ── Ayer ── */}
-        <SectionTitle icon="time-outline">Ayer</SectionTitle>
-        <View style={styles.row}>
-          <StatCard label="Total" value={fmt(ayer.monto_total, currency)} color={colors.textMuted} />
-          <StatCard label="Pedidos" value={fmtNum(ayer.total_pedidos)} color={colors.textMuted} />
-        </View>
-
-        {/* ── Últimos 7 días (línea) ── */}
-        <SectionTitle icon="trending-up-outline">Últimos 7 días</SectionTitle>
-        <LineChart7Days data={ultimos7Dias} currency={currency} />
+        </Tarjeta>
 
         {/* ── Actividad por hora (barras) ── */}
-        <SectionTitle icon="bar-chart-outline">Actividad por hora (hoy)</SectionTitle>
-        <HourlyChart data={ventasPorHora} />
+        <Tarjeta titulo="Actividad por hora · hoy" icono="barras">
+          <HourlyChart data={ventasPorHora} />
+        </Tarjeta>
 
-        {/* ── Top productos ── */}
+        {/* ── Lo más vendido ── */}
         {topProductos.length > 0 && (
-          <>
-            <SectionTitle icon="trophy-outline">Top productos (7 días)</SectionTitle>
-            <View style={styles.card}>
-              {topProductos.map((p, i) => (
-                <View key={i} style={[styles.listRow, i > 0 && styles.listRowBorder]}>
-                  <View style={styles.medal}>
-                    {i < 3 ? <SvgIcon name="medal" size={18} color={MEDAL_COLORS[i]} /> : <Text style={{ fontSize: font.md, textAlign: 'center' }}>{`${i+1}°`}</Text>}
+          <Tarjeta titulo="Lo más vendido · 7 días" icono="medalla">
+            {topProductos.map((p, i) => (
+              <View key={i} style={[styles.topFila, i > 0 && styles.conLinea]}>
+                <Text style={styles.rank}>{i + 1}</Text>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <View style={styles.topNombre}>
+                    {p.emoji ? <IconoProducto valor={p.emoji} size={16} color={zc.tinta} /> : null}
+                    <Text style={styles.topTxt} numberOfLines={1}>{p.nombre}</Text>
                   </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }}>
-                    {p.emoji ? <IconoProducto valor={p.emoji} size={16} color={colors.textPrimary} /> : null}
-                    <Text style={styles.listName} numberOfLines={1}>{p.nombre}</Text>
+                  <View style={styles.pista}>
+                    <View style={[styles.barra, { width: `${((parseFloat(p.total_vendido) || 0) / maxTop) * 100}%` }]} />
                   </View>
-                  <Text style={styles.listValue}>{p.total_vendido} uds</Text>
                 </View>
-              ))}
-            </View>
-          </>
+                <Text style={styles.topValor}>{p.total_vendido}</Text>
+              </View>
+            ))}
+          </Tarjeta>
         )}
 
         {/* ── Últimas ventas ── */}
         {ultimasVentas.length > 0 && (
-          <>
-            <SectionTitle icon="receipt-outline">Últimas ventas</SectionTitle>
-            <View style={styles.card}>
-              {ultimasVentas.map((v, i) => (
-                <View key={v.id} style={[styles.listRow, i > 0 && styles.listRowBorder]}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.listName} numberOfLines={1}>
-                      #{v.id} · {v.cliente}
-                    </Text>
-                    <Text style={styles.listSub}>
-                      {new Date(v.fecha_pedido).toLocaleTimeString('es-MX', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </Text>
-                  </View>
-                  <Text style={[styles.listValue, { color: colors.success }]}>
-                    {fmt(v.total, currency)}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </>
+          <Tarjeta titulo="Últimas ventas" icono="recibo">
+            {ultimasVentas.map((v, i) => (
+              <Fila
+                key={v.id}
+                primera={i === 0}
+                texto={`#${v.id} · ${v.cliente}`}
+                detalle={new Date(v.fecha_pedido).toLocaleTimeString('es-MX', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+                valor={fmt(v.total, currency)}
+                valorColor={zc.tinta}
+              />
+            ))}
+          </Tarjeta>
         )}
 
         {/* ── Clientes frecuentes hoy ── */}
         {vipHoy.length > 0 && (
-          <>
-            <SectionTitle icon="star-outline" color="#f59e0b">
-              Clientes frecuentes hoy
-            </SectionTitle>
-            <View style={styles.card}>
-              {vipHoy.map((c, i) => (
-                <View key={c.id} style={[styles.listRow, i > 0 && styles.listRowBorder]}>
+          <Tarjeta titulo="Clientes frecuentes hoy" icono="estrella">
+            {vipHoy.map((c, i) => (
+              <Fila
+                key={c.id}
+                primera={i === 0}
+                izquierda={
                   <View style={styles.avatar}>
                     <Text style={styles.avatarText}>{c.name.charAt(0).toUpperCase()}</Text>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.listName} numberOfLines={1}>{c.name}</Text>
-                    {c.phone ? <Text style={styles.listSub}>{c.phone}</Text> : null}
-                  </View>
-                </View>
-              ))}
-            </View>
-          </>
+                }
+                texto={c.name}
+                detalle={c.phone || null}
+              />
+            ))}
+          </Tarjeta>
         )}
 
         {/* ── Stock bajo (lista detallada) ── */}
         {stockBajoLista.length > 0 && (
-          <>
-            <SectionTitle icon="warning-outline" color={colors.warning}>
-              Insumos con stock bajo
-            </SectionTitle>
-            <View style={styles.card}>
-              {stockBajoLista.map((p, i) => (
-                <View key={p.id} style={[styles.listRow, i > 0 && styles.listRowBorder]}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }}>
-                    {p.emoji ? <IconoProducto valor={p.emoji} size={16} color={colors.textPrimary} /> : null}
-                    <Text style={styles.listName} numberOfLines={1}>{p.name}</Text>
-                  </View>
-                  <Text
-                    style={[
-                      styles.listValue,
-                      { color: p.stock <= 3 ? colors.danger : colors.warning },
-                    ]}
-                  >
-                    {p.stock} uds
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </>
+          <Tarjeta titulo="Insumos con stock bajo" icono="aviso" tono="ambar">
+            {stockBajoLista.map((p, i) => (
+              <Fila
+                key={p.id}
+                primera={i === 0}
+                izquierda={p.emoji ? <IconoProducto valor={p.emoji} size={16} color={zc.tinta} /> : null}
+                texto={p.name}
+                valor={`${p.stock} uds`}
+                valorColor={p.stock <= 3 ? zc.rojo : zc.ambar}
+              />
+            ))}
+          </Tarjeta>
         )}
 
-        <View style={{ height: spacing.xxl * 2 }} />
+        <View style={{ height: 48 }} />
       </ScrollView>
 
       {/* Modal detalle de alerta */}
@@ -608,7 +541,7 @@ export default function DashboardScreen() {
       >
         {auditDetalle && (() => {
           const log = auditDetalle;
-          const tipo = AUDIT_TIPOS[log.action_type] || { icon: 'key-outline', label: log.action_type, color: colors.textMuted };
+          const tipo = AUDIT_TIPOS[log.action_type] || { icon: 'key-outline', label: log.action_type, color: '#9ca3af' };
           const fecha = new Date(log.createdAt);
           const fechaStr = fecha.toLocaleString('es-MX', {
             weekday: 'long', day: 'numeric', month: 'long',
@@ -629,12 +562,10 @@ export default function DashboardScreen() {
             <View style={styles.detalleOverlay}>
               <View style={styles.detalleBox}>
                 <View style={styles.detalleHeader}>
-                  <View style={[styles.alertIconWrap, { backgroundColor: tipo.color + '22' }]}>
-                    <Ionicons name={tipo.icon} size={20} color={tipo.color} />
-                  </View>
+                  <IconoEnCuadro nombre={tipo.icon} tono={tonoPorColor(tipo.color)} />
                   <Text style={styles.detalleTitulo}>{tipo.label}</Text>
                   <TouchableOpacity onPress={() => setAuditDetalle(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                    <Ionicons name="close" size={22} color={colors.textMuted} />
+                    <Icono nombre="cerrar" size={22} color={zc.grisSuave} />
                   </TouchableOpacity>
                 </View>
 
@@ -682,6 +613,7 @@ export default function DashboardScreen() {
                       <Text style={[styles.detalleVal, styles.detalleCode]} selectable>{after}</Text>
                     </View>
                   ) : null}
+                  <View style={{ height: 24 }} />
                 </ScrollView>
               </View>
             </View>
@@ -693,135 +625,57 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
+  safe: { flex: 1, backgroundColor: zc.fondo },
   scroll: { flex: 1 },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: zc.fondo },
 
-  header: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.sm,
-  },
-  title: { fontSize: font.xxl, fontWeight: '800', color: colors.textPrimary },
+  logo: { width: 26, height: 26 },
+  // El selector trae su propio margen de 16; la cabecera ya tiene 18.
+  sucursales: { marginHorizontal: -16, marginTop: 12, marginBottom: -6 },
+  linea2: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
+  linea2Txt: { fontSize: 12.5, color: zc.enNocheGris },
 
-  // Las tabs de sucursal viven en components/SelectorSucursal.js (compartidas
-  // con Pedidos, Inventario y Mesas)
-  date: {
-    fontSize: font.sm,
-    color: colors.textSecondary,
-    textTransform: 'capitalize',
-    marginTop: 2,
-  },
+  encima: { flexDirection: 'row', gap: 10, marginTop: -48, marginHorizontal: espacios.borde, marginBottom: 12 },
+  mini: { flex: 1, marginHorizontal: 0, marginBottom: 0, padding: 14 },
+  miniEtq: { ...letra.etiqueta, color: zc.gris, marginTop: 10 },
+  miniValor: { ...letra.valor, color: zc.tinta, marginTop: 1, fontVariant: ['tabular-nums'] },
+  miniSub: { fontSize: 11.5, color: zc.grisSuave, marginTop: 1 },
 
-  sectionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.lg,
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  sectionTitle: { fontSize: font.md, fontWeight: '700', color: colors.textPrimary },
+  pie: { fontSize: 12.5, color: zc.grisSuave, marginTop: 4 },
+  conLinea: { borderTopWidth: 1, borderTopColor: zc.linea },
 
-  row: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    borderLeftWidth: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  statValue: { fontSize: font.xl, fontWeight: '800', color: colors.textPrimary },
-  statLabel: { fontSize: font.sm - 1, color: colors.textSecondary, marginTop: 2 },
-  statSub: { fontSize: font.sm - 2, color: colors.textMuted, marginTop: 2 },
+  vacio: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
+  vacioTxt: { ...letra.etiqueta, color: zc.grisSuave },
 
-  card: {
-    marginHorizontal: spacing.lg,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-  },
-  listRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  listRowBorder: { borderTopWidth: 1, borderTopColor: colors.border },
-  medal: { width: 28, fontSize: font.md, textAlign: 'center' },
-  listName: { flex: 1, fontSize: font.sm, color: colors.textPrimary },
-  listSub: { fontSize: font.sm - 2, color: colors.textMuted, marginTop: 2 },
-  listValue: { fontSize: font.sm, color: colors.textSecondary, fontWeight: '700' },
+  // Alertas y auditoría
+  auditFila: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
+  auditFuera: { backgroundColor: zc.ambarSuave, marginHorizontal: -8, paddingHorizontal: 8, borderRadius: 10 },
+  auditTitulo: { ...letra.texto, color: zc.tinta },
+  auditSub: { fontSize: 12.5, color: zc.grisSuave, marginTop: 1 },
+  auditFueraEtiqueta: { fontSize: 12.5, fontWeight: '500', color: zc.ambarTexto },
+  auditHora: { fontSize: 12.5, color: zc.gris, fontVariant: ['tabular-nums'] },
+  auditDia: { fontSize: 11.5, color: zc.grisSuave, marginTop: 1 },
+
+  // Lo más vendido
+  topFila: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9 },
+  rank: { width: 18, fontSize: 13, color: zc.grisSuave, fontVariant: ['tabular-nums'] },
+  topNombre: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  topTxt: { ...letra.texto, color: zc.tinta, flexShrink: 1 },
+  pista: { height: 4, backgroundColor: zc.pistaSuave, borderRadius: 4, marginTop: 5, overflow: 'hidden' },
+  barra: { height: 4, backgroundColor: zc.barraSuave, borderRadius: 4 },
+  topValor: { ...letra.texto, color: zc.gris, fontVariant: ['tabular-nums'] },
 
   avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.primary + '20',
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: 34, height: 34, borderRadius: 17, backgroundColor: zc.azulSuave,
+    justifyContent: 'center', alignItems: 'center',
   },
-  avatarText: { fontSize: font.md, fontWeight: '700', color: colors.primary },
-
-  // Alertas
-  alertRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  alertIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  alertTitle: { fontSize: font.sm, fontWeight: '600', color: colors.textPrimary },
-  alertSub: { fontSize: font.sm - 2, color: colors.textMuted, marginTop: 2 },
-  alertOkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  alertOkText: { fontSize: font.sm, color: colors.textSecondary },
-  alertRowBorder: { borderTopWidth: 1, borderTopColor: colors.border },
-
-  // Gráficas
-  chartCard: {
-    marginHorizontal: spacing.lg,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-    overflow: 'hidden',
-  },
-  emptyChartInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-  },
-  emptyChartText: { fontSize: font.sm, color: colors.textMuted },
+  avatarText: { fontSize: 14, fontWeight: '500', color: zc.azul },
 
   // Barras por hora
   hourlyRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    height: 90,
+    height: 100,
     gap: 6,
     paddingHorizontal: 2,
   },
@@ -831,20 +685,14 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     gap: 2,
   },
-  hourlyBar: { width: 22, borderRadius: 4 },
-  hourlyBarValue: { fontSize: 9, color: colors.textMuted, fontWeight: '600' },
-  hourlyBarLabel: { fontSize: 9, color: colors.textSecondary, marginTop: 3 },
-
-  // Audit log (hora/fecha en alertas)
-  auditFuera:         { backgroundColor: colors.warning ? colors.warning + '14' : '#fffbeb' },
-  auditFueraEtiqueta: { fontSize: font.sm - 2, fontWeight: '700', color: '#b45309' },
-  auditHora:  { fontSize: font.sm - 1, fontWeight: '700', color: colors.textSecondary },
-  auditDia:   { fontSize: font.sm - 2, color: colors.textMuted, marginTop: 1 },
+  hourlyBar: { width: 20, borderRadius: 5 },
+  hourlyBarValue: { fontSize: 11, color: zc.gris },
+  hourlyBarLabel: { fontSize: 11, color: zc.grisSuave, marginTop: 3 },
 
   // Modal detalle de alerta
-  detalleOverlay: { flex: 1, backgroundColor: '#0007', justifyContent: 'flex-end' },
+  detalleOverlay: { flex: 1, backgroundColor: 'rgba(17,24,39,0.45)', justifyContent: 'flex-end' },
   detalleBox: {
-    backgroundColor: colors.surface,
+    backgroundColor: zc.tarjeta,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '80%',
@@ -852,22 +700,22 @@ const styles = StyleSheet.create({
   detalleHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.lg,
+    gap: 10,
+    padding: 18,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: zc.linea,
   },
-  detalleTitulo: { flex: 1, fontSize: font.lg, fontWeight: '800', color: colors.textPrimary },
-  detalleScroll: { padding: spacing.lg },
+  detalleTitulo: { flex: 1, fontSize: 17, fontWeight: '500', color: zc.tinta },
+  detalleScroll: { paddingHorizontal: 18, paddingTop: 6 },
   detalleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.sm,
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    gap: spacing.sm,
+    borderBottomColor: zc.linea,
+    gap: 10,
   },
-  detalleKey: { width: 80, fontSize: font.sm - 1, fontWeight: '700', color: colors.textMuted },
-  detalleVal: { flex: 1, fontSize: font.sm, color: colors.textPrimary },
-  detalleCode: { fontFamily: 'monospace', fontSize: font.sm - 2, color: colors.textSecondary, lineHeight: 18 },
+  detalleKey: { width: 84, fontSize: 13, color: zc.gris },
+  detalleVal: { flex: 1, fontSize: 14, color: zc.tinta },
+  detalleCode: { fontFamily: 'monospace', fontSize: 12, color: zc.gris, lineHeight: 18 },
 });
