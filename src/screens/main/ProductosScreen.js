@@ -5,7 +5,6 @@ import {
   ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'react-native';
 import IconoProducto from '../../components/IconoProducto';
@@ -14,8 +13,8 @@ import {
   cargarCatalogoEditable, crearProducto, actualizarProducto, borrarProducto,
   crearCategoria, actualizarCategoria, borrarCategoria, fijarModificadoresDeProducto,
 } from '../../offline/catalogoEditable';
-import { colors, spacing, radius, font } from '../../theme';
-import LogoTitle from '../../components/LogoTitle';
+import { colors, spacing, radius, font, zc, radios, sombra } from '../../theme';
+import { Cabecera, Icono } from '../../components/ui';
 import { formatMoney } from '../../utils/money';
 import { friendlyError } from '../../utils/errors';
 import { useAuth } from '../../context/AuthContext';
@@ -26,14 +25,16 @@ import { SelectorGruposProducto, ModalBibliotecaModificadores } from '../../comp
 function ProductRow({ product, onEdit, currency }) {
   return (
     <View style={styles.row}>
-      <IconoProducto valor={product.emoji || 'svg:shopping-bag'} imagen={product.image} size={24} color={colors.textSecondary} />
+      <View style={[styles.rowFoto, product.image && styles.rowFotoBlanca]}>
+        <IconoProducto valor={product.emoji || 'svg:shopping-bag'} imagen={product.image} size={34} color={zc.gris} />
+      </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.rowName}>{product.name}</Text>
         <Text style={styles.rowCat}>{product.category?.name || 'Sin categoría'}</Text>
       </View>
       <Text style={styles.rowPrice}>{formatMoney(parseFloat(product.price), currency)}</Text>
       <TouchableOpacity style={styles.editBtn} onPress={() => onEdit(product)}>
-        <Ionicons name="pencil-outline" size={16} color={colors.textMuted} />
+        <Icono nombre="pencil-outline" size={16} color={zc.gris} />
       </TouchableOpacity>
     </View>
   );
@@ -44,13 +45,15 @@ function ProductRow({ product, onEdit, currency }) {
 function CatRow({ cat, onEdit, onDelete }) {
   return (
     <View style={styles.row}>
-      <IconoProducto valor={cat.emoji || 'svg:folder'} size={24} color={colors.textSecondary} />
+      <View style={styles.rowFoto}>
+        <IconoProducto valor={cat.emoji || 'svg:folder'} size={26} color={zc.gris} />
+      </View>
       <Text style={[styles.rowName, { flex: 1 }]}>{cat.name}</Text>
       <TouchableOpacity style={styles.editBtn} onPress={() => onEdit(cat)}>
-        <Ionicons name="pencil-outline" size={16} color={colors.textMuted} />
+        <Icono nombre="pencil-outline" size={16} color={zc.gris} />
       </TouchableOpacity>
       <TouchableOpacity style={[styles.editBtn, { marginLeft: 4 }]} onPress={() => onDelete(cat)}>
-        <Ionicons name="trash-outline" size={16} color={colors.danger} />
+        <Icono nombre="trash-outline" size={16} color={zc.rojo} />
       </TouchableOpacity>
     </View>
   );
@@ -276,37 +279,30 @@ export default function ProductosScreen() {
   if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color={colors.primary} /></View>;
 
   return (
-    <SafeAreaView style={styles.safe}>
-      {/* Header */}
-      <View style={styles.header}>
-        <LogoTitle title="Productos" titleStyle={styles.title} />
-        {isOwner && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+      {/* Cabecera azul noche (diseño A): acciones, pestañas y buscador dentro */}
+      <Cabecera titulo="Productos" derecha={isOwner && (
+          <View style={styles.accionesCab}>
             {/* Biblioteca de modificadores (BLOQUE 11). Vive aquí y no en
                 Ajustes porque es parte del MENÚ: se configura junto a los
                 productos que la usan. */}
             {/* Sin cuenta no hay biblioteca de modificadores que configurar
                 (§32): un botón que no lleva a ningún lado es peor que no tenerlo. */}
             {vista === 'productos' && !modoLocal && (
-              <TouchableOpacity onPress={() => setModalBiblioteca(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Ionicons name="options-outline" size={22} color={colors.primary} />
+              <TouchableOpacity style={styles.btnOpciones} onPress={() => setModalBiblioteca(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Icono nombre="options-outline" size={19} color={zc.enNoche} />
               </TouchableOpacity>
             )}
             <TouchableOpacity
               style={styles.addBtn}
               onPress={vista === 'productos' ? abrirNuevoProd : abrirNuevaCat}
             >
-              <Text style={styles.addBtnText}>+ Nuevo</Text>
+              <Icono nombre="add" size={16} color="#fff" />
+              <Text style={styles.addBtnText}>Nuevo</Text>
             </TouchableOpacity>
           </View>
         )}
-      </View>
-
-      <ModalBibliotecaModificadores
-        visible={modalBiblioteca}
-        onClose={() => setModalBiblioteca(false)}
-      />
-
+      >
       {/* Toggle Productos / Categorías */}
       <View style={styles.tabRow}>
         <TouchableOpacity
@@ -322,11 +318,9 @@ export default function ProductosScreen() {
           <Text style={[styles.tabText, vista === 'categorias' && styles.tabTextActive]}>Categorías</Text>
         </TouchableOpacity>
       </View>
-
-      {/* Vista Productos */}
       {vista === 'productos' && (
-        <>
           <View style={styles.searchWrap}>
+            <Icono nombre="search-outline" size={18} color={colors.textMuted} />
             <TextInput
               style={styles.search}
               value={busqueda}
@@ -335,12 +329,23 @@ export default function ProductosScreen() {
               placeholderTextColor={colors.textMuted}
             />
           </View>
+      )}
+      </Cabecera>
+
+      <ModalBibliotecaModificadores
+        visible={modalBiblioteca}
+        onClose={() => setModalBiblioteca(false)}
+      />
+
+      {/* Vista Productos */}
+      {vista === 'productos' && (
+        <>
           {/* Filtro por categoría */}
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.catScroll}
-            contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.xs }}
+            contentContainerStyle={{ paddingHorizontal: 14, gap: spacing.sm }}
           >
             <TouchableOpacity
               style={[styles.catChip, catFiltro === null && styles.catChipActive]}
@@ -357,7 +362,7 @@ export default function ProductosScreen() {
                 onPress={() => setCatFiltro(catFiltro === c.id ? null : c.id)}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  {c.emoji ? <IconoProducto valor={c.emoji} size={14} color={catFiltro === c.id ? '#fff' : colors.textSecondary} /> : null}
+                  {c.emoji ? <IconoProducto valor={c.emoji} size={16} color={catFiltro === c.id ? '#fff' : zc.gris} /> : null}
                   <Text style={[styles.catChipText, catFiltro === c.id && styles.catChipTextActive]}>{c.name}</Text>
                 </View>
               </TouchableOpacity>
@@ -366,7 +371,7 @@ export default function ProductosScreen() {
           <FlatList
             data={filtradosProd}
             keyExtractor={p => String(p.id)}
-            contentContainerStyle={{ padding: spacing.lg, paddingTop: 0 }}
+            contentContainerStyle={{ padding: 14, paddingTop: 2 }}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
             renderItem={({ item }) => <ProductRow product={item} onEdit={abrirEditarProd} currency={currency} />}
             ListEmptyComponent={<Text style={styles.empty}>No hay productos</Text>}
@@ -379,7 +384,7 @@ export default function ProductosScreen() {
         <FlatList
           data={categorias}
           keyExtractor={c => String(c.id)}
-          contentContainerStyle={{ padding: spacing.lg, paddingTop: spacing.sm }}
+          contentContainerStyle={{ padding: 14, paddingTop: 16 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
           renderItem={({ item }) => (
             <CatRow cat={item} onEdit={abrirEditarCat} onDelete={eliminarCat} />
@@ -391,7 +396,7 @@ export default function ProductosScreen() {
       {/* Modal crear/editar producto */}
       <Modal visible={modalProd} animationType="slide" presentationStyle="pageSheet">
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+          <SafeAreaView style={styles.modalSafe}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{editandoProd ? 'Editar producto' : 'Nuevo producto'}</Text>
               <TouchableOpacity onPress={() => setModalProd(false)}>
@@ -408,24 +413,24 @@ export default function ProductosScreen() {
               <Text style={[styles.label, { marginTop: spacing.md }]}>Imagen o icono</Text>
               {imagenProd ? (
                 <View style={{ alignItems: 'center', marginBottom: spacing.sm }}>
-                  <Image source={{ uri: imagenProd }} style={{ width: 100, height: 100, borderRadius: radius.md }} />
+                  <Image source={{ uri: imagenProd }} style={{ width: 100, height: 100, borderRadius: radios.tarjeta }} />
                   <TouchableOpacity onPress={() => setImagenProd(null)} style={{ marginTop: spacing.xs }}>
-                    <Text style={[styles.linkText, { color: colors.danger }]}>Quitar foto</Text>
+                    <Text style={[styles.linkText, { color: zc.rojo }]}>Quitar foto</Text>
                   </TouchableOpacity>
                 </View>
               ) : (
                 <TouchableOpacity style={styles.iconPickerBtn} onPress={() => setPickerProd(true)}>
-                  <IconoProducto valor={emoji || 'svg:package'} size={28} color={colors.textPrimary} />
+                  <IconoProducto valor={emoji || 'svg:package'} size={28} color={zc.tinta} />
                   <Text style={styles.iconPickerLabel}>Cambiar icono</Text>
-                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                  <Icono nombre="chevron-forward" size={18} color={zc.flecha} />
                 </TouchableOpacity>
               )}
               <TouchableOpacity style={[styles.iconPickerBtn, { marginTop: spacing.xs }]} onPress={elegirImagenProd}>
-                <Ionicons name="image-outline" size={22} color={colors.primary} />
-                <Text style={[styles.iconPickerLabel, { color: colors.primary }]}>
+                <Icono nombre="image-outline" size={22} color={zc.azul} />
+                <Text style={[styles.iconPickerLabel, { color: zc.azul }]}>
                   {imagenProd ? 'Cambiar foto' : 'Subir una foto'}
                 </Text>
-                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                <Icono nombre="chevron-forward" size={18} color={zc.flecha} />
               </TouchableOpacity>
 
               <Text style={[styles.label, { marginTop: spacing.md }]}>Categoría</Text>
@@ -442,7 +447,7 @@ export default function ProductosScreen() {
                   onPress={() => setCatId(c.id)}
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    {c.emoji ? <IconoProducto valor={c.emoji} size={18} color={catId === c.id ? '#fff' : colors.textPrimary} /> : null}
+                    {c.emoji ? <IconoProducto valor={c.emoji} size={18} color={catId === c.id ? '#fff' : zc.tinta} /> : null}
                     <Text style={[styles.catOpcionText, catId === c.id && { color: '#fff' }]}>{c.name}</Text>
                   </View>
                 </TouchableOpacity>
@@ -485,7 +490,7 @@ export default function ProductosScreen() {
       {/* Modal crear/editar categoría */}
       <Modal visible={modalCat} animationType="slide" presentationStyle="pageSheet">
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+          <SafeAreaView style={styles.modalSafe}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{editandoCat ? 'Editar categoría' : 'Nueva categoría'}</Text>
               <TouchableOpacity onPress={() => setModalCat(false)}>
@@ -498,9 +503,9 @@ export default function ProductosScreen() {
 
               <Text style={[styles.label, { marginTop: spacing.md }]}>Icono</Text>
               <TouchableOpacity style={styles.iconPickerBtn} onPress={() => setPickerCat(true)}>
-                <IconoProducto valor={catEmoji || 'svg:package'} size={28} color={colors.textPrimary} />
+                <IconoProducto valor={catEmoji || 'svg:package'} size={28} color={zc.tinta} />
                 <Text style={styles.iconPickerLabel}>Cambiar icono</Text>
-                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                <Icono nombre="chevron-forward" size={18} color={zc.flecha} />
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -525,48 +530,54 @@ export default function ProductosScreen() {
   );
 }
 
+const campo = { backgroundColor: zc.tarjeta, borderRadius: radios.boton, borderWidth: 1, borderColor: zc.linea };
+const caja  = { backgroundColor: zc.tarjeta, borderRadius: radios.tarjeta, ...sombra };
+
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
+  safe: { flex: 1, backgroundColor: zc.fondo },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.lg, paddingBottom: spacing.sm },
-  title: { fontSize: font.xl, fontWeight: '800', color: colors.textPrimary },
-  addBtn: { backgroundColor: colors.primary, paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2, borderRadius: radius.md },
-  addBtnText: { color: '#fff', fontWeight: '700', fontSize: font.sm },
-  tabRow: { flexDirection: 'row', marginHorizontal: spacing.lg, marginBottom: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
-  tab: { flex: 1, paddingVertical: spacing.sm + 2, alignItems: 'center' },
-  tabActive: { backgroundColor: colors.primary },
-  tabText: { fontSize: font.sm, fontWeight: '700', color: colors.textMuted },
-  tabTextActive: { color: '#fff' },
-  searchWrap:      { paddingHorizontal: spacing.lg, marginBottom: spacing.sm },
-  search:          { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.md, color: colors.textPrimary },
-  catScroll:       { flexGrow: 0, marginBottom: spacing.sm },
-  catChip:         { paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2, borderRadius: radius.xl, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  catChipActive:   { backgroundColor: colors.primary, borderColor: colors.primary },
-  catChipText:     { fontSize: font.sm - 1, fontWeight: '600', color: colors.textSecondary },
+  accionesCab: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  btnOpciones: { width: 38, height: 38, borderRadius: 19, backgroundColor: zc.vidrio, alignItems: 'center', justifyContent: 'center' },
+  addBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: zc.azul, paddingHorizontal: 14, paddingVertical: 9, borderRadius: radios.chip },
+  addBtnText: { color: '#fff', fontWeight: '500', fontSize: 14 },
+  // Productos / Categorías: el mismo segmentado oscuro de la carcasa A
+  tabRow: { flexDirection: 'row', gap: 6, marginTop: 14 },
+  tab: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: radios.boton, backgroundColor: 'rgba(255,255,255,0.07)' },
+  tabActive: { backgroundColor: '#fff' },
+  tabText: { fontSize: 13.5, color: zc.enNocheSuave },
+  tabTextActive: { color: zc.tinta, fontWeight: '500' },
+  searchWrap:      { flexDirection: 'row', alignItems: 'center', marginTop: 10, ...campo, borderWidth: 0, paddingHorizontal: 12, gap: 8 },
+  search:          { flex: 1, paddingVertical: 10, fontSize: 14.5, color: zc.tinta },
+  catScroll:       { flexGrow: 0, marginTop: 12, marginBottom: 10, paddingVertical: 2 },
+  catChip:         { paddingHorizontal: 13, paddingVertical: 7, borderRadius: radios.chip, backgroundColor: zc.tarjeta, elevation: 1, shadowColor: zc.noche, shadowOpacity: 0.05, shadowRadius: 2, shadowOffset: { width: 0, height: 1 } },
+  catChipActive:   { backgroundColor: zc.noche },
+  catChipText:     { fontSize: 13.5, color: zc.gris },
   catChipTextActive: { color: '#fff' },
-  row: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm, borderWidth: 1, borderColor: colors.border },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, ...caja, padding: 12, marginBottom: 10 },
+  rowFoto: { width: 46, height: 46, borderRadius: 12, backgroundColor: '#f3f5f9', alignItems: 'center', justifyContent: 'center' },
+  rowFotoBlanca: { backgroundColor: zc.tarjeta },
   rowEmoji: { fontSize: 24, marginRight: spacing.sm },
-  rowName: { fontSize: font.sm, fontWeight: '700', color: colors.textPrimary },
-  rowCat: { fontSize: font.sm - 2, color: colors.textMuted },
-  rowPrice: { fontSize: font.md, fontWeight: '800', color: colors.primary, marginRight: spacing.sm },
-  editBtn: { padding: spacing.xs },
-  empty: { textAlign: 'center', color: colors.textMuted, marginTop: spacing.xxl, fontSize: font.md, lineHeight: 24 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border },
-  modalTitle: { fontSize: font.xl, fontWeight: '800', color: colors.textPrimary },
-  linkText: { color: colors.primary, fontWeight: '700', fontSize: font.md },
-  label: { fontSize: font.sm, fontWeight: '600', color: colors.textSecondary, marginBottom: spacing.xs },
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.md, color: colors.textPrimary, backgroundColor: colors.surface },
-  catOpcion: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: spacing.sm, marginBottom: spacing.xs, backgroundColor: colors.surface },
-  catOpcionActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  catOpcionText: { fontSize: font.sm, fontWeight: '600', color: colors.textPrimary },
-  btnGuardar: { backgroundColor: colors.primary, borderRadius: radius.md, padding: spacing.md + 2, alignItems: 'center', marginTop: spacing.xl },
-  btnGuardarText: { color: '#fff', fontSize: font.lg, fontWeight: '700' },
-  btnEliminar: { borderWidth: 1, borderColor: colors.danger, borderRadius: radius.md, padding: spacing.md, alignItems: 'center', marginTop: spacing.lg },
-  btnEliminarText: { color: colors.danger, fontSize: font.md, fontWeight: '700' },
+  rowName: { fontSize: 14.5, fontWeight: '500', color: zc.tinta },
+  rowCat: { fontSize: 12.5, color: zc.grisSuave, marginTop: 1 },
+  rowPrice: { fontSize: 15, fontWeight: '700', color: zc.azul, fontVariant: ['tabular-nums'] },
+  editBtn: { padding: 8, borderRadius: 10, backgroundColor: zc.fondo },
+  empty: { textAlign: 'center', color: zc.grisSuave, marginTop: spacing.xxl, fontSize: 14.5, lineHeight: 24 },
+  modalSafe: { flex: 1, backgroundColor: zc.fondo },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: zc.linea },
+  modalTitle: { fontSize: 19, fontWeight: '500', color: zc.tinta },
+  linkText: { color: zc.azul, fontWeight: '500', fontSize: 15 },
+  label: { fontSize: 13, color: zc.gris, marginBottom: 6 },
+  input: { ...campo, padding: 12, fontSize: 15, color: zc.tinta },
+  catOpcion: { ...campo, padding: 11, marginBottom: 6 },
+  catOpcionActive: { backgroundColor: zc.noche, borderColor: zc.noche },
+  catOpcionText: { fontSize: 14, color: zc.tinta },
+  btnGuardar: { backgroundColor: zc.azul, borderRadius: radios.boton, padding: 14, alignItems: 'center', marginTop: spacing.xl },
+  btnGuardarText: { color: '#fff', fontSize: 16, fontWeight: '500' },
+  btnEliminar: { backgroundColor: zc.rojoSuave, borderRadius: radios.boton, padding: 13, alignItems: 'center', marginTop: spacing.lg },
+  btnEliminarText: { color: zc.rojo, fontSize: 15, fontWeight: '500' },
   iconPickerBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    borderWidth: 1, borderColor: colors.border, borderRadius: radius.md,
-    padding: spacing.md, backgroundColor: colors.surface,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    ...campo, padding: 12,
   },
-  iconPickerLabel: { flex: 1, fontSize: font.md, color: colors.textSecondary },
+  iconPickerLabel: { flex: 1, fontSize: 14.5, color: zc.tinta },
 });
