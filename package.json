@@ -9,14 +9,15 @@
     "web": "expo start --web",
     "revisar": "node scripts/revisar.js",
     "smoke:credenciales": "node scripts/smoke-credenciales.js",
-    "verificar": "node scripts/revisar.js && node scripts/smoke-credenciales.js && node scripts/smoke-modo-local.js && node scripts/smoke-migracion.js && npm run smoke:sinsesion && npm run smoke:sse && npm run smoke:promos-gemelas && npm run smoke:promos",
+    "verificar": "node scripts/revisar.js && node scripts/smoke-credenciales.js && node scripts/smoke-modo-local.js && node scripts/smoke-migracion.js && npm run smoke:sinsesion && npm run smoke:sse && npm run smoke:promos-gemelas && npm run smoke:promos && npm run smoke:aviso-stock",
     "smoke:local": "node scripts/smoke-modo-local.js",
     "smoke:migracion": "node scripts/smoke-migracion.js",
     "smoke:sinsesion": "node scripts/smoke-modo-local-sin-sesion.js",
     "emulador": "node scripts/emulador.js",
     "smoke:sse": "node scripts/smoke-sse-canales.js",
     "smoke:promos-gemelas": "node scripts/smoke-promos-gemelas.js",
-    "smoke:promos": "node scripts/smoke-promos.js"
+    "smoke:promos": "node scripts/smoke-promos.js",
+    "smoke:aviso-stock": "node scripts/smoke-aviso-stock.js"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",

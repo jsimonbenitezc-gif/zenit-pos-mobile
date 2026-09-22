@@ -248,7 +248,10 @@ export async function sincronizarVentasPendientes() {
       try {
         // sold_at: las ventas encoladas por una versión anterior de la app no lo
         // traen en el payload, pero la cola sí guarda cuándo se registraron.
-        const payload = { ...v.payload, sold_at: v.payload.sold_at || v.creadaEn };
+        // skip_stock_check: la venta YA OCURRIÓ — el cliente se llevó la comida y
+        // pagó. Si faltan existencias, eso se corrige en el inventario, no
+        // rechazando lo cobrado (mismo criterio que la cola del desktop).
+        const payload = { ...v.payload, sold_at: v.payload.sold_at || v.creadaEn, skip_stock_check: true };
         await api.createOrder(payload); // el backend deduplica por client_uuid
         await marcarVenta(v.clientUuid, 'subida');
         subidas++;

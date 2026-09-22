@@ -40,8 +40,9 @@ const ESTADO_COLOR = {
   error:       colors.danger,
 };
 
-const PAGO_LABEL = { efectivo: 'Efectivo', tarjeta: 'Tarjeta', transferencia: 'Transferencia' };
-const PAGO_ICON  = { efectivo: 'cash-outline', tarjeta: 'card-outline', transferencia: 'phone-portrait-outline' };
+// 'multiple' = la cuenta se dividió entre varios métodos (§31). Salía tal cual.
+const PAGO_LABEL = { efectivo: 'Efectivo', tarjeta: 'Tarjeta', transferencia: 'Transferencia', multiple: 'Pago dividido' };
+const PAGO_ICON  = { efectivo: 'cash-outline', tarjeta: 'card-outline', transferencia: 'phone-portrait-outline', multiple: 'git-branch-outline' };
 
 function PedidoCard({ pedido, onCambiarEstado, onReimprimir, currency }) {
   const fecha = new Date(pedido.createdAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });

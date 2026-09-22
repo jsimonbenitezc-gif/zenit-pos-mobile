@@ -1,3 +1,5 @@
+import { errorAvisoStock, esRespuestaAvisoStock } from '../utils/avisoStock';
+
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://zenit-pos-backend.onrender.com/api';
 const REQUEST_TIMEOUT_MS = 30000; // 30 segundos
 
@@ -278,8 +280,14 @@ class ApiClient {
     return this.request(`/orders${query ? '?' + query : ''}`);
   }
 
-  createOrder(data) {
-    return this.request('/orders', { method: 'POST', body: data });
+  // ⚠️ Si faltan existencias el servidor NO crea el pedido: responde 200 con
+  // { stock_warning, warnings } y espera que se reenvíe con skip_stock_check.
+  // Aquí se vuelve un ERROR, para que nadie lo tome por un pedido creado — pasó
+  // en las tres salidas del celular y se perdían ventas cobradas (utils/avisoStock.js).
+  async createOrder(data) {
+    const res = await this.request('/orders', { method: 'POST', body: data });
+    if (esRespuestaAvisoStock(res)) throw errorAvisoStock(res);
+    return res;
   }
 
   // `extra` lleva lo que se decide AL COBRAR una mesa: el método de pago y la

@@ -21,6 +21,7 @@ import { obtenerCatalogo, obtenerClientes, obtenerCatalogoModificadores, obtener
 import ModalModificadores from '../../components/ModalModificadores';
 import HojaPromo from '../../components/HojaPromo';
 import { generarUuid } from '../../utils/uuid';
+import { esAvisoStock, textoAvisoStock } from '../../utils/avisoStock';
 import {
   promoDeCatalogo, promosActivasAhora, armarRenglonPromo, renglonParaVenta, nombresAplanados,
   baseDescuentoDe, ofertasAcumulablesDe, montoDescuento, descuentoVigenteLocal,
@@ -738,7 +739,11 @@ export default function NuevaVentaScreen() {
 
   // ── Cobrar ────────────────────────────────────────────────────────────────
 
-  async function cobrar() {
+  // `opts.sinRevisarStock`: el cajero ya vio el aviso de "faltan existencias" y
+  // eligió cobrar igual. (onPress pasa el evento como primer argumento, por eso
+  // se compara con true.)
+  async function cobrar(opts) {
+    const sinRevisarStock = opts?.sinRevisarStock === true;
     if (carrito.length === 0) return;
     // Sin sucursal la venta quedaría huérfana: el backend la rechaza y, si se
     // registró sin internet, se quedaría atorada en la cola. Ver CLAUDE.md §24.
@@ -760,7 +765,7 @@ export default function NuevaVentaScreen() {
       Alert.alert('Efectivo insuficiente', 'El monto recibido es menor al total a cobrar.');
       return;
     }
-    if (tipoPedido === 'domicilio' && !domDireccion.trim()) {
+    if (tipoPedido === 'domicilio' && !domDireccion.trim() && !sinRevisarStock) {
       const continuar = await new Promise(resolve =>
         Alert.alert(
           'Sin dirección',
@@ -826,6 +831,7 @@ export default function NuevaVentaScreen() {
         // propina inválida nunca tumba la venta (cae a 0 y se registra igual).
         tip_amount: propinaEfectiva,
         tip_method: propinaEfectiva > 0 ? normalizarMetodoPropina(propinaMetodo, metodoPago) : null,
+        ...(sinRevisarStock ? { skip_stock_check: true } : {}),
       };
 
       // Puntos de fidelidad: se procesan en la transacción del backend, así que
@@ -900,6 +906,19 @@ export default function NuevaVentaScreen() {
           (res.modo === 'offline' ? '\n\nSin conexión: se subirá automáticamente al reconectar.' : '')
       );
     } catch (e) {
+      // Faltan existencias: la venta NO se guardó. Avisa y deja cobrar igual —
+      // el número del inventario puede estar mal y el producto estar ahí (§56.3).
+      if (esAvisoStock(e)) {
+        Alert.alert(
+          'Faltan existencias',
+          textoAvisoStock(e.warnings) + '\n\nLa venta todavía NO se ha registrado. ¿Cobrar de todas formas?',
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            { text: 'Cobrar igual', onPress: () => cobrar({ sinRevisarStock: true }) },
+          ],
+        );
+        return;
+      }
       Alert.alert('Error al registrar', friendlyError(e));
     } finally {
       setEnviando(false);

@@ -18,6 +18,7 @@ import SelectorSucursal from '../../components/SelectorSucursal';
 import { formatMoney } from '../../utils/money';
 import { createSSE } from '../../utils/sse';
 import { friendlyError } from '../../utils/errors';
+import { esAvisoStock, textoAvisoStock } from '../../utils/avisoStock';
 import { generarUuid } from '../../utils/uuid';
 import { desgloseDePedido, etiquetaImpuesto } from '../../utils/impuestos';
 import { configPropina, hayPropinas, normalizarPropina, normalizarMetodo as normalizarMetodoPropina, propinaPorPorcentaje, totalConPropina } from '../../utils/propinas';
@@ -37,7 +38,9 @@ import {
 function tiempoTranscurrido(isoDate) {
   if (!isoDate) return '';
   const diff = Date.now() - new Date(isoDate).getTime();
-  const min = Math.floor(diff / 60000);
+  // La hora la pone el SERVIDOR: con el reloj del teléfono un poco atrasado
+  // salía "-1min". Una mesa recién abierta lleva 0 minutos, nunca menos.
+  const min = Math.max(0, Math.floor(diff / 60000));
   if (min < 60) return `${min}min`;
   const h = Math.floor(min / 60);
   const m = min % 60;
@@ -499,7 +502,10 @@ export default function MesasScreen() {
     setCarritoAgregar(prev => { const next = { ...prev }; delete next[clave]; return next; });
   }
 
-  async function confirmarAgregar() {
+  // `opts.sinRevisarStock`: el mesero ya vio el aviso de existencias y eligió
+  // mandar la comanda igual. (onPress pasa el evento, por eso se compara con true.)
+  async function confirmarAgregar(opts) {
+    const sinRevisarStock = opts?.sinRevisarStock === true;
     // Solo viaja QUÉ se eligió: el delta lo pone el backend desde su base
     // (BLOQUE 11), y el precio de la promo también (online, siempre).
     const items = Object.values(carritoAgregar).map(renglonParaMesa);
@@ -540,6 +546,7 @@ export default function MesasScreen() {
           guests: parseInt(comensales) || mesaSel?.capacity || 1,
           branch_id: sucursalId || null,
           client_uuid: uuidEnvioRef.current,
+          ...(sinRevisarStock ? { skip_stock_check: true } : {}),
         });
         setOrdenActiva(order);
         setModalAgregar(false);
@@ -558,6 +565,19 @@ export default function MesasScreen() {
       }
       showToast('✓ Comanda enviada a cocina');
     } catch (e) {
+      // Faltan existencias: la mesa NO se abrió. Antes esto se tragaba y la
+      // comanda desaparecía sin decir nada. Avisa y deja mandarla igual (§56.3).
+      if (esAvisoStock(e)) {
+        Alert.alert(
+          'Faltan existencias',
+          textoAvisoStock(e.warnings) + '\n\nLa comanda todavía NO se ha enviado. ¿Enviarla de todas formas?',
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            { text: 'Enviar igual', onPress: () => confirmarAgregar({ sinRevisarStock: true }) },
+          ],
+        );
+        return;
+      }
       Alert.alert('Error', friendlyError(e));
     } finally {
       setAgregando(false);
