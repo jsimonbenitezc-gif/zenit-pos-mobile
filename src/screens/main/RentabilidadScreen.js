@@ -24,12 +24,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { useNetwork } from '../../context/NetworkContext';
-import { colors, spacing, radius, font } from '../../theme';
-import LogoTitle from '../../components/LogoTitle';
+import { colors, spacing, radius, font, zc, tonos, radios, sombra } from '../../theme';
+import { Cabecera, Icono, IconoEnCuadro } from '../../components/ui';
 import SelectorSucursal from '../../components/SelectorSucursal';
 import { formatMoney } from '../../utils/money';
 import { friendlyError } from '../../utils/errors';
@@ -60,7 +59,7 @@ function PremiumGate() {
   const navigation = useNavigation();
   return (
     <View style={styles.gateWrap}>
-      <Ionicons name="trending-up-outline" size={52} color={colors.textMuted} />
+      <IconoEnCuadro nombre="trending-up-outline" tono="verde" size={64} />
       <Text style={styles.gateTitle}>Función Premium</Text>
       <Text style={styles.gateSubtitle}>
         La rentabilidad se calcula con las recetas y los costos del inventario,
@@ -101,8 +100,8 @@ function FilaProducto({ item, currency }) {
   // Un margen negativo es la información más valiosa de la pantalla: ese
   // platillo se está vendiendo con pérdida.
   const color = item.margen < 0
-    ? colors.danger
-    : (item.margen_pct !== null && item.margen_pct < 25 ? colors.warning : colors.success);
+    ? zc.rojo
+    : (item.margen_pct !== null && item.margen_pct < 25 ? zc.ambar : zc.verde);
 
   return (
     <View style={styles.fila}>
@@ -120,7 +119,7 @@ function FilaProducto({ item, currency }) {
       </View>
       {!item.costo_confiable && (
         <Text style={styles.filaAviso}>
-          <Ionicons name="warning-outline" size={11} color={colors.warning} />
+          <Icono nombre="warning-outline" size={12} color={zc.ambar} />
           {'  '}Falta el costo de: {(item.insumos_sin_costo || []).join(', ')}
         </Text>
       )}
@@ -167,8 +166,8 @@ export default function RentabilidadScreen() {
 
   if (!isPremium) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <LogoTitle title="Rentabilidad" />
+      <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+        <Cabecera titulo="Rentabilidad" />
         <PremiumGate />
       </SafeAreaView>
     );
@@ -194,29 +193,14 @@ export default function RentabilidadScreen() {
 
   const encabezado = (
     <View>
-      <SelectorSucursal value={sucursalVista} onChange={setSucursalVista} />
-
-      <ScrollView horizontal style={{ flexGrow: 0 }} showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chipsFila}>
-        {PERIODOS.map(p => (
-          <TouchableOpacity
-            key={p.dias}
-            style={[styles.chip, periodo === p.dias && styles.chipActivo]}
-            onPress={() => setPeriodo(p.dias)}
-          >
-            <Text style={[styles.chipTexto, periodo === p.dias && styles.chipTextoActivo]}>{p.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
       <View style={styles.kpis}>
         <Tarjeta label="Ingreso neto" valor={formatMoney(resumen?.ingreso || 0, currency)} />
         <Tarjeta label="Costo insumos" valor={formatMoney(resumen?.costo || 0, currency)} />
-        <Tarjeta label="Ganancia" valor={formatMoney(resumen?.margen || 0, currency)} color={colors.success} />
+        <Tarjeta label="Ganancia" valor={formatMoney(resumen?.margen || 0, currency)} color={zc.verde} />
         <Tarjeta
           label="Margen"
           valor={resumen?.margen_pct === null || resumen?.margen_pct === undefined ? '—' : `${resumen.margen_pct}%`}
-          color={colors.success}
+          color={zc.verde}
         />
       </View>
 
@@ -227,6 +211,7 @@ export default function RentabilidadScreen() {
 
       {avisos.map((a, i) => (
         <View key={i} style={styles.aviso}>
+          <Icono nombre="warning-outline" size={17} color={zc.ambar} />
           <Text style={styles.avisoTexto}>{a}</Text>
         </View>
       ))}
@@ -247,8 +232,24 @@ export default function RentabilidadScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <LogoTitle title="Rentabilidad" />
+    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+      {/* Cabecera azul noche (diseño A): sucursal y periodo dentro */}
+      <Cabecera titulo="Rentabilidad">
+        <View style={styles.sucursalEnCabecera}>
+          <SelectorSucursal value={sucursalVista} onChange={setSucursalVista} enNoche />
+        </View>
+        <View style={styles.periodos}>
+          {PERIODOS.map(p => (
+            <TouchableOpacity
+              key={p.dias}
+              style={[styles.periodo, periodo === p.dias && styles.periodoActivo]}
+              onPress={() => setPeriodo(p.dias)}
+            >
+              <Text style={[styles.periodoTexto, periodo === p.dias && styles.periodoTextoActivo]}>{p.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </Cabecera>
       {loading ? (
         <ActivityIndicator style={{ marginTop: spacing.xxl }} color={colors.primary} />
       ) : (
@@ -274,61 +275,61 @@ export default function RentabilidadScreen() {
   );
 }
 
+const caja = { backgroundColor: zc.tarjeta, borderRadius: radios.tarjeta, ...sombra };
+
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
-  lista: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  safe: { flex: 1, backgroundColor: zc.fondo },
+  lista: { padding: 14, paddingBottom: spacing.xxl },
+  sucursalEnCabecera: { marginTop: 12, marginHorizontal: -18 },
 
-  chipsFila: { gap: spacing.sm, paddingVertical: spacing.sm, alignItems: 'center' },
+  // Periodo: segmentado oscuro, dentro de la cabecera
+  periodos: { flexDirection: 'row', gap: 6, marginTop: 12 },
+  periodo: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: radios.boton, backgroundColor: 'rgba(255,255,255,0.07)' },
+  periodoActivo: { backgroundColor: '#fff' },
+  periodoTexto: { fontSize: 13.5, color: zc.enNocheSuave },
+  periodoTextoActivo: { color: zc.tinta, fontWeight: '500' },
+
+  chipsFila: { gap: spacing.sm, paddingVertical: 8, alignItems: 'center' },
   chip: {
-    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
-    borderRadius: radius.xl, backgroundColor: colors.surface,
-    borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: 13, paddingVertical: 7, borderRadius: radios.chip, backgroundColor: zc.tarjeta,
+    elevation: 1, shadowColor: zc.noche, shadowOpacity: 0.05, shadowRadius: 2, shadowOffset: { width: 0, height: 1 },
   },
-  chipActivo: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipTexto: { fontSize: font.sm, color: colors.textSecondary },
-  chipTextoActivo: { color: '#fff', fontWeight: '600' },
+  chipActivo: { backgroundColor: zc.noche },
+  chipTexto: { fontSize: 13.5, color: zc.gris },
+  chipTextoActivo: { color: '#fff' },
 
-  kpis: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
-  kpi: {
-    flexGrow: 1, minWidth: '46%', backgroundColor: colors.surface,
-    borderRadius: radius.md, padding: spacing.md,
-    borderWidth: 1, borderColor: colors.border,
-  },
-  kpiLabel: { fontSize: font.sm - 1, color: colors.textSecondary },
-  kpiValor: { fontSize: font.xl, fontWeight: '700', color: colors.textPrimary, marginTop: 2 },
+  kpis: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  kpi: { flexGrow: 1, minWidth: '46%', ...caja, padding: 14 },
+  kpiLabel: { fontSize: 13, color: zc.gris },
+  kpiValor: { fontSize: 20, fontWeight: '700', color: zc.tinta, marginTop: 3, fontVariant: ['tabular-nums'] },
 
-  nota: { fontSize: font.sm - 2, color: colors.textMuted, marginTop: spacing.sm, lineHeight: 16 },
+  nota: { fontSize: 12, color: zc.grisSuave, marginTop: 10, lineHeight: 17, paddingHorizontal: 2 },
 
   aviso: {
-    marginTop: spacing.sm, padding: spacing.md,
-    backgroundColor: '#fffbeb', borderRadius: radius.md,
-    borderWidth: 1, borderColor: '#fcd34d',
+    marginTop: 10, padding: 14, flexDirection: 'row', gap: 10, alignItems: 'flex-start',
+    backgroundColor: zc.ambarSuave, borderRadius: radios.tarjeta,
   },
-  avisoTexto: { fontSize: font.sm - 1, color: '#92400e', lineHeight: 18 },
+  avisoTexto: { flex: 1, fontSize: 13, color: zc.ambarTexto, lineHeight: 19 },
 
-  fila: {
-    backgroundColor: colors.surface, borderRadius: radius.md,
-    padding: spacing.md, marginTop: spacing.sm,
-    borderWidth: 1, borderColor: colors.border,
-  },
-  filaSinReceta: { backgroundColor: '#fafafa' },
+  fila: { ...caja, padding: 14, marginTop: 10 },
+  filaSinReceta: { backgroundColor: '#f7f8fa', elevation: 0, shadowOpacity: 0 },
   filaTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
-  filaNombre: { flex: 1, fontSize: font.md, fontWeight: '600', color: colors.textPrimary },
-  filaMargen: { fontSize: font.md, fontWeight: '700' },
-  filaUnidades: { fontSize: font.sm, color: colors.textSecondary },
-  filaMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, marginTop: spacing.xs },
-  filaMetaTexto: { fontSize: font.sm - 1, color: colors.textSecondary },
-  filaSinRecetaTexto: { fontSize: font.sm - 1, color: colors.textMuted, marginTop: spacing.xs, fontStyle: 'italic' },
-  filaAviso: { fontSize: font.sm - 2, color: '#92400e', marginTop: spacing.xs },
+  filaNombre: { flex: 1, fontSize: 15, fontWeight: '500', color: zc.tinta },
+  filaMargen: { fontSize: 15, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  filaUnidades: { fontSize: 13, color: zc.gris },
+  filaMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginTop: 5 },
+  filaMetaTexto: { fontSize: 12.5, color: zc.grisSuave },
+  filaSinRecetaTexto: { fontSize: 12.5, color: zc.grisSuave, marginTop: 5 },
+  filaAviso: { fontSize: 12, color: zc.ambarTexto, marginTop: 6 },
 
-  vacio: { textAlign: 'center', color: colors.textMuted, marginTop: spacing.xl, paddingHorizontal: spacing.lg, lineHeight: 20 },
+  vacio: { textAlign: 'center', color: zc.grisSuave, marginTop: spacing.xl, paddingHorizontal: spacing.lg, lineHeight: 20 },
 
   gateWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  gateTitle: { fontSize: font.xl, fontWeight: '700', color: colors.textPrimary, marginTop: spacing.md },
-  gateSubtitle: { fontSize: font.md, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.sm, lineHeight: 22 },
+  gateTitle: { fontSize: 19, fontWeight: '500', color: zc.tinta, marginTop: spacing.md },
+  gateSubtitle: { fontSize: 14.5, color: zc.gris, textAlign: 'center', marginTop: spacing.sm, lineHeight: 22 },
   gateBtn: {
-    marginTop: spacing.lg, backgroundColor: colors.primary,
-    paddingHorizontal: spacing.xl, paddingVertical: spacing.md, borderRadius: radius.md,
+    marginTop: spacing.lg, backgroundColor: zc.azul,
+    paddingHorizontal: spacing.xl, paddingVertical: 13, borderRadius: radios.boton,
   },
-  gateBtnText: { color: '#fff', fontWeight: '600', fontSize: font.md },
+  gateBtnText: { color: '#fff', fontWeight: '500', fontSize: 15 },
 });
