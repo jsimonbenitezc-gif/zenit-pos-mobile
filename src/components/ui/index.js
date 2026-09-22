@@ -311,3 +311,5 @@ const s = StyleSheet.create({
   cobrarBtn: { backgroundColor: zc.azul, borderRadius: radios.boton, paddingHorizontal: 22, paddingVertical: 11 },
   cobrarBtnTxt: { color: '#fff', fontSize: 15, fontWeight: '500' },
 });
+
+export { PantallaDeTemas, TarjetaQuien } from './Temas';

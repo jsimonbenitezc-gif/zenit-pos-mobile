@@ -140,7 +140,19 @@ function compararFuentes(viejo, nuevos) {
   return comparar(huella(viejo), sumar(lista.map(huella)));
 }
 
-module.exports = { huella, compararFuentes };
+/**
+ * Quitados DECLARADOS a propósito (estilo-base.json → "permitidos"):
+ *   { archivo, cambio, codigo, motivo }
+ * Sirve para lo que un rediseño sí puede tirar sin cambiar lo que hace la app:
+ * un botón REPETIDO que abría exactamente lo mismo que otro. Se declara uno por
+ * uno, con su motivo, y tiene que coincidir EXACTO: cualquier otra diferencia
+ * del mismo archivo sigue tumbando la corrida.
+ */
+function esPermitido(dif, archivo, permitidos = []) {
+  return permitidos.some((p) => p.archivo === archivo && p.cambio === dif.cambio && p.codigo === dif.codigo);
+}
+
+module.exports = { huella, compararFuentes, esPermitido };
 
 // ─── Uso desde la línea de comandos ──────────────────────────────────────────
 if (require.main === module) {
@@ -156,6 +168,7 @@ if (require.main === module) {
 
   const grupos = cfg.grupos || {};
   const problemas = [];
+  const permitidos = [];
   let revisados = 0;
   for (const f of cambiados) {
     const viejo = git('show', `${cfg.base}:${f}`);
@@ -169,11 +182,16 @@ if (require.main === module) {
     }
     revisados++;
     for (const d of compararFuentes(viejo, nuevos.filter(Boolean))) {
+      if (esPermitido(d, f, cfg.permitidos)) { permitidos.push(`${f} ${d.cambio}: ${d.codigo.slice(0, 90)}`); continue; }
       problemas.push(`${f} [${d.tipo}] ${d.cambio}: ${d.codigo.slice(0, 160)}`);
     }
   }
 
   console.log(`\n── Solo estilo (base ${cfg.base}) ──`);
+  if (permitidos.length) {
+    console.log('   · ' + permitidos.length + ' quitado(s) declarado(s) en estilo-base.json ("permitidos"):');
+    for (const p of permitidos) console.log('     - ' + p);
+  }
   console.log(`   ${revisados} pantalla(s) cambiada(s) revisada(s)${revisados ? ': ' + cambiados.join(', ') : ''}`);
   if (problemas.length) {
     console.log(`\n❌ ${problemas.length} cambio(s) que NO son presentación:\n`);

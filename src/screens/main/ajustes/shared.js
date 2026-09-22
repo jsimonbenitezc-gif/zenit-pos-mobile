@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Switch, TextInput, Platform, StyleSheet } from 'react-native';
-import { colors, spacing, radius, font } from '../../../theme';
-import { Ionicons } from '@expo/vector-icons';
+import { colors, zc, radios, letra, sombra } from '../../../theme';
+import { Icono } from '../../../components/ui';
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
@@ -44,6 +44,9 @@ export const PERMISOS_LABELS = {
 };
 
 // ─── Componentes pequeños ─────────────────────────────────────────────────────
+// Diseño A (PLAN_REDISENO_V1, Bloque 1): tarjetas blancas que flotan, etiquetas
+// finas en gris y negrita solo donde hay un título. Las usan todas las secciones
+// de Ajustes, así que cambiarlas aquí las cambia en todas a la vez.
 
 export function SectionTitle({ label }) {
   return <Text style={styles.sectionTitle}>{label}</Text>;
@@ -61,12 +64,12 @@ export function MenuItem({ label, sub, onPress, danger, rightText, last }) {
       activeOpacity={0.6}
     >
       <View style={{ flex: 1 }}>
-        <Text style={[styles.menuLabel, danger && { color: colors.danger }]}>{label}</Text>
+        <Text style={[styles.menuLabel, danger && { color: zc.rojo }]}>{label}</Text>
         {sub ? <Text style={styles.menuSub}>{sub}</Text> : null}
       </View>
       {rightText
         ? <Text style={styles.menuRight}>{rightText}</Text>
-        : <Text style={styles.menuChevron}>›</Text>
+        : <Icono nombre="derecha" size={16} color={zc.flecha} />
       }
     </TouchableOpacity>
   );
@@ -75,20 +78,22 @@ export function MenuItem({ label, sub, onPress, danger, rightText, last }) {
 export function SwitchRow({ label, sub, value, onChange, last }) {
   return (
     <View style={[styles.menuItem, !last && styles.menuItemBorder]}>
-      <View style={{ flex: 1, marginRight: spacing.md }}>
+      <View style={{ flex: 1, marginRight: 12 }}>
         <Text style={styles.menuLabel}>{label}</Text>
         {sub ? <Text style={styles.menuSub}>{sub}</Text> : null}
       </View>
       <Switch
         value={value}
         onValueChange={onChange}
-        trackColor={{ false: colors.border, true: colors.primary }}
-        thumbColor={Platform.OS === 'android' ? (value ? '#fff' : '#f4f3f4') : undefined}
+        trackColor={{ false: '#d9dee6', true: zc.azul }}
+        thumbColor={Platform.OS === 'android' ? '#fff' : undefined}
       />
     </View>
   );
 }
 
+// La etiqueta va ARRIBA del campo: al lado, con 90 px fijos, un texto largo se
+// cortaba ("hetumal" en vez de "Chetumal" en la mitad de Ciudad/Estado).
 export function FieldRow({ label, value, onChangeText, placeholder, keyboardType, last }) {
   return (
     <View style={[styles.fieldRow, !last && styles.menuItemBorder]}>
@@ -98,7 +103,7 @@ export function FieldRow({ label, value, onChangeText, placeholder, keyboardType
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder || ''}
-        placeholderTextColor={colors.textMuted}
+        placeholderTextColor={zc.grisSuave}
         keyboardType={keyboardType || 'default'}
       />
     </View>
@@ -108,22 +113,16 @@ export function FieldRow({ label, value, onChangeText, placeholder, keyboardType
 // ─── Estilos ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  sectionTitle: { fontSize: font.sm, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: spacing.sm, marginTop: spacing.xs },
-  section:      { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', marginBottom: spacing.sm },
+  sectionTitle: { fontSize: 13, fontWeight: '500', color: zc.gris, marginBottom: 8, marginTop: 14, marginLeft: 4 },
+  section:      { backgroundColor: zc.tarjeta, borderRadius: radios.tarjeta, marginBottom: 8, ...sombra },
 
-  menuItem:       { flexDirection: 'row', alignItems: 'center', padding: spacing.lg },
-  menuItemBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
-  menuLabel:      { fontSize: font.md, fontWeight: '600', color: colors.textPrimary },
-  menuSub:        { fontSize: font.sm - 1, color: colors.textMuted, marginTop: 2 },
-  menuRight:      { fontSize: font.sm, color: colors.textMuted },
-  menuChevron:    { color: colors.textMuted, fontSize: 18 },
-  menuDanger:     { color: colors.danger },
+  menuItem:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 16 },
+  menuItemBorder: { borderBottomWidth: 1, borderBottomColor: zc.linea },
+  menuLabel:      { ...letra.texto, fontSize: 15, color: zc.tinta },
+  menuSub:        { fontSize: 12.5, color: zc.grisSuave, marginTop: 2, lineHeight: 17 },
+  menuRight:      { fontSize: 14, color: zc.gris },
 
-  switchRow:   { flexDirection: 'row', alignItems: 'center', padding: spacing.lg },
-  switchLabel: { fontSize: font.md, fontWeight: '600', color: colors.textPrimary },
-  switchSub:   { fontSize: font.sm - 1, color: colors.textMuted, marginTop: 2 },
-
-  fieldRow:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, minHeight: 52 },
-  fieldLabel:  { fontSize: font.sm, fontWeight: '600', color: colors.textSecondary, width: 90 },
-  fieldInput:  { flex: 1, fontSize: font.md, color: colors.textPrimary, paddingVertical: Platform.OS === 'ios' ? 4 : 0 },
+  fieldRow:    { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 8 },
+  fieldLabel:  { fontSize: 12.5, color: zc.gris },
+  fieldInput:  { fontSize: 15, color: zc.tinta, paddingVertical: Platform.OS === 'ios' ? 4 : 2, paddingHorizontal: 0 },
 });

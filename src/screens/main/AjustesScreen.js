@@ -9,14 +9,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import * as ImagePicker from 'expo-image-picker';
 import * as Updates from 'expo-updates';
-import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api/client';
-import { colors, spacing, radius, font } from '../../theme';
-import LogoTitle from '../../components/LogoTitle';
+import { zc, radios, espacios, sombra } from '../../theme';
+import { Cabecera, FranjaSuperior, Icono, PantallaDeTemas, TarjetaQuien } from '../../components/ui';
 import { friendlyError } from '../../utils/errors';
 import { createSSE } from '../../utils/sse';
 import { zonaDelDispositivo, etiquetaZona, opcionesZona } from '../../utils/tz';
+// Solo para PINTAR la línea de estado de cada tarjeta: se lee, no se guarda.
+import { configImpuesto } from '../../utils/impuestos';
+import { configPropina } from '../../utils/propinas';
+import { configHorario, resumenHorario } from '../../utils/horarios';
 import {
   isPrinterAvailable,
   getPairedDevices,
@@ -37,6 +40,12 @@ import { SeccionPropinas } from './ajustes/SeccionPropinas';
 import { SeccionHorario } from './ajustes/SeccionHorario';
 import { SeccionPantallasKDS } from './ajustes/SeccionPantallasKDS';
 
+
+const TIPOS_NEGOCIO = [
+  ['restaurante', 'Restaurante'], ['tienda', 'Tienda'],
+  ['ropa', 'Ropa'], ['salon', 'Salón'], ['farmacia', 'Farmacia'],
+  ['panaderia', 'Panadería'], ['otro', 'Otro'],
+];
 
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 
@@ -638,7 +647,7 @@ export default function AjustesScreen({ navigation }) {
   if (loading) {
     return (
       <SafeAreaView style={[styles.safe, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={zc.azul} />
       </SafeAreaView>
     );
   }
@@ -648,20 +657,18 @@ export default function AjustesScreen({ navigation }) {
     const permsActivo = permisosRoles?.[rolActivo] || {};
     const labelActivo = permsActivo._label || (rolActivo === 'cajero' ? 'Cajero' : rolActivo === 'encargado' ? 'Encargado' : rolActivo);
     return (
-      <SafeAreaView style={styles.safe}>
-        <ScrollView contentContainerStyle={styles.scroll}>
-          <LogoTitle title="Ajustes" titleStyle={styles.title} />
+      <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+        <FranjaSuperior />
+        <ScrollView contentContainerStyle={{ paddingBottom: 28 }}>
+          <Cabecera titulo="Ajustes">
+            <TarjetaQuien
+              inicial={(permsActivo.nombre || labelActivo)?.[0]?.toUpperCase() || '?'}
+              nombre={permsActivo.nombre || labelActivo}
+              detalle={labelActivo}
+            />
+          </Cabecera>
 
-          <View style={styles.profileCard}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{(permsActivo.nombre || labelActivo)?.[0]?.toUpperCase() || '?'}</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.profileName}>{permsActivo.nombre || labelActivo}</Text>
-              <Text style={styles.profileRole}>{labelActivo}</Text>
-            </View>
-          </View>
-
+          <View style={styles.cuerpo}>
           <SectionTitle label="Impresora" />
           <SectionCard>
             <MenuItem
@@ -678,7 +685,7 @@ export default function AjustesScreen({ navigation }) {
             />
           </SectionCard>
 
-          <SectionTitle label="Pantalla de Cocina" />
+          <SectionTitle label="Pantalla de cocina" />
           <SectionCard>
             <MenuItem
               label="Abrir KDS"
@@ -702,23 +709,24 @@ export default function AjustesScreen({ navigation }) {
           </SectionCard>
 
           <Text style={styles.footer}>Zenit POS · Versión 1.0.0</Text>
+          </View>
         </ScrollView>
 
         {/* Modal impresora Bluetooth */}
         <Modal visible={modalPrinter} animationType="slide" presentationStyle="pageSheet">
-          <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+          <SafeAreaView style={{ flex: 1, backgroundColor: zc.fondo }}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Impresora Bluetooth</Text>
               <TouchableOpacity onPress={() => setModalPrinter(false)}>
                 <Text style={styles.linkText}>Cerrar</Text>
               </TouchableOpacity>
             </View>
-            <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
+            <ScrollView contentContainerStyle={{ padding: 18 }}>
               {printerName ? (
                 <View style={styles.printerCurrentCard}>
                   <Text style={styles.printerCurrentLabel}>Impresora actual</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-                    <Ionicons name="print-outline" size={16} color={colors.textPrimary} />
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Icono nombre="impresora" size={16} color={zc.tinta} />
                     <Text style={styles.printerCurrentName}>{printerName}</Text>
                   </View>
                   <Text style={styles.menuSub}>{printerAddress}</Text>
@@ -728,11 +736,11 @@ export default function AjustesScreen({ navigation }) {
                   <Text style={styles.menuSub}>Sin impresora configurada</Text>
                 </View>
               )}
-              <Text style={[styles.sectionTitle, { marginTop: spacing.xl }]}>Dispositivos emparejados</Text>
+              <Text style={[styles.sectionTitle, { marginTop: 18 }]}>Dispositivos emparejados</Text>
               {scanning && (
-                <View style={{ alignItems: 'center', padding: spacing.xl }}>
-                  <ActivityIndicator color={colors.primary} />
-                  <Text style={[styles.menuSub, { marginTop: spacing.sm }]}>Buscando dispositivos...</Text>
+                <View style={{ alignItems: 'center', padding: 18 }}>
+                  <ActivityIndicator color={zc.azul} />
+                  <Text style={[styles.menuSub, { marginTop: 8 }]}>Buscando dispositivos...</Text>
                 </View>
               )}
               {!scanning && scannedDevices.length === 0 && (
@@ -754,8 +762,8 @@ export default function AjustesScreen({ navigation }) {
                     <Text style={styles.menuSub}>{device.address}</Text>
                   </View>
                   {connecting === device.address
-                    ? <ActivityIndicator color={colors.primary} />
-                    : <Text style={{ color: colors.primary, fontWeight: '700' }}>Conectar</Text>
+                    ? <ActivityIndicator color={zc.azul} />
+                    : <Text style={{ color: zc.azul, fontWeight: '500' }}>Conectar</Text>
                   }
                 </TouchableOpacity>
               ))}
@@ -766,538 +774,608 @@ export default function AjustesScreen({ navigation }) {
     );
   }
 
+  // ── Lo que dice cada tarjeta ("IVA 16% incluido", "Sin impresora"…) ──
+  // Solo se LEE lo que ya está cargado: ninguna de estas líneas guarda nada.
+  const _imp = configImpuesto(settings);
+  const _estadoCobros = [
+    _imp.activo ? `${_imp.nombre} ${_imp.tasaConfigurada}%${_imp.incluido ? ' incluido' : ''}` : 'Sin impuesto',
+    configPropina(settings).activo ? 'propinas' : null,
+    puntosActivos && isPremium ? 'puntos' : null,
+  ].filter(Boolean).join(' · ');
+  const _puestos = Object.values(permisosRoles || {}).filter(p => p?.enabled === true).length;
+  const _horario = configHorario(settings);
+  const _tipoLabel = (TIPOS_NEGOCIO.find(([v]) => v === tipo) || [])[1];
+
   return (
-    <SafeAreaView style={styles.safe}>
-      <ScrollView
-        contentContainerStyle={styles.scroll}
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+      <PantallaDeTemas
+        titulo="Ajustes"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadAll(true)} />}
-      >
-        <LogoTitle title="Ajustes" titleStyle={styles.title} />
-
-        {/* ── Tarjeta de perfil ─────────────────────────────────────── */}
-        <View style={styles.profileCard}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{user?.name?.[0]?.toUpperCase() || '?'}</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.profileName}>{user?.name}</Text>
-            <Text style={styles.profileRole}>{ROL_LABEL[user?.role] || user?.role}</Text>
-            <Text style={styles.profileEmail}>{user?.username}</Text>
-          </View>
-          {isOwner && (
-            <View style={[styles.planBadge, { backgroundColor: PLAN_COLOR[plan] + '22', borderColor: PLAN_COLOR[plan] }]}>
-              <Text style={[styles.planBadgeText, { color: PLAN_COLOR[plan] }]}>
-                {PLAN_LABEL[plan] || plan}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* ── Mi Negocio ────────────────────────────────────────────── */}
-        <SectionTitle label="Mi Negocio" />
-        <SectionCard>
-          <FieldRow
-            label="Nombre"
-            value={nombre}
-            onChangeText={setNombre}
-            placeholder="Nombre de tu negocio"
+        arriba={(
+          <TarjetaQuien
+            inicial={(nombre || user?.name)?.[0]?.toUpperCase() || '?'}
+            imagen={logoBase64 ? <Image source={{ uri: `data:image/jpeg;base64,${logoBase64}` }} style={{ width: 44, height: 44 }} /> : null}
+            nombre={nombre || user?.name}
+            detalle={[
+              ROL_LABEL[user?.role] || user?.role,
+              isOwner ? `Plan ${PLAN_LABEL[plan] || plan}` : null,
+            ].filter(Boolean).join(' · ')}
           />
-          <FieldRow
-            label="Teléfono"
-            value={telefono}
-            onChangeText={setTelefono}
-            placeholder="Ej: 555-123-4567"
-            keyboardType="phone-pad"
-          />
-          <FieldRow
-            label="Correo electrónico"
-            value={email}
-            onChangeText={setEmail}
-            placeholder="contacto@minegocio.com"
-            keyboardType="email-address"
-          />
-          <FieldRow
-            label="Sitio web"
-            value={website}
-            onChangeText={setWebsite}
-            placeholder="www.minegocio.com"
-          />
-          <FieldRow
-            label="RFC / ID Fiscal"
-            value={rfc}
-            onChangeText={setRfc}
-            placeholder="XAXX010101000"
-          />
-          <FieldRow
-            label="Instagram"
-            value={instagram}
-            onChangeText={setInstagram}
-            placeholder="@minegocio"
-          />
-          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-            <View style={{ flex: 1 }}>
-              <FieldRow
-                label="Ciudad"
-                value={ciudad}
-                onChangeText={setCiudad}
-                placeholder="Guadalajara"
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <FieldRow
-                label="Estado"
-                value={estado}
-                onChangeText={setEstado}
-                placeholder="Jalisco"
-              />
-            </View>
-          </View>
-          <FieldRow
-            label="Dirección"
-            value={direccion}
-            onChangeText={setDireccion}
-            placeholder="Ej: Calle 5, Col. Centro"
-          />
-          {/* Tipo de negocio */}
-          <View style={[styles.fieldRow, styles.menuItemBorder]}>
-            <Text style={styles.fieldLabel}>Tipo de negocio</Text>
-            <View style={styles.tipoWrap}>
-              {[
-                ['restaurante','Restaurante'],['tienda','Tienda'],
-                ['ropa','Ropa'],['salon','Salón'],['farmacia','Farmacia'],
-                ['panaderia','Panadería'],['otro','Otro'],
-              ].map(([val, lbl]) => (
-                <TouchableOpacity
-                  key={val}
-                  style={[styles.tipoChip, tipo === val && styles.tipoChipActive]}
-                  onPress={() => setTipo(tipo === val ? '' : val)}
-                >
-                  <Text style={[styles.tipoChipText, tipo === val && styles.tipoChipTextActive]}>{lbl}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        </SectionCard>
-        <TouchableOpacity
-          style={[styles.btnSave, savingNegocio && { opacity: 0.7 }]}
-          onPress={guardarNegocio}
-          disabled={savingNegocio}
-        >
-          {savingNegocio
-            ? <ActivityIndicator color="#fff" />
-            : <Text style={styles.btnSaveText}>Guardar información</Text>
-          }
-        </TouchableOpacity>
-
-        {/* ── Apariencia y Ticket ───────────────────────────────────── */}
-        <SectionTitle label="Apariencia y Ticket" />
-        <SectionCard>
-          {/* Logo del negocio */}
-          <View style={[styles.menuItem, styles.menuItemBorder]}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.menuLabel}>Logo del negocio</Text>
-              <Text style={styles.menuSub}>
-                {logoBase64 ? 'Logo cargado' : 'Sin logo — se usará el nombre del negocio'}
-              </Text>
-            </View>
-            {logoBase64 ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                <Image
-                  source={{ uri: `data:image/jpeg;base64,${logoBase64}` }}
-                  style={styles.logoThumb}
-                />
-                <TouchableOpacity onPress={seleccionarLogo} disabled={savingLogo}>
-                  <Text style={{ color: colors.primary, fontWeight: '700', fontSize: font.sm }}>
-                    Cambiar
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={quitarLogo} disabled={savingLogo}>
-                  <Text style={{ color: colors.danger, fontWeight: '700', fontSize: font.sm }}>
-                    Quitar
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity
-                onPress={seleccionarLogo}
-                disabled={savingLogo}
-                style={styles.btnLogoAdd}
-              >
-                {savingLogo
-                  ? <ActivityIndicator color={colors.primary} size="small" />
-                  : <Text style={styles.btnLogoAddText}>+ Agregar</Text>
-                }
-              </TouchableOpacity>
-            )}
-          </View>
-          <SwitchRow
-            label="Mostrar logo en ticket"
-            sub={logoBase64 ? undefined : 'Agrega un logo primero'}
-            value={showLogo && !!logoBase64}
-            onChange={logoBase64 ? toggleShowLogo : undefined}
-          />
-          {/* Símbolo de moneda */}
-          <View style={[styles.menuItem, styles.menuItemBorder]}>
-            <Text style={styles.menuLabel}>Moneda</Text>
-            <View style={styles.monedaRow}>
-              {MONEDAS.map(m => (
-                <TouchableOpacity
-                  key={m}
-                  style={[styles.monedaBtn, moneda === m && styles.monedaBtnActive]}
-                  onPress={() => cambiarMoneda(m)}
-                >
-                  <Text style={[styles.monedaBtnText, moneda === m && { color: '#fff' }]}>{m}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-          <SwitchRow
-            label="Mostrar teléfono en ticket"
-            value={showPhone}
-            onChange={toggleShowPhone}
-          />
-          <SwitchRow
-            label="Mostrar dirección en ticket"
-            value={showAddress}
-            onChange={toggleShowAddress}
-          />
-          <SwitchRow
-            label="Mostrar correo en ticket"
-            value={showEmail}
-            onChange={toggleShowEmail}
-          />
-          <SwitchRow
-            label="Mostrar sitio web en ticket"
-            value={showWebsite}
-            onChange={toggleShowWebsite}
-          />
-          <SwitchRow
-            label="Mostrar Instagram en ticket"
-            value={showInstagram}
-            onChange={toggleShowInstagram}
-          />
-          <SwitchRow
-            label="Mostrar RFC en ticket"
-            value={showRfc}
-            onChange={toggleShowRfc}
-          />
-          {/* Mensaje de cierre del ticket */}
-          <View style={[styles.fieldRow, styles.menuItemBorder]}>
-            <Text style={styles.fieldLabel}>Mensaje de cierre</Text>
-            <TextInput
-              style={[styles.fieldInput, { height: 54, textAlignVertical: 'top' }]}
-              value={ticketFooter}
-              onChangeText={setTicketFooter}
-              onEndEditing={() => guardarTicketFooter(ticketFooter)}
-              placeholder="¡Gracias por tu compra!"
-              placeholderTextColor={colors.textMuted}
-              multiline
-              numberOfLines={2}
-            />
-          </View>
-          <MenuItem
-            label="Impresora Bluetooth"
-            sub={printerName || 'Sin impresora seleccionada'}
-            onPress={abrirBusquedaImpresoras}
-          />
-          <MenuItem
-            label="Imprimir ticket de prueba"
-            sub={printerAddress ? `Conectar a ${printerName}` : 'Selecciona una impresora primero'}
-            onPress={imprimirPrueba}
-            rightText={testingPrint ? '...' : undefined}
-            last
-          />
-        </SectionCard>
-
-        {/* ── Ajustes Generales ─────────────────────────────────────── */}
-        <SectionTitle label="Ajustes Generales" />
-        <SectionCard>
-          <MenuItem
-            label="Zona horaria del negocio"
-            sub={etiquetaZona(zonaHoraria)}
-            onPress={() => setModalZona(true)}
-          />
-          <MenuItem
-            label="Impresora predeterminada"
-            sub={printerName || 'Sin impresora configurada'}
-            onPress={abrirBusquedaImpresoras}
-          />
-          <SwitchRow
-            label="Pedir contraseña al iniciar"
-            sub="Solicita tu contraseña cada vez que abres la app"
-            value={pedirPasswordInicio}
-            onChange={togglePedirPasswordInicio}
-          />
-          <SwitchRow
-            label="Mostrar stock disponible"
-            sub="Ver cuántas unidades hay al vender"
-            value={mostrarStock}
-            onChange={toggleMostrarStock}
-          />
-          <SwitchRow
-            label="Permitir venta sin turno"
-            sub="Registrar ventas sin abrir la caja"
-            value={ventaSinTurno}
-            onChange={toggleVentaSinTurno}
-          />
-          {isOwner && (
-            <SwitchRow
-              label="PIN en movimientos de caja"
-              sub="Pide el PIN del puesto para registrar retiros y gastos"
-              value={movCajaPin}
-              onChange={toggleMovCajaPin}
-            />
-          )}
-          <SwitchRow
-            label="PIN para aplicar descuentos"
-            sub="Evita que cajeros apliquen descuentos solos"
-            value={requierePinDesc}
-            onChange={toggleRequierePinDesc}
-            last={!requierePinDesc}
-          />
-          {requierePinDesc && (
-            <View style={styles.pinRow}>
-              <TextInput
-                style={styles.pinInput}
-                value={pinDescuentos}
-                onChangeText={setPinDescuentos}
-                placeholder="PIN (4–6 dígitos)"
-                placeholderTextColor={colors.textMuted}
-                keyboardType="number-pad"
-                maxLength={6}
-                secureTextEntry
-              />
-              <TouchableOpacity style={styles.btnPinSave} onPress={guardarPinDescuentos}>
-                <Text style={styles.btnPinSaveText}>Guardar PIN</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </SectionCard>
-
-        {/* ── Seguridad ─────────────────────────────────────────────── */}
-        <SectionTitle label="Seguridad" />
-        <SectionCard>
-          <View style={[styles.menuItem, styles.menuItemBorder]}>
-            <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-                <Ionicons name="cloud-outline" size={16} color={colors.textPrimary} />
-                <Text style={styles.menuLabel}>Respaldo automático</Text>
-              </View>
-              <Text style={styles.menuSub}>
-                Tus datos están respaldados en la nube de forma automática. No se requiere acción manual.
-              </Text>
-            </View>
-          </View>
-          <MenuItem
-            label="Verificar actualizaciones"
-            sub={`Versión actual: 1.0.0`}
-            onPress={checkForUpdates}
-            last
-          />
-        </SectionCard>
-
-        {/* ── Sistema de Puntos (solo dueño) ────────────────────────── */}
-        {isOwner && (
-          <>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm, marginTop: spacing.xs }}>
-              <Text style={[styles.sectionTitle, { marginBottom: 0, marginTop: 0 }]}>Sistema de Puntos</Text>
-              {!isPremium && (
-                <View style={styles.premiumBadge}>
-                  <Ionicons name="lock-closed" size={10} color="#b45309" />
-                  <Text style={styles.premiumBadgeText}> Premium</Text>
-                </View>
-              )}
-            </View>
-            <SectionCard>
-              <SwitchRow
-                label="Activar programa de fidelidad"
-                sub={isPremium ? 'Los clientes acumulan puntos por compras' : 'Función exclusiva del plan Premium'}
-                value={isPremium ? puntosActivos : false}
-                onChange={isPremium
-                  ? togglePuntosActivos
-                  : () => Alert.alert('Función Premium', 'Actualiza tu plan para activar el programa de puntos.')
-                }
-                last={!puntosActivos || !isPremium}
-              />
-              {isPremium && puntosActivos && (
-                <>
-                    <FieldRow
-                      label={`Puntos por cada ${moneda}1`}
-                    value={puntosPorPeso}
-                    onChangeText={setPuntosPorPeso}
-                    placeholder="0.1"
-                    keyboardType="decimal-pad"
+        )}
+        temas={[
+          {
+            id: 'negocio', titulo: 'Mi negocio', icono: 'tienda', tono: 'azul',
+            estado: _tipoLabel ? `${_tipoLabel} · ${logoBase64 ? 'con logo' : 'sin logo'}` : 'Nombre, logo y tipo',
+            contenido: (
+              <>
+                <SectionTitle label="Datos del negocio" />
+                <SectionCard>
+                  <FieldRow
+                    label="Nombre"
+                    value={nombre}
+                    onChangeText={setNombre}
+                    placeholder="Nombre de tu negocio"
                   />
                   <FieldRow
-                    label="Puntos extra por pedido"
-                    value={puntosBono}
-                    onChangeText={setPuntosBono}
-                    placeholder="0"
-                    keyboardType="number-pad"
+                    label="Teléfono"
+                    value={telefono}
+                    onChangeText={setTelefono}
+                    placeholder="Ej: 555-123-4567"
+                    keyboardType="phone-pad"
                   />
                   <FieldRow
-                    label="Valor de 1 punto (en pesos)"
-                    value={puntosValor}
-                    onChangeText={setPuntosValor}
-                    placeholder="0.10"
-                    keyboardType="decimal-pad"
+                    label="Correo electrónico"
+                    value={email}
+                    onChangeText={setEmail}
+                    placeholder="contacto@minegocio.com"
+                    keyboardType="email-address"
+                  />
+                  <FieldRow
+                    label="Sitio web"
+                    value={website}
+                    onChangeText={setWebsite}
+                    placeholder="www.minegocio.com"
+                  />
+                  <FieldRow
+                    label="RFC / ID Fiscal"
+                    value={rfc}
+                    onChangeText={setRfc}
+                    placeholder="XAXX010101000"
+                  />
+                  <FieldRow
+                    label="Instagram"
+                    value={instagram}
+                    onChangeText={setInstagram}
+                    placeholder="@minegocio"
+                  />
+                  <View style={{ flexDirection: 'row' }}>
+                    <View style={{ flex: 1 }}>
+                      <FieldRow
+                        label="Ciudad"
+                        value={ciudad}
+                        onChangeText={setCiudad}
+                        placeholder="Guadalajara"
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <FieldRow
+                        label="Estado"
+                        value={estado}
+                        onChangeText={setEstado}
+                        placeholder="Jalisco"
+                      />
+                    </View>
+                  </View>
+                  <FieldRow
+                    label="Dirección"
+                    value={direccion}
+                    onChangeText={setDireccion}
+                    placeholder="Ej: Calle 5, Col. Centro"
+                  />
+                  {/* Tipo de negocio */}
+                  <View style={styles.fieldRow}>
+                    <Text style={styles.fieldLabel}>Tipo de negocio</Text>
+                    <View style={styles.tipoWrap}>
+                      {TIPOS_NEGOCIO.map(([val, lbl]) => (
+                        <TouchableOpacity
+                          key={val}
+                          style={[styles.tipoChip, tipo === val && styles.tipoChipActive]}
+                          onPress={() => setTipo(tipo === val ? '' : val)}
+                        >
+                          <Text style={[styles.tipoChipText, tipo === val && styles.tipoChipTextActive]}>{lbl}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                </SectionCard>
+                <TouchableOpacity
+                  style={[styles.btnSave, savingNegocio && { opacity: 0.7 }]}
+                  onPress={guardarNegocio}
+                  disabled={savingNegocio}
+                >
+                  {savingNegocio
+                    ? <ActivityIndicator color="#fff" />
+                    : <Text style={styles.btnSaveText}>Guardar información</Text>
+                  }
+                </TouchableOpacity>
+
+                <SectionTitle label="Logo" />
+                <SectionCard>
+                  <View style={styles.menuItem}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.menuLabel}>Logo del negocio</Text>
+                      <Text style={styles.menuSub}>
+                        {logoBase64 ? 'Logo cargado' : 'Sin logo — se usará el nombre del negocio'}
+                      </Text>
+                    </View>
+                    {logoBase64 ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        <Image
+                          source={{ uri: `data:image/jpeg;base64,${logoBase64}` }}
+                          style={styles.logoThumb}
+                        />
+                        <TouchableOpacity onPress={seleccionarLogo} disabled={savingLogo}>
+                          <Text style={{ color: zc.azul, fontWeight: '500', fontSize: 14 }}>
+                            Cambiar
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={quitarLogo} disabled={savingLogo}>
+                          <Text style={{ color: zc.rojo, fontWeight: '500', fontSize: 14 }}>
+                            Quitar
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        onPress={seleccionarLogo}
+                        disabled={savingLogo}
+                        style={styles.btnLogoAdd}
+                      >
+                        {savingLogo
+                          ? <ActivityIndicator color={zc.azul} size="small" />
+                          : <Text style={styles.btnLogoAddText}>+ Agregar</Text>
+                        }
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </SectionCard>
+
+                <SectionTitle label="Zona horaria" />
+                <SectionCard>
+                  <MenuItem
+                    label="Zona horaria del negocio"
+                    sub={etiquetaZona(zonaHoraria)}
+                    onPress={() => setModalZona(true)}
                     last
                   />
-                </>
-              )}
+                </SectionCard>
+              </>
+            ),
+          },
+          isOwner && {
+            id: 'menu', titulo: 'Mi menú', icono: 'libro', tono: 'ambar',
+            estado: 'Productos y categorías',
+            ir: () => navigation.navigate('Productos'),
+          },
+          {
+            id: 'cobros', titulo: 'Cobros', icono: 'billete', tono: 'verde',
+            estado: _estadoCobros,
+            contenido: (
+              <>
+                <SectionTitle label="Moneda" />
+                <SectionCard>
+                  <View style={styles.menuItem}>
+                    <View style={styles.monedaRow}>
+                      {MONEDAS.map(m => (
+                        <TouchableOpacity
+                          key={m}
+                          style={[styles.monedaBtn, moneda === m && styles.monedaBtnActive]}
+                          onPress={() => cambiarMoneda(m)}
+                        >
+                          <Text style={[styles.monedaBtnText, moneda === m && { color: '#fff' }]}>{m}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                </SectionCard>
+
+                {/* ── Impuestos (BLOQUE 8) ─── */}
+                {/* Solo el dueño: cambia lo que se le COBRA al cliente, y el backend
+                    responde 403 si lo manda cualquier otro puesto. */}
+                {isOwner && (
+                  <SeccionImpuestos
+                    settings={settings}
+                    currency={moneda}
+                    onSaved={refreshSettings}
+                    styles={styles}
+                  />
+                )}
+
+                {/* ── Propinas (BLOQUE 9) ─── */}
+                {/* Solo el dueño, igual que el impuesto: cambia lo que se le PIDE al
+                    cliente y lo que el corte le exige al cajero en el cajón. */}
+                {isOwner && (
+                  <SeccionPropinas
+                    settings={settings}
+                    currency={moneda}
+                    onSaved={refreshSettings}
+                    styles={styles}
+                  />
+                )}
+
+                {/* ── Sistema de Puntos (solo dueño) ────────────────────────── */}
+                {isOwner && (
+                  <>
+                    <View style={styles.tituloConInsignia}>
+                      <Text style={[styles.sectionTitle, { marginBottom: 0, marginTop: 0 }]}>Puntos de lealtad</Text>
+                      {!isPremium && (
+                        <View style={styles.premiumBadge}>
+                          <Icono nombre="candado" size={10} color={zc.ambarTexto} />
+                          <Text style={styles.premiumBadgeText}> Premium</Text>
+                        </View>
+                      )}
+                    </View>
+                    <SectionCard>
+                      <SwitchRow
+                        label="Activar programa de fidelidad"
+                        sub={isPremium ? 'Los clientes acumulan puntos por compras' : 'Función exclusiva del plan Premium'}
+                        value={isPremium ? puntosActivos : false}
+                        onChange={isPremium
+                          ? togglePuntosActivos
+                          : () => Alert.alert('Función Premium', 'Actualiza tu plan para activar el programa de puntos.')
+                        }
+                        last={!puntosActivos || !isPremium}
+                      />
+                      {isPremium && puntosActivos && (
+                        <>
+                          <FieldRow
+                            label={`Puntos por cada ${moneda}1`}
+                            value={puntosPorPeso}
+                            onChangeText={setPuntosPorPeso}
+                            placeholder="0.1"
+                            keyboardType="decimal-pad"
+                          />
+                          <FieldRow
+                            label="Puntos extra por pedido"
+                            value={puntosBono}
+                            onChangeText={setPuntosBono}
+                            placeholder="0"
+                            keyboardType="number-pad"
+                          />
+                          <FieldRow
+                            label="Valor de 1 punto (en pesos)"
+                            value={puntosValor}
+                            onChangeText={setPuntosValor}
+                            placeholder="0.10"
+                            keyboardType="decimal-pad"
+                            last
+                          />
+                        </>
+                      )}
+                    </SectionCard>
+                    {isPremium && puntosActivos && (
+                      <TouchableOpacity
+                        style={[styles.btnSave, savingPuntos && { opacity: 0.7 }]}
+                        onPress={guardarPuntos}
+                        disabled={savingPuntos}
+                      >
+                        {savingPuntos
+                          ? <ActivityIndicator color="#fff" />
+                          : <Text style={styles.btnSaveText}>Guardar puntos</Text>
+                        }
+                      </TouchableOpacity>
+                    )}
+                  </>
+                )}
+
+                <SectionTitle label="Caja y venta" />
+                <SectionCard>
+                  <SwitchRow
+                    label="Permitir venta sin turno"
+                    sub="Registrar ventas sin abrir la caja"
+                    value={ventaSinTurno}
+                    onChange={toggleVentaSinTurno}
+                  />
+                  <SwitchRow
+                    label="Mostrar stock disponible"
+                    sub="Ver cuántas unidades hay al vender"
+                    value={mostrarStock}
+                    onChange={toggleMostrarStock}
+                  />
+                  {isOwner && (
+                    <SwitchRow
+                      label="PIN en movimientos de caja"
+                      sub="Pide el PIN del puesto para registrar retiros y gastos"
+                      value={movCajaPin}
+                      onChange={toggleMovCajaPin}
+                    />
+                  )}
+                  <SwitchRow
+                    label="PIN para aplicar descuentos"
+                    sub="Evita que cajeros apliquen descuentos solos"
+                    value={requierePinDesc}
+                    onChange={toggleRequierePinDesc}
+                    last={!requierePinDesc}
+                  />
+                  {requierePinDesc && (
+                    <View style={styles.pinRow}>
+                      <TextInput
+                        style={styles.pinInput}
+                        value={pinDescuentos}
+                        onChangeText={setPinDescuentos}
+                        placeholder="PIN (4–6 dígitos)"
+                        placeholderTextColor={zc.grisSuave}
+                        keyboardType="number-pad"
+                        maxLength={6}
+                        secureTextEntry
+                      />
+                      <TouchableOpacity style={styles.btnPinSave} onPress={guardarPinDescuentos}>
+                        <Text style={styles.btnPinSaveText}>Guardar PIN</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </SectionCard>
+              </>
+            ),
+          },
+          {
+            id: 'ticket', titulo: 'Ticket', icono: 'impresora', tono: 'rosa',
+            estado: printerName || 'Sin impresora',
+            aviso: !printerName,
+            contenido: (
+              <>
+                <SectionTitle label="Impresora" />
+                <SectionCard>
+                  <MenuItem
+                    label="Impresora Bluetooth"
+                    sub={printerName || 'Sin impresora seleccionada'}
+                    onPress={abrirBusquedaImpresoras}
+                  />
+                  <MenuItem
+                    label="Imprimir ticket de prueba"
+                    sub={printerAddress ? `Conectar a ${printerName}` : 'Selecciona una impresora primero'}
+                    onPress={imprimirPrueba}
+                    rightText={testingPrint ? '...' : undefined}
+                    last
+                  />
+                </SectionCard>
+
+                <SectionTitle label="Qué sale en el ticket" />
+                <SectionCard>
+                  <SwitchRow
+                    label="Mostrar logo en ticket"
+                    sub={logoBase64 ? undefined : 'Agrega un logo primero (en Mi negocio)'}
+                    value={showLogo && !!logoBase64}
+                    onChange={logoBase64 ? toggleShowLogo : undefined}
+                  />
+                  <SwitchRow
+                    label="Mostrar teléfono en ticket"
+                    value={showPhone}
+                    onChange={toggleShowPhone}
+                  />
+                  <SwitchRow
+                    label="Mostrar dirección en ticket"
+                    value={showAddress}
+                    onChange={toggleShowAddress}
+                  />
+                  <SwitchRow
+                    label="Mostrar correo en ticket"
+                    value={showEmail}
+                    onChange={toggleShowEmail}
+                  />
+                  <SwitchRow
+                    label="Mostrar sitio web en ticket"
+                    value={showWebsite}
+                    onChange={toggleShowWebsite}
+                  />
+                  <SwitchRow
+                    label="Mostrar Instagram en ticket"
+                    value={showInstagram}
+                    onChange={toggleShowInstagram}
+                  />
+                  <SwitchRow
+                    label="Mostrar RFC en ticket"
+                    value={showRfc}
+                    onChange={toggleShowRfc}
+                  />
+                  {/* Mensaje de cierre del ticket */}
+                  <View style={styles.fieldRow}>
+                    <Text style={styles.fieldLabel}>Mensaje de cierre</Text>
+                    <TextInput
+                      style={[styles.fieldInput, { minHeight: 44, textAlignVertical: 'top' }]}
+                      value={ticketFooter}
+                      onChangeText={setTicketFooter}
+                      onEndEditing={() => guardarTicketFooter(ticketFooter)}
+                      placeholder="¡Gracias por tu compra!"
+                      placeholderTextColor={zc.grisSuave}
+                      multiline
+                      numberOfLines={2}
+                    />
+                  </View>
+                </SectionCard>
+              </>
+            ),
+          },
+          isOwner && {
+            id: 'equipo', titulo: 'Mi equipo', icono: 'usuarios', tono: 'lila',
+            estado: `${_puestos} ${_puestos === 1 ? 'puesto activo' : 'puestos activos'} · ${branches.length} ${branches.length === 1 ? 'sucursal' : 'sucursales'}`,
+            contenido: (
+              <>
+                {/* ── Administrar Puestos ─── */}
+                {isOwner && permisosRoles && (
+                  <SeccionPuestos
+                    permisosRoles={permisosRoles}
+                    setPermisosRoles={setPermisosRoles}
+                    sucursalId={sucursalId}
+                    branches={branches}
+                    fullPermisosRef={fullPermisosRef}
+                    refreshSettings={refreshSettings}
+                    styles={styles}
+                  />
+                )}
+
+                {/* ── Sucursales ─── */}
+                {isOwner && (
+                  <SeccionSucursales
+                    isOwner={isOwner}
+                    isPremium={isPremium}
+                    branches={branches}
+                    setBranches={setBranches}
+                    sucursalId={sucursalId}
+                    cambiarSucursalDispositivo={cambiarSucursalDispositivo}
+                    verificarPasswordAdmin={verificarPasswordAdmin}
+                    onRefresh={() => loadAll(true)}
+                    styles={styles}
+                  />
+                )}
+              </>
+            ),
+          },
+          isOwner && {
+            id: 'horario', titulo: 'Horario', icono: 'reloj', tono: 'azul',
+            estado: _horario ? resumenHorario(_horario) : 'Sin definir',
+            contenido: (
+              <>
+                {/* ── Horario del negocio (BLOQUE 14) ─── */}
+                {/* Solo el dueño: es una SEÑAL DE SEGURIDAD, y que la cambiara un
+                    empleado sería dejarle apagar la alarma que vigila sus propias
+                    acciones. ⚠️ No bloquea nada de la operación: ver SeccionHorario. */}
+                {isOwner && (
+                  <SeccionHorario
+                    settings={settings}
+                    onSaved={refreshSettings}
+                    styles={styles}
+                  />
+                )}
+              </>
+            ),
+          },
+        ].filter(Boolean)}
+        lista={[
+          {
+            id: 'cocina', titulo: 'Pantalla de cocina', icono: 'monitor',
+            estado: isPremium ? null : 'Premium',
+            contenido: (
+              <>
+                <SectionTitle label="Abrir en este teléfono" />
+                <SectionCard>
+                  <MenuItem
+                    label="Abrir KDS"
+                    sub={isPremium ? 'Vista en tiempo real para el personal de cocina' : 'Función exclusiva del plan Premium'}
+                    onPress={isPremium
+                      ? () => navigation.navigate('KDS')
+                      : () => Alert.alert('Función Premium', 'Actualiza tu plan para usar la pantalla de cocina.')
+                    }
+                    last
+                  />
+                </SectionCard>
+
+                {/* ── Pantallas de cocina (BLOQUE 13) ─── */}
+                {/* Solo el dueño ve la lista: aprobar una pantalla es dar acceso
+                    permanente a la cola de pedidos, y revocarla se lo quita. El PIN que
+                    se teclea al aprobar es el del PUESTO, no la contraseña de la cuenta
+                    (§19.19). */}
+                {isOwner && (
+                  <SeccionPantallasKDS
+                    sucursalId={sucursalId}
+                    rolActivo={rolActivo}
+                    nombreActivo={nombreActivo}
+                    styles={styles}
+                  />
+                )}
+              </>
+            ),
+          },
+          isOwner && {
+            id: 'notificaciones', titulo: 'Notificaciones', icono: 'campana',
+            contenido: <SeccionNotificaciones initialSettings={cloudSettingsRef.current} styles={styles} />,
+          },
+          isOwner && {
+            id: 'plan', titulo: 'Mi plan', icono: 'medalla', estado: PLAN_LABEL[plan] || plan,
+            contenido: <SeccionPlan plan={plan} user={user} refreshUser={refreshUser} styles={styles} />,
+          },
+          {
+            id: 'seguridad', titulo: 'Seguridad y versión', icono: 'escudo',
+            contenido: (
+              <>
+                <SectionTitle label="Al abrir la app" />
+                <SectionCard>
+                  <SwitchRow
+                    label="Pedir contraseña al iniciar"
+                    sub="Solicita tu contraseña cada vez que abres la app"
+                    value={pedirPasswordInicio}
+                    onChange={togglePedirPasswordInicio}
+                    last
+                  />
+                </SectionCard>
+
+                <SectionTitle label="Respaldo y versión" />
+                <SectionCard>
+                  <View style={[styles.menuItem, styles.menuItemBorder]}>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Icono nombre="nube" size={16} color={zc.tinta} />
+                        <Text style={styles.menuLabel}>Respaldo automático</Text>
+                      </View>
+                      <Text style={styles.menuSub}>
+                        Tus datos están respaldados en la nube de forma automática. No se requiere acción manual.
+                      </Text>
+                    </View>
+                  </View>
+                  <MenuItem
+                    label="Verificar actualizaciones"
+                    sub={`Versión actual: 1.0.0`}
+                    onPress={checkForUpdates}
+                    last
+                  />
+                </SectionCard>
+              </>
+            ),
+          },
+          {
+            id: 'cuenta', titulo: 'Mi cuenta', icono: 'usuario', estado: user?.username,
+            contenido: (
+              <>
+                <SectionTitle label={user?.name || 'Cuenta'} />
+                <SectionCard>
+                  <MenuItem
+                    label="Cambiar contraseña"
+                    sub="Actualiza tu contraseña de acceso"
+                    onPress={abrirCambioPassword}
+                  />
+                  {Object.values(permisosRoles || {}).some(p => p?.enabled === true) && (
+                    <MenuItem
+                      label="Cambiar perfil"
+                      sub={nombreActivo ? `Activo: ${nombreActivo}` : rolActivo === 'dueno' ? 'Activo: Administrador' : `Activo: ${rolActivo}`}
+                      onPress={cambiarPerfil}
+                      last
+                    />
+                  )}
+                </SectionCard>
+              </>
+            ),
+          },
+        ].filter(Boolean)}
+        abajo={(
+          <View style={styles.cerrarSesion}>
+            <SectionCard>
+              <MenuItem
+                label="Cerrar sesión"
+                danger
+                onPress={confirmarCerrarSesion}
+                last
+              />
             </SectionCard>
-            {isPremium && puntosActivos && (
-              <TouchableOpacity
-                style={[styles.btnSave, savingPuntos && { opacity: 0.7 }]}
-                onPress={guardarPuntos}
-                disabled={savingPuntos}
-              >
-                {savingPuntos
-                  ? <ActivityIndicator color="#fff" />
-                  : <Text style={styles.btnSaveText}>Guardar puntos</Text>
-                }
-              </TouchableOpacity>
-            )}
-          </>
+          </View>
         )}
-
-        {/* ── Sucursales ─── */}
-        {isOwner && (
-          <SeccionSucursales
-            isOwner={isOwner}
-            isPremium={isPremium}
-            branches={branches}
-            setBranches={setBranches}
-            sucursalId={sucursalId}
-            cambiarSucursalDispositivo={cambiarSucursalDispositivo}
-            verificarPasswordAdmin={verificarPasswordAdmin}
-            onRefresh={() => loadAll(true)}
-            styles={styles}
-          />
-        )}
-
-        {/* ── Pantalla de Cocina (KDS) ───────────────────────────────── */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm, marginTop: spacing.xs }}>
-          <Text style={[styles.sectionTitle, { marginBottom: 0, marginTop: 0 }]}>Pantalla de Cocina</Text>
-          {!isPremium && (
-            <View style={styles.premiumBadge}>
-              <Text style={styles.premiumBadgeText}>🔒 Premium</Text>
-            </View>
-          )}
-        </View>
-        <SectionCard>
-          <MenuItem
-            label="Abrir KDS"
-            sub={isPremium ? 'Vista en tiempo real para el personal de cocina' : 'Función exclusiva del plan Premium'}
-            onPress={isPremium
-              ? () => navigation.navigate('KDS')
-              : () => Alert.alert('Función Premium', 'Actualiza tu plan para usar la pantalla de cocina.')
-            }
-            last
-          />
-        </SectionCard>
-
-        {/* ── Administrar Puestos ─── */}
-        {isOwner && permisosRoles && (
-          <SeccionPuestos
-            permisosRoles={permisosRoles}
-            setPermisosRoles={setPermisosRoles}
-            sucursalId={sucursalId}
-            branches={branches}
-            fullPermisosRef={fullPermisosRef}
-            refreshSettings={refreshSettings}
-            styles={styles}
-          />
-        )}
-
-
-        {/* ── Impuestos (BLOQUE 8) ─── */}
-        {/* Solo el dueño: cambia lo que se le COBRA al cliente, y el backend
-            responde 403 si lo manda cualquier otro puesto. */}
-        {isOwner && (
-          <SeccionImpuestos
-            settings={settings}
-            currency={moneda}
-            onSaved={refreshSettings}
-            styles={styles}
-          />
-        )}
-
-        {/* ── Propinas (BLOQUE 9) ─── */}
-        {/* Solo el dueño, igual que el impuesto: cambia lo que se le PIDE al
-            cliente y lo que el corte le exige al cajero en el cajón. */}
-        {isOwner && (
-          <SeccionPropinas
-            settings={settings}
-            currency={moneda}
-            onSaved={refreshSettings}
-            styles={styles}
-          />
-        )}
-
-        {/* ── Horario del negocio (BLOQUE 14) ─── */}
-        {/* Solo el dueño: es una SEÑAL DE SEGURIDAD, y que la cambiara un
-            empleado sería dejarle apagar la alarma que vigila sus propias
-            acciones. ⚠️ No bloquea nada de la operación: ver SeccionHorario. */}
-        {isOwner && (
-          <SeccionHorario
-            settings={settings}
-            onSaved={refreshSettings}
-            styles={styles}
-          />
-        )}
-
-        {/* ── Pantallas de cocina (BLOQUE 13) ─── */}
-        {/* Solo el dueño ve la lista: aprobar una pantalla es dar acceso
-            permanente a la cola de pedidos, y revocarla se lo quita. El PIN que
-            se teclea al aprobar es el del PUESTO, no la contraseña de la cuenta
-            (§19.19). */}
-        {isOwner && (
-          <SeccionPantallasKDS
-            sucursalId={sucursalId}
-            rolActivo={rolActivo}
-            nombreActivo={nombreActivo}
-            styles={styles}
-          />
-        )}
-
-        {/* ── Mi Plan ─── */}
-        {isOwner && <SeccionPlan plan={plan} user={user} refreshUser={refreshUser} styles={styles} />}
-
-        {/* ── Notificaciones ─── */}
-        {isOwner && <SeccionNotificaciones initialSettings={cloudSettingsRef.current} styles={styles} />}
-
-        {/* ── Cuenta ────────────────────────────────────────────────── */}
-        <SectionTitle label="Cuenta" />
-        <SectionCard>
-          <MenuItem
-            label="Cambiar contraseña"
-            sub="Actualiza tu contraseña de acceso"
-            onPress={abrirCambioPassword}
-          />
-          {Object.values(permisosRoles || {}).some(p => p?.enabled === true) && (
-            <MenuItem
-              label="Cambiar perfil"
-              sub={nombreActivo ? `Activo: ${nombreActivo}` : rolActivo === 'dueno' ? 'Activo: Administrador' : `Activo: ${rolActivo}`}
-              onPress={cambiarPerfil}
-            />
-          )}
-          <MenuItem
-            label="Cerrar sesión"
-            danger
-            onPress={confirmarCerrarSesion}
-            last
-          />
-        </SectionCard>
-
-        <Text style={styles.footer}>Zenit POS · Versión 1.0.0</Text>
-      </ScrollView>
+        pie={<Text style={styles.footer}>Zenit POS · Versión 1.0.0</Text>}
+      />
 
       {/* ════════════════════════════════════════════════════════════════
           MODAL: Impresora Bluetooth
       ════════════════════════════════════════════════════════════════ */}
       <Modal visible={modalPrinter} animationType="slide" presentationStyle="pageSheet">
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: zc.fondo }}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Impresora Bluetooth</Text>
             <TouchableOpacity onPress={() => setModalPrinter(false)}>
@@ -1305,13 +1383,13 @@ export default function AjustesScreen({ navigation }) {
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
+          <ScrollView contentContainerStyle={{ padding: 18 }}>
             {/* Dispositivo actual */}
             {printerName ? (
               <View style={styles.printerCurrentCard}>
                 <Text style={styles.printerCurrentLabel}>Impresora actual</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-                  <Ionicons name="print-outline" size={16} color={colors.textPrimary} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Icono nombre="impresora" size={16} color={zc.tinta} />
                   <Text style={styles.printerCurrentName}>{printerName}</Text>
                 </View>
                 <Text style={styles.menuSub}>{printerAddress}</Text>
@@ -1322,14 +1400,14 @@ export default function AjustesScreen({ navigation }) {
               </View>
             )}
 
-            <Text style={[styles.sectionTitle, { marginTop: spacing.xl }]}>
+            <Text style={[styles.sectionTitle, { marginTop: 18 }]}>
               Dispositivos emparejados
             </Text>
 
             {scanning && (
-              <View style={{ alignItems: 'center', padding: spacing.xl }}>
-                <ActivityIndicator color={colors.primary} />
-                <Text style={[styles.menuSub, { marginTop: spacing.sm }]}>Buscando dispositivos...</Text>
+              <View style={{ alignItems: 'center', padding: 18 }}>
+                <ActivityIndicator color={zc.azul} />
+                <Text style={[styles.menuSub, { marginTop: 8 }]}>Buscando dispositivos...</Text>
               </View>
             )}
 
@@ -1353,13 +1431,13 @@ export default function AjustesScreen({ navigation }) {
                   <Text style={styles.menuSub}>{device.address}</Text>
                 </View>
                 {connecting === device.address
-                  ? <ActivityIndicator color={colors.primary} />
-                  : <Text style={{ color: colors.primary, fontWeight: '700' }}>Conectar</Text>
+                  ? <ActivityIndicator color={zc.azul} />
+                  : <Text style={{ color: zc.azul, fontWeight: '500' }}>Conectar</Text>
                 }
               </TouchableOpacity>
             ))}
 
-            <Text style={[styles.menuSub, { textAlign: 'center', marginTop: spacing.xl }]}>
+            <Text style={[styles.menuSub, { textAlign: 'center', marginTop: 18 }]}>
               Solo muestra dispositivos ya emparejados.{'\n'}
               Empareja tu impresora primero desde Bluetooth en Ajustes del sistema.
             </Text>
@@ -1372,7 +1450,7 @@ export default function AjustesScreen({ navigation }) {
           Define a qué hora corta el día el backend (que corre en UTC).
       ════════════════════════════════════════════════════════════════ */}
       <Modal visible={modalZona} animationType="slide" presentationStyle="pageSheet">
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: zc.fondo }}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Zona horaria</Text>
             <TouchableOpacity onPress={() => setModalZona(false)}>
@@ -1380,8 +1458,8 @@ export default function AjustesScreen({ navigation }) {
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
-            <Text style={[styles.menuSub, { marginBottom: spacing.lg }]}>
+          <ScrollView contentContainerStyle={{ padding: 18 }}>
+            <Text style={[styles.menuSub, { marginBottom: 16 }]}>
               Define a qué hora empieza y termina el día para el dashboard, los reportes
               y los resúmenes automáticos. Elige la zona donde está tu negocio.
             </Text>
@@ -1407,46 +1485,46 @@ export default function AjustesScreen({ navigation }) {
       ════════════════════════════════════════════════════════════════ */}
       <Modal visible={modalPassword} animationType="slide" presentationStyle="pageSheet">
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+          <SafeAreaView style={{ flex: 1, backgroundColor: zc.fondo }}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Cambiar contraseña</Text>
               <TouchableOpacity onPress={() => setModalPassword(false)}>
                 <Text style={styles.linkText}>Cancelar</Text>
               </TouchableOpacity>
             </View>
-            <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
+            <ScrollView contentContainerStyle={{ padding: 18 }}>
               <Text style={styles.label}>Contraseña actual *</Text>
               <TextInput
                 style={styles.input}
                 value={passActual}
                 onChangeText={setPassActual}
                 placeholder="Tu contraseña actual"
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor={zc.grisSuave}
                 secureTextEntry
               />
 
-              <Text style={[styles.label, { marginTop: spacing.md }]}>Nueva contraseña *</Text>
+              <Text style={[styles.label, { marginTop: 12 }]}>Nueva contraseña *</Text>
               <TextInput
                 style={styles.input}
                 value={passNueva}
                 onChangeText={setPassNueva}
                 placeholder="Mínimo 6 caracteres"
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor={zc.grisSuave}
                 secureTextEntry
               />
 
-              <Text style={[styles.label, { marginTop: spacing.md }]}>Confirmar nueva contraseña *</Text>
+              <Text style={[styles.label, { marginTop: 12 }]}>Confirmar nueva contraseña *</Text>
               <TextInput
                 style={styles.input}
                 value={passConfirm}
                 onChangeText={setPassConfirm}
                 placeholder="Repite la nueva contraseña"
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor={zc.grisSuave}
                 secureTextEntry
               />
 
               <TouchableOpacity
-                style={[styles.btnSave, { marginTop: spacing.xl }, savingPass && { opacity: 0.7 }]}
+                style={[styles.btnSave, { marginTop: 18 }, savingPass && { opacity: 0.7 }]}
                 onPress={guardarPassword}
                 disabled={savingPass}
               >
@@ -1464,117 +1542,113 @@ export default function AjustesScreen({ navigation }) {
 }
 
 // ─── Estilos ──────────────────────────────────────────────────────────────────
+// Diseño A (PLAN_REDISENO_V1). Estos estilos los usan TAMBIÉN las secciones de
+// ajustes/Seccion*.js, que los reciben por la prop `styles`: cambiarlos aquí las
+// cambia a todas.
 
 const styles = StyleSheet.create({
-  safe:        { flex: 1, backgroundColor: colors.background },
-  scroll:      { padding: spacing.lg, paddingBottom: spacing.xxl },
-  title:       { fontSize: font.xl, fontWeight: '800', color: colors.textPrimary, marginBottom: spacing.lg },
-
-  // Perfil
-  profileCard:   { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.xl, gap: spacing.md },
-  avatar:        { width: 52, height: 52, borderRadius: 26, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
-  avatarText:    { color: '#fff', fontSize: font.xxl, fontWeight: '800' },
-  profileName:   { fontSize: font.lg, fontWeight: '800', color: colors.textPrimary },
-  profileRole:   { fontSize: font.sm, color: colors.primary, fontWeight: '600' },
-  profileEmail:  { fontSize: font.sm - 1, color: colors.textMuted },
-  planBadge:     { borderWidth: 1, borderRadius: radius.xl, paddingHorizontal: spacing.sm, paddingVertical: 3 },
-  planBadgeText: { fontSize: font.sm - 1, fontWeight: '700' },
+  safe:        { flex: 1, backgroundColor: zc.fondo },
+  cuerpo:      { paddingHorizontal: espacios.borde, paddingTop: 4 },
 
   // Secciones
-  sectionTitle: { fontSize: font.sm, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: spacing.sm, marginTop: spacing.xs },
-  sectionSub:   { fontSize: font.sm - 1, color: colors.textMuted, marginBottom: spacing.md, marginTop: -spacing.xs },
-  section:      { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', marginBottom: spacing.sm },
+  sectionTitle: { fontSize: 13, fontWeight: '500', color: zc.gris, marginBottom: 8, marginTop: 14, marginLeft: 4 },
+  sectionSub:   { fontSize: 12.5, color: zc.grisSuave, marginBottom: 10, marginTop: -4, marginLeft: 4 },
+  section:      { backgroundColor: zc.tarjeta, borderRadius: radios.tarjeta, marginBottom: 8, ...sombra },
+  tituloConInsignia: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, marginTop: 14, marginLeft: 4 },
+  cerrarSesion: { paddingHorizontal: espacios.borde, marginTop: 14 },
+
   // Puestos
-  puestoCard:     { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.sm, overflow: 'hidden' },
-  puestoHeader:   { flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
-  puestoLabel:    { fontSize: font.md, fontWeight: '700', color: colors.textPrimary },
-  puestoSub:      { fontSize: font.sm - 1, color: colors.textMuted, marginTop: 2 },
-  permisosWrap:   { padding: spacing.md },
-  permisosTitle:  { fontSize: font.sm - 1, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: spacing.sm },
-  nombreInput:       { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.sm, fontSize: font.md, color: colors.textPrimary, backgroundColor: colors.background, marginTop: spacing.xs },
-  puestoLabelInput:  { fontSize: font.md, fontWeight: '700', color: colors.textPrimary, borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 2, marginBottom: 2 },
-  formNuevoPuesto:   { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.sm },
-  formNuevoTitle:    { fontSize: font.sm, fontWeight: '700', color: colors.textSecondary, marginBottom: spacing.sm },
-  btnNuevoPuesto:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, borderWidth: 2, borderStyle: 'dashed', borderColor: colors.border, borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.sm },
-  btnNuevoPuestoText:{ fontSize: font.sm, fontWeight: '700', color: colors.primary },
-  pinSection:        { padding: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
-  pinStatus:         { fontSize: font.sm, color: '#16a34a', fontWeight: '600', marginBottom: spacing.xs },
-  btnPinGuardar:     { backgroundColor: colors.primary, borderRadius: radius.md, paddingHorizontal: spacing.md, justifyContent: 'center', alignItems: 'center' },
-  btnPinGuardarText: { color: '#fff', fontWeight: '700', fontSize: font.sm },
-  btnQuitarPin:      { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: spacing.sm },
-  btnQuitarPinText:  { color: colors.danger, fontSize: font.sm, fontWeight: '600' },
-  permisoRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.sm },
-  permisoRowBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
-  permisoNombre:  { fontSize: font.sm, color: colors.textPrimary, fontWeight: '500' },
-  divider:      { height: 1, backgroundColor: colors.border },
+  puestoCard:     { backgroundColor: zc.tarjeta, borderRadius: radios.tarjeta, marginBottom: 8, overflow: 'hidden', ...sombra },
+  puestoHeader:   { flexDirection: 'row', alignItems: 'center', padding: 14, borderBottomWidth: 1, borderBottomColor: zc.linea },
+  puestoLabel:    { fontSize: 15, fontWeight: '500', color: zc.tinta },
+  puestoSub:      { fontSize: 12.5, color: zc.grisSuave, marginTop: 2 },
+  permisosWrap:   { padding: 14 },
+  permisosTitle:  { fontSize: 12.5, fontWeight: '500', color: zc.gris, marginBottom: 8 },
+  nombreInput:       { borderWidth: 1, borderColor: zc.linea, borderRadius: radios.boton, padding: 10, fontSize: 15, color: zc.tinta, backgroundColor: zc.fondo, marginTop: 4 },
+  puestoLabelInput:  { fontSize: 15, fontWeight: '500', color: zc.tinta, borderBottomWidth: 1, borderBottomColor: zc.linea, paddingBottom: 2, marginBottom: 2 },
+  formNuevoPuesto:   { backgroundColor: zc.tarjeta, borderRadius: radios.tarjeta, padding: 14, marginBottom: 8, ...sombra },
+  formNuevoTitle:    { fontSize: 13, fontWeight: '500', color: zc.gris, marginBottom: 8 },
+  btnNuevoPuesto:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1.5, borderStyle: 'dashed', borderColor: '#d5dbe4', borderRadius: radios.tarjeta, padding: 14, marginBottom: 8 },
+  btnNuevoPuestoText:{ fontSize: 14, fontWeight: '500', color: zc.azul },
+  pinSection:        { padding: 14, borderTopWidth: 1, borderTopColor: zc.linea },
+  pinStatus:         { fontSize: 13, color: zc.verde, fontWeight: '500', marginBottom: 4 },
+  btnPinGuardar:     { backgroundColor: zc.azul, borderRadius: radios.boton, paddingHorizontal: 14, justifyContent: 'center', alignItems: 'center' },
+  btnPinGuardarText: { color: '#fff', fontWeight: '500', fontSize: 14 },
+  btnQuitarPin:      { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 10 },
+  btnQuitarPinText:  { color: zc.rojo, fontSize: 13, fontWeight: '500' },
+  permisoRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8 },
+  permisoRowBorder: { borderBottomWidth: 1, borderBottomColor: zc.linea },
+  permisoNombre:  { fontSize: 14, color: zc.tinta },
+  divider:      { height: 1, backgroundColor: zc.linea },
 
   // Filas de menú
-  menuItem:       { flexDirection: 'row', alignItems: 'center', padding: spacing.lg },
-  menuItemBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
-  menuLabel:      { fontSize: font.md, fontWeight: '600', color: colors.textPrimary },
-  menuSub:        { fontSize: font.sm - 1, color: colors.textMuted, marginTop: 2 },
-  menuRight:      { fontSize: font.sm, color: colors.textMuted },
-  menuChevron:    { color: colors.textMuted, fontSize: 18 },
+  menuItem:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 16 },
+  menuItemBorder: { borderBottomWidth: 1, borderBottomColor: zc.linea },
+  menuLabel:      { fontSize: 15, color: zc.tinta },
+  menuSub:        { fontSize: 12.5, color: zc.grisSuave, marginTop: 2, lineHeight: 17 },
+  menuRight:      { fontSize: 14, color: zc.gris },
+  menuChevron:    { color: zc.flecha, fontSize: 18 },
 
   // Filas de campo
-  fieldRow:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, minHeight: 52 },
-  fieldLabel:  { fontSize: font.sm, fontWeight: '600', color: colors.textSecondary, width: 90 },
-  fieldInput:  { flex: 1, fontSize: font.md, color: colors.textPrimary, paddingVertical: Platform.OS === 'ios' ? 4 : 0 },
+  fieldRow:    { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 8 },
+  fieldLabel:  { fontSize: 12.5, color: zc.gris },
+  fieldInput:  { fontSize: 15, color: zc.tinta, paddingVertical: Platform.OS === 'ios' ? 4 : 2, paddingHorizontal: 0 },
 
   // Moneda
-  monedaRow:       { flexDirection: 'row', gap: spacing.xs },
-  monedaBtn:       { borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, backgroundColor: colors.background },
-  monedaBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  monedaBtnText:   { fontSize: font.sm, fontWeight: '700', color: colors.textPrimary },
+  monedaRow:       { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  monedaBtn:       { borderWidth: 1, borderColor: zc.linea, borderRadius: radios.boton, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: zc.fondo, minWidth: 46, alignItems: 'center' },
+  monedaBtnActive: { backgroundColor: zc.azul, borderColor: zc.azul },
+  monedaBtnText:   { fontSize: 15, fontWeight: '500', color: zc.tinta },
 
   // PIN
-  pinRow:        { flexDirection: 'row', alignItems: 'center', padding: spacing.lg, gap: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border },
-  pinInput:      { flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.sm, fontSize: font.md, color: colors.textPrimary, backgroundColor: colors.surface },
-  btnPinSave:    { backgroundColor: colors.primary, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  btnPinSaveText:{ color: '#fff', fontSize: font.sm, fontWeight: '700' },
+  pinRow:        { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 8, borderTopWidth: 1, borderTopColor: zc.linea },
+  pinInput:      { flex: 1, borderWidth: 1, borderColor: zc.linea, borderRadius: radios.boton, padding: 10, fontSize: 15, color: zc.tinta, backgroundColor: zc.fondo },
+  btnPinSave:    { backgroundColor: zc.azul, borderRadius: radios.boton, paddingHorizontal: 14, paddingVertical: 10 },
+  btnPinSaveText:{ color: '#fff', fontSize: 14, fontWeight: '500' },
 
   // Botón guardar
-  btnSave:         { backgroundColor: colors.primary, borderRadius: radius.md, padding: spacing.md, alignItems: 'center', marginBottom: spacing.lg },
-  btnSaveText:     { color: '#fff', fontSize: font.md, fontWeight: '700' },
-  btnRecargar:     { borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  btnRecargarText: { fontSize: font.sm, color: colors.textSecondary, fontWeight: '600' },
-  btnPlan:         { borderRadius: radius.md, padding: spacing.md, alignItems: 'center', minHeight: 44, justifyContent: 'center' },
-  btnPlanText:     { fontSize: font.md, fontWeight: '700' },
-  btnIconSmall:    { padding: spacing.xs },
-  // Tipo de negocio chips
-  tipoWrap:        { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.xs },
-  tipoChip:        { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background },
-  tipoChipActive:  { borderColor: colors.primary, backgroundColor: colors.primary + '18' },
-  tipoChipText:    { fontSize: font.sm, color: colors.textSecondary },
-  tipoChipTextActive: { color: colors.primary, fontWeight: '700' },
-  checkRow:        { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
-  checkbox:        { width: 20, height: 20, borderRadius: 4, borderWidth: 1.5, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  checkboxOn:      { backgroundColor: colors.primary, borderColor: colors.primary },
-  checkboxCheck:   { color: '#fff', fontSize: 12, fontWeight: '800' },
-  checkLabel:      { fontSize: font.sm, color: colors.textPrimary, flex: 1 },
+  btnSave:         { backgroundColor: zc.azul, borderRadius: radios.boton, padding: 13, alignItems: 'center', marginBottom: 6, marginTop: 4, minHeight: 46, justifyContent: 'center' },
+  btnSaveText:     { color: '#fff', fontSize: 15, fontWeight: '500' },
+  btnRecargar:     { borderWidth: 1, borderColor: zc.linea, borderRadius: radios.boton, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: zc.tarjeta },
+  btnRecargarText: { fontSize: 13, color: zc.gris, fontWeight: '500' },
+  btnPlan:         { borderRadius: radios.boton, padding: 13, alignItems: 'center', minHeight: 46, justifyContent: 'center' },
+  btnPlanText:     { fontSize: 15, fontWeight: '500' },
+  btnIconSmall:    { padding: 6 },
 
-  emptySmall:      { color: colors.textMuted, fontSize: font.sm, padding: spacing.lg },
+  // Tipo de negocio
+  tipoWrap:        { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  tipoChip:        { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radios.chip, backgroundColor: zc.fondo },
+  tipoChipActive:  { backgroundColor: zc.azulSuave },
+  tipoChipText:    { fontSize: 13.5, color: zc.gris },
+  tipoChipTextActive: { color: zc.azul, fontWeight: '500' },
+  checkRow:        { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  checkbox:        { width: 20, height: 20, borderRadius: 5, borderWidth: 1.5, borderColor: '#d5dbe4', alignItems: 'center', justifyContent: 'center' },
+  checkboxOn:      { backgroundColor: zc.azul, borderColor: zc.azul },
+  checkboxCheck:   { color: '#fff', fontSize: 12, fontWeight: '700' },
+  checkLabel:      { fontSize: 14, color: zc.tinta, flex: 1 },
+
+  emptySmall:      { color: zc.grisSuave, fontSize: 13.5, padding: 16 },
 
   // Impresora
-  printerCurrentCard: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, marginBottom: spacing.md },
-  printerCurrentLabel:{ fontSize: font.sm, fontWeight: '700', color: colors.textMuted, marginBottom: spacing.xs },
-  printerCurrentName: { fontSize: font.lg, fontWeight: '700', color: colors.textPrimary },
-  deviceRow:          { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, marginBottom: spacing.sm },
+  printerCurrentCard: { backgroundColor: zc.tarjeta, borderRadius: radios.tarjeta, padding: 16, marginBottom: 12, ...sombra },
+  printerCurrentLabel:{ fontSize: 12.5, color: zc.gris, marginBottom: 4 },
+  printerCurrentName: { fontSize: 16, fontWeight: '500', color: zc.tinta },
+  deviceRow:          { flexDirection: 'row', alignItems: 'center', backgroundColor: zc.tarjeta, borderRadius: radios.tarjeta, padding: 16, marginBottom: 8, ...sombra },
 
   // Modales
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border },
-  modalTitle:  { fontSize: font.xl, fontWeight: '800', color: colors.textPrimary },
-  linkText:    { color: colors.primary, fontWeight: '700', fontSize: font.md },
-  label:       { fontSize: font.sm, fontWeight: '600', color: colors.textSecondary, marginBottom: spacing.xs },
-  input:       { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.md, color: colors.textPrimary, backgroundColor: colors.surface },
-  footer: { textAlign: 'center', color: colors.textMuted, fontSize: font.sm - 1, marginTop: spacing.xl },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: zc.linea, backgroundColor: zc.tarjeta },
+  modalTitle:  { fontSize: 19, fontWeight: '500', color: zc.tinta },
+  linkText:    { color: zc.azul, fontWeight: '500', fontSize: 15 },
+  label:       { fontSize: 12.5, color: zc.gris, marginBottom: 6 },
+  input:       { borderWidth: 1, borderColor: zc.linea, borderRadius: radios.boton, padding: 12, fontSize: 15, color: zc.tinta, backgroundColor: zc.tarjeta },
+  footer: { textAlign: 'center', color: zc.grisSuave, fontSize: 12.5, marginTop: 20 },
 
   // Premium
-  premiumBadge:     { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f59e0b22', borderWidth: 1, borderColor: '#f59e0b', borderRadius: radius.xl, paddingHorizontal: spacing.sm, paddingVertical: 2 },
-  premiumBadgeText: { fontSize: font.sm - 2, fontWeight: '700', color: '#b45309' },
+  premiumBadge:     { flexDirection: 'row', alignItems: 'center', backgroundColor: zc.ambarSuave, borderRadius: radios.chip, paddingHorizontal: 8, paddingVertical: 3 },
+  premiumBadgeText: { fontSize: 11.5, fontWeight: '500', color: zc.ambarTexto },
 
   // Logo
-  logoThumb:    { width: 40, height: 40, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border },
-  btnLogoAdd:   { borderWidth: 1, borderColor: colors.primary, borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs },
-  btnLogoAddText: { color: colors.primary, fontWeight: '700', fontSize: font.sm },
+  logoThumb:    { width: 40, height: 40, borderRadius: radios.cuadrito, backgroundColor: zc.fondo },
+  btnLogoAdd:   { backgroundColor: zc.azulSuave, borderRadius: radios.boton, paddingHorizontal: 12, paddingVertical: 8 },
+  btnLogoAddText: { color: zc.azul, fontWeight: '500', fontSize: 14 },
 });

@@ -5,7 +5,6 @@ import {
   ScrollView, KeyboardAvoidingView, Platform, Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../api/client';
 import { listarClientes, crearCliente, actualizarCliente } from '../../offline/clientes';
 import {
@@ -13,8 +12,8 @@ import {
   registrarFalloPin, resetFallosPin,
 } from '../../offline/credenciales';
 import { useAuth } from '../../context/AuthContext';
-import { colors, spacing, radius, font } from '../../theme';
-import LogoTitle from '../../components/LogoTitle';
+import { zc, tonos, radios, espacios, sombra } from '../../theme';
+import { Cabecera, Icono, tonoPorColor } from '../../components/ui';
 import { friendlyError } from '../../utils/errors';
 
 const AVATAR_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316'];
@@ -179,25 +178,42 @@ export default function ClientesScreen() {
 
   const enFidelidad = clientes.filter(c => c.in_loyalty).length;
 
-  if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color={colors.primary} /></View>;
+  if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color={zc.azul} /></View>;
 
   return (
-    <SafeAreaView style={styles.safe}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <LogoTitle title="Clientes" titleStyle={styles.title} />
-          <Text style={styles.subtitle}>{clientes.length} registrados</Text>
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+      {/* Cabecera azul noche con el buscador dentro (carcasa A) */}
+      <Cabecera
+        titulo="Clientes"
+        subtitulo={`${clientes.length} registrado${clientes.length === 1 ? '' : 's'}${!modoLocal && enFidelidad ? ` · ${enFidelidad} en puntos` : ''}`}
+        derecha={(
+          <TouchableOpacity style={styles.addBtn} onPress={() => setModalNuevo(true)} activeOpacity={0.85}>
+            <Icono nombre="usuarioMas" size={15} color="#fff" />
+            <Text style={styles.addBtnText}>Nuevo</Text>
+          </TouchableOpacity>
+        )}
+      >
+        <View style={styles.searchWrap}>
+          <Icono nombre="buscar" size={17} color={zc.grisSuave} />
+          <TextInput
+            style={styles.search}
+            value={busqueda}
+            onChangeText={setBusqueda}
+            placeholder={tab === 'fidelidad' ? 'Buscar en programa...' : 'Buscar por nombre o teléfono'}
+            placeholderTextColor={zc.grisSuave}
+          />
+          {busqueda.length > 0 && (
+            <TouchableOpacity onPress={() => setBusqueda('')}>
+              <Icono nombre="circuloX" size={17} color={zc.grisSuave} />
+            </TouchableOpacity>
+          )}
         </View>
-        <TouchableOpacity style={styles.addBtn} onPress={() => setModalNuevo(true)}>
-          <Ionicons name="person-add-outline" size={16} color="#fff" />
-          <Text style={styles.addBtnText}>Nuevo</Text>
-        </TouchableOpacity>
-      </View>
+      </Cabecera>
 
-      {/* Tabs. Sin cuenta NO hay programa de fidelidad (§13): los puntos los
-          calcula y descuenta el servidor dentro de la misma transacción de la
-          venta, así que aquí no se pueden ofrecer sin inventar un saldo. */}
+      {/* Pestañas de subrayado. Sin cuenta NO hay programa de fidelidad (§13):
+          los puntos los calcula y descuenta el servidor dentro de la misma
+          transacción de la venta, así que aquí no se pueden ofrecer sin
+          inventar un saldo. */}
       {!modoLocal && (
       <View style={styles.tabs}>
         <TouchableOpacity
@@ -226,27 +242,10 @@ export default function ClientesScreen() {
       </View>
       )}
 
-      {/* Buscador */}
-      <View style={styles.searchWrap}>
-        <Ionicons name="search-outline" size={16} color={colors.textMuted} />
-        <TextInput
-          style={styles.search}
-          value={busqueda}
-          onChangeText={setBusqueda}
-          placeholder={tab === 'fidelidad' ? 'Buscar en programa...' : 'Buscar por nombre o teléfono...'}
-          placeholderTextColor={colors.textMuted}
-        />
-        {busqueda.length > 0 && (
-          <TouchableOpacity onPress={() => setBusqueda('')}>
-            <Ionicons name="close-circle" size={16} color={colors.textMuted} />
-          </TouchableOpacity>
-        )}
-      </View>
-
       {/* Info fidelidad cuando está en ese tab */}
       {tab === 'fidelidad' && (
         <View style={styles.fidelidadInfo}>
-          <Ionicons name="star" size={14} color="#7c3aed" />
+          <Icono nombre="estrella" size={14} color={tonos.lila.icono} relleno />
           <Text style={styles.fidelidadInfoText}>
             {enFidelidad === 0
               ? 'Ningún cliente en el programa aún. Activa la estrella en cada cliente.'
@@ -261,10 +260,10 @@ export default function ClientesScreen() {
         keyExtractor={c => String(c.id)}
         contentContainerStyle={styles.list}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
-        renderItem={({ item }) => <ClienteCard item={item} onEdit={abrirEditar} onToggleFidelidad={toggleFidelidad} toggling={toggling} isPremium={isPremium && !modoLocal} />}
+        renderItem={({ item, index }) => <ClienteCard item={item} primera={index === 0} onEdit={abrirEditar} onToggleFidelidad={toggleFidelidad} toggling={toggling} isPremium={isPremium && !modoLocal} />}
         ListEmptyComponent={
           <View style={styles.emptyWrap}>
-            <Ionicons name={tab === 'fidelidad' ? 'star-outline' : 'people-outline'} size={48} color={colors.textMuted} />
+            <Icono nombre={tab === 'fidelidad' ? 'estrella' : 'usuarios'} size={44} color={zc.flecha} />
             <Text style={styles.emptyText}>
               {tab === 'fidelidad'
                 ? 'Ningún cliente en el programa de fidelidad'
@@ -278,22 +277,22 @@ export default function ClientesScreen() {
       {/* Modal editar cliente */}
       <Modal visible={modalEditar} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModalEditar(false)}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+          <SafeAreaView style={{ flex: 1, backgroundColor: zc.fondo }}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Editar cliente</Text>
               <TouchableOpacity onPress={() => setModalEditar(false)}>
-                <Ionicons name="close" size={24} color={colors.textSecondary} />
+                <Icono nombre="cerrar" size={24} color={zc.gris} />
               </TouchableOpacity>
             </View>
-            <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
+            <ScrollView contentContainerStyle={{ padding: 18 }}>
               <Text style={styles.label}>Nombre *</Text>
-              <TextInput style={styles.input} value={editNombre} onChangeText={setEditNombre} placeholder="Nombre completo" placeholderTextColor={colors.textMuted} autoFocus />
-              <Text style={[styles.label, { marginTop: spacing.lg }]}>Teléfono *</Text>
-              <TextInput style={styles.input} value={editTelefono} onChangeText={setEditTelefono} placeholder="10 dígitos" keyboardType="phone-pad" placeholderTextColor={colors.textMuted} />
-              <Text style={[styles.label, { marginTop: spacing.lg }]}>
-                Dirección <Text style={{ color: colors.textMuted, fontWeight: '400' }}>(opcional)</Text>
+              <TextInput style={styles.input} value={editNombre} onChangeText={setEditNombre} placeholder="Nombre completo" placeholderTextColor={zc.grisSuave} autoFocus />
+              <Text style={[styles.label, { marginTop: 16 }]}>Teléfono *</Text>
+              <TextInput style={styles.input} value={editTelefono} onChangeText={setEditTelefono} placeholder="10 dígitos" keyboardType="phone-pad" placeholderTextColor={zc.grisSuave} />
+              <Text style={[styles.label, { marginTop: 16 }]}>
+                Dirección <Text style={{ color: zc.grisSuave }}>(opcional)</Text>
               </Text>
-              <TextInput style={styles.input} value={editDireccion} onChangeText={setEditDireccion} placeholder="Calle, número, colonia..." placeholderTextColor={colors.textMuted} />
+              <TextInput style={styles.input} value={editDireccion} onChangeText={setEditDireccion} placeholder="Calle, número, colonia..." placeholderTextColor={zc.grisSuave} />
               <TouchableOpacity
                 style={[styles.btnGuardar, guardandoEditar && { opacity: 0.7 }]}
                 onPress={guardarEdicion}
@@ -309,41 +308,41 @@ export default function ClientesScreen() {
       {/* Modal nuevo cliente */}
       <Modal visible={modalNuevo} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModalNuevo(false)}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+          <SafeAreaView style={{ flex: 1, backgroundColor: zc.fondo }}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Nuevo cliente</Text>
               <TouchableOpacity onPress={() => { setModalNuevo(false); setNombre(''); setTelefono(''); setDireccion(''); }}>
-                <Ionicons name="close" size={24} color={colors.textSecondary} />
+                <Icono nombre="cerrar" size={24} color={zc.gris} />
               </TouchableOpacity>
             </View>
-            <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
+            <ScrollView contentContainerStyle={{ padding: 18 }}>
               <Text style={styles.label}>Nombre *</Text>
               <TextInput
                 style={styles.input}
                 value={nombre}
                 onChangeText={setNombre}
                 placeholder="Nombre completo"
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor={zc.grisSuave}
                 autoFocus
               />
-              <Text style={[styles.label, { marginTop: spacing.lg }]}>Teléfono *</Text>
+              <Text style={[styles.label, { marginTop: 16 }]}>Teléfono *</Text>
               <TextInput
                 style={styles.input}
                 value={telefono}
                 onChangeText={setTelefono}
                 placeholder="10 dígitos"
                 keyboardType="phone-pad"
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor={zc.grisSuave}
               />
-              <Text style={[styles.label, { marginTop: spacing.lg }]}>
-                Dirección <Text style={{ color: colors.textMuted, fontWeight: '400' }}>(opcional)</Text>
+              <Text style={[styles.label, { marginTop: 16 }]}>
+                Dirección <Text style={{ color: zc.grisSuave }}>(opcional)</Text>
               </Text>
               <TextInput
                 style={styles.input}
                 value={direccion}
                 onChangeText={setDireccion}
                 placeholder="Calle, número, colonia..."
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor={zc.grisSuave}
               />
               <TouchableOpacity
                 style={[styles.btnGuardar, guardando && { opacity: 0.7 }]}
@@ -374,9 +373,9 @@ export default function ClientesScreen() {
             <Text style={styles.pinMsg}>Editar cliente quedará registrado.{'\n'}Ingresa tu PIN para confirmar.</Text>
             <TextInput
               ref={pinEditRef}
-              style={[styles.pinInput, pinEditError ? { borderColor: colors.danger } : null]}
+              style={[styles.pinInput, pinEditError ? { borderColor: zc.rojo } : null]}
               placeholder="PIN"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={zc.grisSuave}
               secureTextEntry
               keyboardType="number-pad"
               maxLength={20}
@@ -411,48 +410,34 @@ export default function ClientesScreen() {
   );
 }
 
-function ClienteCard({ item, onEdit, onToggleFidelidad, toggling, isPremium }) {
-  const color = avatarColor(item.name);
+function ClienteCard({ item, primera, onEdit, onToggleFidelidad, toggling, isPremium }) {
+  const tono = tonos[tonoPorColor(avatarColor(item.name))] || tonos.gris;
   const isToggling = toggling.has(item.id);
+  const detalle = [item.phone, item.address].filter(Boolean).join(' · ');
 
   return (
-    <View style={styles.card}>
-      {/* Avatar */}
-      <View style={[styles.avatar, { backgroundColor: color + '22', borderColor: color + '44' }]}>
-        <Text style={[styles.avatarText, { color }]}>
+    <View style={[styles.card, !primera && styles.cardLinea]}>
+      {/* Inicial en un círculo de color suave */}
+      <View style={[styles.avatar, { backgroundColor: tono.fondo }]}>
+        <Text style={[styles.avatarText, { color: tono.icono }]}>
           {item.name?.[0]?.toUpperCase() || '?'}
         </Text>
       </View>
 
       {/* Info */}
-      <View style={{ flex: 1 }}>
-        <Text style={styles.cardName}>{item.name}</Text>
-        <View style={styles.cardRow}>
-          <Ionicons name="call-outline" size={12} color={colors.textMuted} />
-          <Text style={styles.cardDetail}>{item.phone}</Text>
-        </View>
-        {item.address ? (
-          <View style={styles.cardRow}>
-            <Ionicons name="location-outline" size={12} color={colors.textMuted} />
-            <Text style={styles.cardDetail} numberOfLines={1}>{item.address}</Text>
-          </View>
-        ) : null}
-        {item.in_loyalty && item.loyalty_points > 0 ? (
-          <View style={styles.puntosRow}>
-            <Ionicons name="star" size={12} color="#7c3aed" />
-            <Text style={styles.puntosText}>{item.loyalty_points} puntos</Text>
-          </View>
-        ) : item.in_loyalty ? (
-          <View style={styles.puntosRow}>
-            <Ionicons name="star" size={12} color="#7c3aed" />
-            <Text style={styles.puntosText}>En programa · 0 pts</Text>
-          </View>
-        ) : null}
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
+        {detalle ? <Text style={styles.cardDetail} numberOfLines={1}>{detalle}</Text> : null}
       </View>
+
+      {/* Puntos, en una pastilla lila */}
+      {item.in_loyalty ? (
+        <Text style={styles.puntos}>{item.loyalty_points > 0 ? `${item.loyalty_points} pts` : '0 pts'}</Text>
+      ) : null}
 
       {/* Botón editar */}
       <TouchableOpacity style={styles.editBtn} onPress={() => onEdit(item)}>
-        <Ionicons name="pencil-outline" size={16} color={colors.textMuted} />
+        <Icono nombre="lapiz" size={16} color={zc.grisSuave} />
       </TouchableOpacity>
 
       {/* Botón fidelidad */}
@@ -462,12 +447,13 @@ function ClienteCard({ item, onEdit, onToggleFidelidad, toggling, isPremium }) {
         disabled={isToggling}
       >
         {isToggling ? (
-          <ActivityIndicator size="small" color={item.in_loyalty ? '#7c3aed' : colors.textMuted} />
+          <ActivityIndicator size="small" color={item.in_loyalty ? tonos.lila.icono : zc.grisSuave} />
         ) : (
-          <Ionicons
-            name={item.in_loyalty ? 'star' : 'star-outline'}
-            size={20}
-            color={item.in_loyalty ? '#7c3aed' : colors.textMuted}
+          <Icono
+            nombre="estrella"
+            size={19}
+            color={item.in_loyalty ? tonos.lila.icono : zc.flecha}
+            relleno={!!item.in_loyalty}
           />
         )}
       </TouchableOpacity>
@@ -476,70 +462,68 @@ function ClienteCard({ item, onEdit, onToggleFidelidad, toggling, isPremium }) {
 }
 
 const styles = StyleSheet.create({
-  safe:        { flex: 1, backgroundColor: colors.background },
-  centered:    { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.sm },
-  title:       { fontSize: font.xl, fontWeight: '800', color: colors.textPrimary },
-  subtitle:    { fontSize: font.sm - 1, color: colors.textMuted, marginTop: 1 },
-  addBtn:      { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, backgroundColor: colors.primary, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md },
-  addBtnText:  { color: '#fff', fontWeight: '700', fontSize: font.sm },
+  safe:        { flex: 1, backgroundColor: zc.fondo },
+  centered:    { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: zc.fondo },
+  addBtn:      { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: zc.azul, paddingHorizontal: 12, paddingVertical: 8, borderRadius: radios.boton },
+  addBtnText:  { color: '#fff', fontWeight: '500', fontSize: 13.5 },
 
-  // Tabs
-  tabs:           { flexDirection: 'row', marginHorizontal: spacing.lg, marginBottom: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: 3 },
-  tab:            { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, paddingVertical: spacing.sm, borderRadius: radius.md },
-  tabActive:      { backgroundColor: colors.primary },
-  tabText:        { fontSize: font.sm, fontWeight: '700', color: colors.textSecondary },
-  tabTextActive:  { color: '#fff' },
-  badge:          { backgroundColor: colors.border, borderRadius: 10, paddingHorizontal: 6, paddingVertical: 1 },
-  badgeActive:    { backgroundColor: '#fff3' },
-  badgeText:      { fontSize: 10, fontWeight: '800', color: colors.textSecondary },
-  badgeTextActive:{ color: '#fff' },
+  // Pestañas de subrayado
+  tabs:           { flexDirection: 'row', gap: 20, paddingHorizontal: 18, paddingTop: 12 },
+  tab:            { flexDirection: 'row', alignItems: 'center', gap: 6, paddingBottom: 7 },
+  tabActive:      { borderBottomWidth: 2, borderBottomColor: zc.azul },
+  tabText:        { fontSize: 14, color: zc.gris },
+  tabTextActive:  { color: zc.tinta, fontWeight: '500' },
+  badge:          { backgroundColor: zc.fondo, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 1 },
+  badgeActive:    { backgroundColor: zc.azulSuave },
+  badgeText:      { fontSize: 11, fontWeight: '500', color: zc.gris },
+  badgeTextActive:{ color: zc.azul },
 
-  // Buscador
-  searchWrap:  { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginHorizontal: spacing.lg, marginBottom: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, paddingHorizontal: spacing.md },
-  search:      { flex: 1, paddingVertical: spacing.md, fontSize: font.md, color: colors.textPrimary },
+  // Buscador (dentro de la cabecera)
+  searchWrap:  { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fff', borderRadius: radios.boton, paddingHorizontal: 12, marginTop: 14 },
+  search:      { flex: 1, paddingVertical: 10, fontSize: 14, color: zc.tinta },
 
   // Info fidelidad
-  fidelidadInfo:     { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginHorizontal: spacing.lg, marginBottom: spacing.sm, backgroundColor: '#f5f3ff', borderRadius: radius.md, padding: spacing.sm, borderWidth: 1, borderColor: '#ddd6fe' },
-  fidelidadInfoText: { fontSize: font.sm - 1, color: '#6d28d9', flex: 1 },
+  fidelidadInfo:     { flexDirection: 'row', alignItems: 'center', gap: 6, marginHorizontal: espacios.borde, marginTop: 10, backgroundColor: tonos.lila.fondo, borderRadius: radios.boton, padding: 10 },
+  fidelidadInfoText: { fontSize: 12.5, color: '#6d28d9', flex: 1 },
 
-  // Lista
-  list:        { padding: spacing.lg, paddingTop: spacing.xs },
-  emptyWrap:   { alignItems: 'center', paddingVertical: spacing.xxl, gap: spacing.sm },
-  emptyText:   { color: colors.textMuted, fontSize: font.md, textAlign: 'center' },
+  // La lista, en UNA sola tarjeta blanca
+  // La lista va en UNA tarjeta blanca que CRECE con su contenido: con flex:1
+  // quedaba un panel blanco enorme cuando hay pocos clientes.
+  list:        { backgroundColor: zc.tarjeta, borderRadius: radios.tarjeta, marginHorizontal: espacios.borde, marginTop: 10, marginBottom: 14, paddingHorizontal: espacios.dentro, paddingVertical: 2, ...sombra },
+  emptyWrap:   { alignItems: 'center', paddingVertical: 48, gap: 10 },
+  emptyText:   { color: zc.grisSuave, fontSize: 14, textAlign: 'center' },
 
-  // Card de cliente
-  card:        { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.sm, borderWidth: 1, borderColor: colors.border, gap: spacing.md },
-  avatar:      { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
-  avatarText:  { fontSize: font.lg, fontWeight: '800' },
-  cardName:    { fontSize: font.md, fontWeight: '700', color: colors.textPrimary, marginBottom: 2 },
-  cardRow:     { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 },
-  cardDetail:  { fontSize: font.sm - 1, color: colors.textMuted },
-  puntosRow:   { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
-  puntosText:  { fontSize: font.sm - 1, color: '#7c3aed', fontWeight: '600' },
-  editBtn:     { padding: spacing.sm },
-  starBtn:     { padding: spacing.sm, borderRadius: radius.md },
-  starBtnActive:{ backgroundColor: '#f5f3ff' },
+  // Renglón de cliente
+  card:        { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, gap: 10 },
+  cardLinea:   { borderTopWidth: 1, borderTopColor: zc.linea },
+  avatar:      { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  avatarText:  { fontSize: 15, fontWeight: '500' },
+  cardName:    { fontSize: 14, color: zc.tinta },
+  cardDetail:  { fontSize: 12.5, color: zc.grisSuave, marginTop: 1 },
+  puntos:      { fontSize: 12, fontWeight: '500', color: '#6d28d9', backgroundColor: tonos.lila.fondo, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, overflow: 'hidden' },
+  editBtn:     { padding: 6 },
+  starBtn:     { padding: 6, borderRadius: radios.cuadrito },
+  starBtnActive:{ backgroundColor: tonos.lila.fondo },
 
   // Modal
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border },
-  modalTitle:  { fontSize: font.xl, fontWeight: '800', color: colors.textPrimary },
-  label:       { fontSize: font.sm, fontWeight: '600', color: colors.textSecondary, marginBottom: spacing.xs },
-  input:       { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.md, color: colors.textPrimary, backgroundColor: colors.surface },
-  btnGuardar:  { backgroundColor: colors.primary, borderRadius: radius.md, padding: spacing.md + 2, alignItems: 'center', marginTop: spacing.xl },
-  btnGuardarText: { color: '#fff', fontSize: font.lg, fontWeight: '700' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: zc.linea, backgroundColor: zc.tarjeta },
+  modalTitle:  { fontSize: 19, fontWeight: '500', color: zc.tinta },
+  label:       { fontSize: 12.5, color: zc.gris, marginBottom: 6 },
+  input:       { borderWidth: 1, borderColor: zc.linea, borderRadius: radios.boton, padding: 12, fontSize: 15, color: zc.tinta, backgroundColor: zc.tarjeta },
+  btnGuardar:  { backgroundColor: zc.azul, borderRadius: radios.boton, padding: 14, alignItems: 'center', marginTop: 22, minHeight: 46, justifyContent: 'center' },
+  btnGuardarText: { color: '#fff', fontSize: 15, fontWeight: '500' },
 
   // Modal PIN
-  pinOverlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: spacing.xl },
-  pinBox:      { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.xl, width: '100%', maxWidth: 340 },
-  pinTitle:    { fontSize: font.lg, fontWeight: '800', color: colors.textPrimary, marginBottom: spacing.xs },
-  pinMsg:      { fontSize: font.sm, color: colors.textSecondary, marginBottom: spacing.lg, lineHeight: 20 },
-  pinInput:    { borderWidth: 1.5, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.md, color: colors.textPrimary, backgroundColor: colors.background, textAlign: 'center', letterSpacing: 6, marginBottom: spacing.xs },
-  pinErrorText:{ fontSize: font.sm, color: colors.danger, marginBottom: spacing.sm },
-  pinActions:  { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
-  pinBtn:      { flex: 1, borderRadius: radius.md, padding: spacing.md, alignItems: 'center' },
-  pinBtnCancel:{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  pinBtnCancelText: { color: colors.textSecondary, fontWeight: '600' },
-  pinBtnConfirm:{ backgroundColor: colors.primary },
-  pinBtnConfirmText: { color: '#fff', fontWeight: '700' },
+  pinOverlay:  { flex: 1, backgroundColor: 'rgba(17,24,39,0.5)', justifyContent: 'center', alignItems: 'center', padding: 18 },
+  pinBox:      { backgroundColor: zc.tarjeta, borderRadius: radios.tarjeta, padding: 20, width: '100%', maxWidth: 340 },
+  pinTitle:    { fontSize: 17, fontWeight: '500', color: zc.tinta, marginBottom: 4 },
+  pinMsg:      { fontSize: 13.5, color: zc.gris, marginBottom: 16, lineHeight: 19 },
+  pinInput:    { borderWidth: 1.5, borderColor: zc.linea, borderRadius: radios.boton, padding: 12, fontSize: 15, color: zc.tinta, backgroundColor: zc.fondo, textAlign: 'center', letterSpacing: 6, marginBottom: 4 },
+  pinErrorText:{ fontSize: 13, color: zc.rojo, marginBottom: 8 },
+  pinActions:  { flexDirection: 'row', gap: 8, marginTop: 12 },
+  pinBtn:      { flex: 1, borderRadius: radios.boton, padding: 13, alignItems: 'center', minHeight: 46, justifyContent: 'center' },
+  pinBtnCancel:{ backgroundColor: zc.fondo },
+  pinBtnCancelText: { color: zc.gris, fontWeight: '500' },
+  pinBtnConfirm:{ backgroundColor: zc.azul },
+  pinBtnConfirmText: { color: '#fff', fontWeight: '500' },
 });

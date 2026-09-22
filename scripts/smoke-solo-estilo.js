@@ -20,7 +20,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { compararFuentes } = require('./revisar-solo-estilo');
+const { compararFuentes, esPermitido } = require('./revisar-solo-estilo');
 
 let fallos = 0;
 let total = 0;
@@ -75,6 +75,26 @@ const casos = [
 ];
 for (const [nombre, de, a] of casos) {
   ok(compararFuentes(BASE, mutar(BASE, de, a)).length > 0, `atrapa: ${nombre}`);
+}
+
+// ─── 1.b Quitados declarados ("permitidos") ─────────────────────────────────
+// Un rediseño sí puede tirar un botón REPETIDO que abría exactamente lo mismo
+// que otro. Se declara en estilo-base.json, uno por uno y con su motivo. Lo que
+// NO puede es excusar cualquier otra cosa del mismo archivo.
+console.log('\nQuitados declarados:');
+{
+  const sinRepetido = mutar(BASE, '<TouchableOpacity onPress={guardar} disabled={n === 0}><Text>Guardar</Text></TouchableOpacity>\n      ', '');
+  const difs = compararFuentes(BASE, sinRepetido);
+  const lista = [{ archivo: 'x.js', cambio: 'desapareció', codigo: 'onPress=guardar', motivo: 'repetido' }];
+  ok(difs.some((d) => esPermitido(d, 'x.js', lista)), 'un quitado DECLARADO se excusa');
+  ok(difs.some((d) => !esPermitido(d, 'x.js', lista)), 'lo demás del mismo cambio (el disabled) NO se excusa');
+  ok(!difs.some((d) => esPermitido(d, 'otro.js', lista)), 'la excusa es de UN archivo, no de todos');
+  ok(!difs.some((d) => esPermitido(d, 'x.js', [{ ...lista[0], codigo: 'onPress=otraCosa' }])),
+    'la excusa tiene que coincidir EXACTO');
+  const agregado = mutar(BASE, "<Text style={{ color: 'red' }}>Hola</Text>",
+    "<TouchableOpacity onPress={guardar}><Text>Hola</Text></TouchableOpacity>");
+  ok(!compararFuentes(BASE, agregado).some((d) => esPermitido(d, 'x.js', lista)),
+    'un botón AGREGADO no se excusa con un quitado declarado');
 }
 
 // ─── 2. El Resumen real ──────────────────────────────────────────────────────

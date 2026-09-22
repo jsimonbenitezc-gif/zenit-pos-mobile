@@ -15,12 +15,11 @@ import {
   Switch, Alert, Modal, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 
 import { useAuth } from '../../context/AuthContext';
-import LogoTitle from '../../components/LogoTitle';
-import { colors, spacing, radius, font } from '../../theme';
+import { zc, radios, espacios, sombra } from '../../theme';
+import { Cabecera, FranjaSuperior, Icono, IconoEnCuadro, TarjetaQuien } from '../../components/ui';
 import { friendlyError } from '../../utils/errors';
 import { normalizarSugerencias } from '../../utils/propinas';
 import {
@@ -185,99 +184,119 @@ export default function AjustesLocalScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.header}><LogoTitle title="Ajustes" titleStyle={styles.title} /></View>
-
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+      <FranjaSuperior />
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.avisoLocal}>
-          <Ionicons name="phone-portrait-outline" size={18} color={colors.textSecondary} />
-          <Text style={styles.avisoTexto}>
-            Estás usando Zenit sin cuenta. Todo se guarda en este teléfono.
+        {/* Sin cuenta hay POCO que ajustar (no hay sucursales, ni puestos, ni
+            plan), así que va todo en una sola página: repartirlo en tarjetas por
+            tema, como en la versión con cuenta, obligaría a cavar para cambiar
+            dos cosas. */}
+        <Cabecera titulo="Ajustes" subtitulo="Sin cuenta · todo se guarda en este teléfono">
+          <TarjetaQuien
+            inicial={(nombre || 'Z')[0]?.toUpperCase()}
+            nombre={nombre || 'Mi negocio'}
+            detalle={resumen
+              ? `${resumen.productos} producto${resumen.productos === 1 ? '' : 's'} · ${resumen.ventas} venta${resumen.ventas === 1 ? '' : 's'}`
+              : 'Zenit sin cuenta'}
+          />
+        </Cabecera>
+
+        <View style={styles.cuerpo}>
+          <Text style={styles.seccion}>Tu negocio</Text>
+          <View style={styles.tarjeta}>
+            <Campo label="Nombre" value={nombre} onChangeText={setNombre} placeholder="Mi negocio" />
+            <Campo label="Símbolo de moneda" value={moneda} onChangeText={setMoneda} placeholder="$" />
+            <Campo label="Pie del ticket" value={pie} onChangeText={setPie} placeholder="¡Gracias por su compra!" multiline ultimo />
+          </View>
+
+          <Text style={styles.seccion}>Impuesto</Text>
+          <View style={styles.tarjeta}>
+            <Fila label="Cobrar impuesto" value={taxOn} onValueChange={setTaxOn} ultimo={!taxOn} />
+            {taxOn && (
+              <>
+                <Campo label="Nombre" value={taxName} onChangeText={setTaxName} placeholder="IVA" />
+                <Campo label="Tasa (%)" value={taxRate} onChangeText={setTaxRate} keyboardType="decimal-pad" />
+                <Fila
+                  label="El precio ya incluye el impuesto"
+                  sub={taxIncl
+                    ? 'Un producto de 100 se cobra en 100 y el ticket desglosa el impuesto.'
+                    : 'Un producto de 100 se cobra en 116: el impuesto se suma aparte.'}
+                  value={taxIncl}
+                  onValueChange={setTaxIncl}
+                  ultimo
+                />
+              </>
+            )}
+          </View>
+
+          <Text style={styles.seccion}>Propinas</Text>
+          <View style={styles.tarjeta}>
+            <Fila label="Pedir propina al cobrar" value={propOn} onValueChange={setPropOn} ultimo={!propOn} />
+            {propOn && (
+              <Campo label="Porcentajes sugeridos" value={propSug} onChangeText={setPropSug} placeholder="10, 15, 20" ultimo />
+            )}
+          </View>
+
+          <TouchableOpacity style={styles.btnGuardar} onPress={guardar} disabled={guardando}>
+            {guardando ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnGuardarText}>Guardar cambios</Text>}
+          </TouchableOpacity>
+
+          <Text style={styles.seccion}>Impresora</Text>
+          <View style={styles.tarjeta}>
+            <TouchableOpacity style={styles.opcion} onPress={buscarImpresoras}>
+              <IconoEnCuadro nombre="impresora" tono="rosa" size={32} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.opcionLabel}>Impresora Bluetooth</Text>
+                <Text style={styles.opcionSub}>{printerName || 'Sin impresora seleccionada'}</Text>
+              </View>
+              <Icono nombre="derecha" size={16} color={zc.flecha} />
+            </TouchableOpacity>
+            {!!printerAddress && (
+              <TouchableOpacity style={[styles.opcion, styles.opcionLinea]} onPress={probarImpresora}>
+                <IconoEnCuadro nombre="recibo" tono="gris" size={32} />
+                <Text style={[styles.opcionLabel, { flex: 1 }]}>Imprimir una prueba</Text>
+                <Icono nombre="derecha" size={16} color={zc.flecha} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <Text style={styles.seccion}>Cuenta</Text>
+
+          {/* La salida BUENA: crear cuenta SIN perder nada. Va primero y destacada
+              porque es lo que el negocio quiere hacer — "irACuenta", que deja el
+              historial atrás, se queda debajo para quien ya tiene una cuenta. */}
+          <TouchableOpacity style={[styles.tarjeta, styles.opcion, styles.opcionDestacada]} onPress={abrirMigrar}>
+            <IconoEnCuadro nombre="nubeSubir" tono="azul" size={34} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.opcionLabel, { color: zc.azul }]}>Crear cuenta y llevarme todo</Text>
+              <Text style={styles.opcionSub}>
+                {resumen
+                  ? `Se suben tus ${resumen.productos} producto${resumen.productos === 1 ? '' : 's'}, ` +
+                    `${resumen.clientes} cliente${resumen.clientes === 1 ? '' : 's'} y ${resumen.ventas} venta${resumen.ventas === 1 ? '' : 's'}. ` +
+                    'Nada se borra de este teléfono.'
+                  : 'Tu menú, tus clientes y tu historial de ventas se suben a tu cuenta nueva.'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={[styles.tarjeta, styles.opcion]} onPress={irACuenta}>
+            <IconoEnCuadro nombre="usuario" tono="gris" size={34} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.opcionLabel}>Ya tengo cuenta: iniciar sesión</Text>
+              <Text style={styles.opcionSub}>
+                Entras a tu cuenta y este negocio se queda guardado en el teléfono, por si vuelves.
+              </Text>
+            </View>
+            <Icono nombre="derecha" size={16} color={zc.flecha} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.btnPeligro} onPress={borrarTodo}>
+            <Text style={styles.btnPeligroText}>Borrar el negocio de este teléfono</Text>
+          </TouchableOpacity>
+          <Text style={styles.notaPeligro}>
+            Sin cuenta no hay copia en internet. Si borras esto o pierdes el teléfono, no se puede recuperar.
           </Text>
         </View>
-
-        <Text style={styles.seccion}>Tu negocio</Text>
-        <Campo label="Nombre" value={nombre} onChangeText={setNombre} placeholder="Mi negocio" />
-        <Campo label="Símbolo de moneda" value={moneda} onChangeText={setMoneda} placeholder="$" />
-        <Campo label="Pie del ticket" value={pie} onChangeText={setPie} placeholder="¡Gracias por su compra!" multiline />
-
-        <Text style={styles.seccion}>Impuesto</Text>
-        <Fila label="Cobrar impuesto" value={taxOn} onValueChange={setTaxOn} />
-        {taxOn && (
-          <>
-            <Campo label="Nombre" value={taxName} onChangeText={setTaxName} placeholder="IVA" />
-            <Campo label="Tasa (%)" value={taxRate} onChangeText={setTaxRate} keyboardType="decimal-pad" />
-            <Fila
-              label="El precio ya incluye el impuesto"
-              sub={taxIncl
-                ? 'Un producto de 100 se cobra en 100 y el ticket desglosa el impuesto.'
-                : 'Un producto de 100 se cobra en 116: el impuesto se suma aparte.'}
-              value={taxIncl}
-              onValueChange={setTaxIncl}
-            />
-          </>
-        )}
-
-        <Text style={styles.seccion}>Propinas</Text>
-        <Fila label="Pedir propina al cobrar" value={propOn} onValueChange={setPropOn} />
-        {propOn && (
-          <Campo label="Porcentajes sugeridos" value={propSug} onChangeText={setPropSug} placeholder="10, 15, 20" />
-        )}
-
-        <TouchableOpacity style={styles.btnGuardar} onPress={guardar} disabled={guardando}>
-          {guardando ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnGuardarText}>Guardar cambios</Text>}
-        </TouchableOpacity>
-
-        <Text style={styles.seccion}>Impresora</Text>
-        <TouchableOpacity style={styles.opcion} onPress={buscarImpresoras}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.opcionLabel}>Impresora Bluetooth</Text>
-            <Text style={styles.opcionSub}>{printerName || 'Sin impresora seleccionada'}</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-        </TouchableOpacity>
-        {!!printerAddress && (
-          <TouchableOpacity style={styles.opcion} onPress={probarImpresora}>
-            <Text style={styles.opcionLabel}>Imprimir una prueba</Text>
-            <Ionicons name="print-outline" size={18} color={colors.textMuted} />
-          </TouchableOpacity>
-        )}
-
-        <Text style={styles.seccion}>Cuenta</Text>
-
-        {/* La salida BUENA: crear cuenta SIN perder nada. Va primero y destacada
-            porque es lo que el negocio quiere hacer — "irACuenta", que deja el
-            historial atrás, se queda debajo para quien ya tiene una cuenta. */}
-        <TouchableOpacity style={[styles.opcion, styles.opcionDestacada]} onPress={abrirMigrar}>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.opcionLabel, { color: colors.primary }]}>Crear cuenta y llevarme todo</Text>
-            <Text style={styles.opcionSub}>
-              {resumen
-                ? `Se suben tus ${resumen.productos} producto${resumen.productos === 1 ? '' : 's'}, ` +
-                  `${resumen.clientes} cliente${resumen.clientes === 1 ? '' : 's'} y ${resumen.ventas} venta${resumen.ventas === 1 ? '' : 's'}. ` +
-                  'Nada se borra de este teléfono.'
-                : 'Tu menú, tus clientes y tu historial de ventas se suben a tu cuenta nueva.'}
-            </Text>
-          </View>
-          <Ionicons name="cloud-upload-outline" size={18} color={colors.primary} />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.opcion} onPress={irACuenta}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.opcionLabel}>Ya tengo cuenta: iniciar sesión</Text>
-            <Text style={styles.opcionSub}>
-              Entras a tu cuenta y este negocio se queda guardado en el teléfono, por si vuelves.
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.btnPeligro} onPress={borrarTodo}>
-          <Text style={styles.btnPeligroText}>Borrar el negocio de este teléfono</Text>
-        </TouchableOpacity>
-        <Text style={styles.notaPeligro}>
-          Sin cuenta no hay copia en internet. Si borras esto o pierdes el teléfono, no se puede recuperar.
-        </Text>
       </ScrollView>
 
       <ModalMigrar
@@ -288,29 +307,29 @@ export default function AjustesLocalScreen() {
       />
 
       <Modal visible={modalPrinter} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModalPrinter(false)}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: zc.fondo }}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Impresoras emparejadas</Text>
             <TouchableOpacity onPress={() => setModalPrinter(false)}>
-              <Ionicons name="close" size={24} color={colors.textSecondary} />
+              <Icono nombre="cerrar" size={24} color={zc.gris} />
             </TouchableOpacity>
           </View>
-          <ScrollView contentContainerStyle={{ padding: spacing.lg }}>
-            {scanning && <ActivityIndicator color={colors.primary} />}
+          <ScrollView contentContainerStyle={{ padding: 16 }}>
+            {scanning && <ActivityIndicator color={zc.azul} />}
             {!scanning && devices.length === 0 && (
               <Text style={styles.opcionSub}>
                 No hay impresoras emparejadas. Empareja la impresora desde los ajustes de Bluetooth de Android y vuelve aquí.
               </Text>
             )}
             {devices.map(d => (
-              <TouchableOpacity key={d.address} style={styles.opcion} onPress={() => elegirImpresora(d)}>
+              <TouchableOpacity key={d.address} style={[styles.tarjeta, styles.opcion]} onPress={() => elegirImpresora(d)}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.opcionLabel}>{d.name || 'Sin nombre'}</Text>
                   <Text style={styles.opcionSub}>{d.address}</Text>
                 </View>
                 {connecting === d.address
-                  ? <ActivityIndicator color={colors.primary} />
-                  : <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />}
+                  ? <ActivityIndicator color={zc.azul} />
+                  : <Icono nombre="derecha" size={16} color={zc.flecha} />}
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -320,48 +339,48 @@ export default function AjustesLocalScreen() {
   );
 }
 
-function Campo({ label, ...props }) {
+function Campo({ label, ultimo, ...props }) {
   return (
-    <View style={styles.campo}>
+    <View style={[styles.campo, !ultimo && styles.campoLinea]}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput style={styles.input} placeholderTextColor={colors.textMuted} {...props} />
+      <TextInput style={styles.input} placeholderTextColor={zc.grisSuave} {...props} />
     </View>
   );
 }
 
-function Fila({ label, sub, value, onValueChange }) {
+function Fila({ label, sub, value, onValueChange, ultimo }) {
   return (
-    <View style={styles.fila}>
+    <View style={[styles.fila, !ultimo && styles.campoLinea]}>
       <View style={{ flex: 1 }}>
         <Text style={styles.opcionLabel}>{label}</Text>
         {!!sub && <Text style={styles.opcionSub}>{sub}</Text>}
       </View>
-      <Switch value={value} onValueChange={onValueChange} trackColor={{ true: colors.primary }} />
+      <Switch value={value} onValueChange={onValueChange} trackColor={{ false: '#d9dee6', true: zc.azul }} thumbColor="#fff" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe:            { flex: 1, backgroundColor: colors.background },
-  header:          { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.md },
-  title:           { fontSize: font.xl, fontWeight: '800', color: colors.textPrimary },
-  content:         { padding: spacing.lg, paddingBottom: spacing.xxl },
-  avisoLocal:      { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
-  avisoTexto:      { flex: 1, fontSize: font.sm, color: colors.textSecondary },
-  seccion:         { fontSize: font.sm, fontWeight: '800', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: spacing.xl, marginBottom: spacing.sm },
-  campo:           { marginBottom: spacing.md },
-  label:           { fontSize: font.sm, color: colors.textSecondary, marginBottom: spacing.xs },
-  input:           { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.md, color: colors.textPrimary, backgroundColor: colors.surface },
-  fila:            { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm },
-  opcion:          { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm },
-  opcionDestacada: { borderColor: colors.primary },
-  opcionLabel:     { fontSize: font.md, fontWeight: '600', color: colors.textPrimary },
-  opcionSub:       { fontSize: font.sm, color: colors.textMuted, marginTop: 2, lineHeight: 18 },
-  btnGuardar:      { backgroundColor: colors.primary, borderRadius: radius.md, padding: spacing.md + 2, alignItems: 'center', marginTop: spacing.lg },
-  btnGuardarText:  { color: '#fff', fontSize: font.lg, fontWeight: '700' },
-  btnPeligro:      { borderWidth: 1, borderColor: colors.danger, borderRadius: radius.md, padding: spacing.md, alignItems: 'center', marginTop: spacing.lg },
-  btnPeligroText:  { color: colors.danger, fontSize: font.md, fontWeight: '700' },
-  notaPeligro:     { fontSize: font.sm, color: colors.textMuted, textAlign: 'center', marginTop: spacing.sm, lineHeight: 18 },
-  modalHeader:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border },
-  modalTitle:      { fontSize: font.lg, fontWeight: '800', color: colors.textPrimary },
+  safe:            { flex: 1, backgroundColor: zc.fondo },
+  content:         { paddingBottom: 36 },
+  cuerpo:          { paddingHorizontal: espacios.borde, paddingTop: 4 },
+  seccion:         { fontSize: 13, fontWeight: '500', color: zc.gris, marginTop: 16, marginBottom: 8, marginLeft: 4 },
+  tarjeta:         { backgroundColor: zc.tarjeta, borderRadius: radios.tarjeta, marginBottom: 8, ...sombra },
+  campo:           { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 8 },
+  campoLinea:      { borderBottomWidth: 1, borderBottomColor: zc.linea },
+  label:           { fontSize: 12.5, color: zc.gris },
+  input:           { fontSize: 15, color: zc.tinta, paddingVertical: 2, paddingHorizontal: 0 },
+  fila:            { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, paddingHorizontal: 16 },
+  opcion:          { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, paddingHorizontal: 16 },
+  opcionLinea:     { borderTopWidth: 1, borderTopColor: zc.linea },
+  opcionDestacada: { borderWidth: 1.5, borderColor: zc.azul },
+  opcionLabel:     { fontSize: 15, color: zc.tinta },
+  opcionSub:       { fontSize: 12.5, color: zc.grisSuave, marginTop: 2, lineHeight: 17 },
+  btnGuardar:      { backgroundColor: zc.azul, borderRadius: radios.boton, padding: 13, alignItems: 'center', marginTop: 12, minHeight: 46, justifyContent: 'center' },
+  btnGuardarText:  { color: '#fff', fontSize: 15, fontWeight: '500' },
+  btnPeligro:      { backgroundColor: zc.rojoSuave, borderRadius: radios.boton, padding: 13, alignItems: 'center', marginTop: 14 },
+  btnPeligroText:  { color: zc.rojo, fontSize: 15, fontWeight: '500' },
+  notaPeligro:     { fontSize: 12.5, color: zc.grisSuave, textAlign: 'center', marginTop: 8, lineHeight: 17 },
+  modalHeader:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: zc.linea, backgroundColor: zc.tarjeta },
+  modalTitle:      { fontSize: 17, fontWeight: '500', color: zc.tinta },
 });
