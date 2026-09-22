@@ -5,15 +5,14 @@ import {
   Modal, ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import IconoProducto from '../../components/IconoProducto';
 import SvgIcon from '../../components/SvgIcon';
 import * as SecureStore from 'expo-secure-store';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
-import { colors, spacing, radius, font } from '../../theme';
-import LogoTitle from '../../components/LogoTitle';
+import { colors, spacing, radius, font, zc, tonos, radios, sombra } from '../../theme';
+import { Cabecera, Icono } from '../../components/ui';
 import SelectorSucursal from '../../components/SelectorSucursal';
 import { formatMoney } from '../../utils/money';
 import { createSSE } from '../../utils/sse';
@@ -61,7 +60,7 @@ function MesaCard({ mesa, onPress, currency }) {
       onPress={() => onPress(mesa)}
       activeOpacity={0.75}
     >
-      <View style={[styles.statusDot, { backgroundColor: ocupada ? '#f59e0b' : '#22c55e' }]} />
+      <View style={[styles.statusDot, { backgroundColor: ocupada ? zc.ambar : zc.verde }]} />
 
       <Text style={styles.cardName}>{mesa.name}</Text>
       {mesa.zone ? <Text style={styles.cardZone}>{mesa.zone}</Text> : null}
@@ -79,7 +78,7 @@ function MesaCard({ mesa, onPress, currency }) {
       )}
 
       <View style={styles.capacidadRow}>
-        <Ionicons name="people-outline" size={12} color={colors.textMuted} />
+        <Icono nombre="people-outline" size={14} color={zc.grisSuave} />
         <Text style={styles.capacidadText}>{mesa.capacity}</Text>
       </View>
     </TouchableOpacity>
@@ -748,31 +747,33 @@ export default function MesasScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
 
-      {/* Header */}
-      <View style={styles.header}>
-        <LogoTitle title="Mesas" titleStyle={styles.title} />
-        {isOwner && (
+      {/* Cabecera azul noche (diseño A), con el selector de sucursal dentro */}
+      <Cabecera
+        titulo="Mesas"
+        derecha={isOwner && (
           <TouchableOpacity style={styles.btnAdd} onPress={() => setModalCrear(true)}>
-            <Ionicons name="add" size={20} color="#fff" />
+            <Icono nombre="add" size={20} color="#fff" />
           </TouchableOpacity>
         )}
-      </View>
-
-      {/* Ver las mesas de otra sucursal (solo lectura) */}
-      <SelectorSucursal value={sucursalVista} onChange={setSucursalVista} />
+      >
+        {/* Ver las mesas de otra sucursal (solo lectura) */}
+        <View style={styles.sucursalEnCabecera}>
+          <SelectorSucursal value={sucursalVista} onChange={setSucursalVista} enNoche />
+        </View>
+      </Cabecera>
 
       {/* Leyenda */}
       <View style={styles.leyenda}>
-        <View style={styles.leyendaItem}><View style={[styles.leyendaDot, { backgroundColor: '#22c55e' }]} /><Text style={styles.leyendaTxt}>Libre</Text></View>
-        <View style={styles.leyendaItem}><View style={[styles.leyendaDot, { backgroundColor: '#f59e0b' }]} /><Text style={styles.leyendaTxt}>Ocupada</Text></View>
+        <View style={styles.leyendaItem}><View style={[styles.leyendaDot, { backgroundColor: zc.verde }]} /><Text style={styles.leyendaTxt}>Libre</Text></View>
+        <View style={styles.leyendaItem}><View style={[styles.leyendaDot, { backgroundColor: zc.ambar }]} /><Text style={styles.leyendaTxt}>Ocupada</Text></View>
         <Text style={styles.leyendaCount}>{mesas.filter(m => m.open_order).length}/{mesas.length} ocupadas</Text>
       </View>
 
       {mesas.length === 0 ? (
         <View style={styles.emptyWrap}>
-          <Ionicons name="grid-outline" size={52} color={colors.textMuted} />
+          <Icono nombre="grid-outline" size={52} color={colors.textMuted} />
           <Text style={styles.emptyTitle}>No hay mesas configuradas</Text>
           {isOwner && (
             <TouchableOpacity style={styles.btnCrearVacio} onPress={() => setModalCrear(true)}>
@@ -800,7 +801,7 @@ export default function MesasScreen() {
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Abrir {mesaSel?.name}</Text>
             <TouchableOpacity onPress={() => setModalAbrir(false)}>
-              <Ionicons name="close" size={24} color={colors.textSecondary} />
+              <Icono nombre="close" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -816,7 +817,7 @@ export default function MesasScreen() {
               />
               <Text style={styles.hint}>Capacidad de la mesa: {mesaSel?.capacity} personas</Text>
               <TouchableOpacity style={[styles.btnPrimary, { marginTop: spacing.xl }]} onPress={irAgregarDesdeLibre}>
-                <Ionicons name="restaurant-outline" size={20} color="#fff" />
+                <Icono nombre="restaurant-outline" size={20} color="#fff" />
                 <Text style={styles.btnPrimaryText}>Agregar productos</Text>
               </TouchableOpacity>
             </ScrollView>
@@ -837,16 +838,17 @@ export default function MesasScreen() {
               </Text>
             </View>
             <TouchableOpacity onPress={() => { setModalDetalle(false); setOrdenActiva(null); }}>
-              <Ionicons name="close" size={24} color={colors.textSecondary} />
+              <Icono nombre="close" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={{ padding: spacing.lg }}>
+          <ScrollView contentContainerStyle={{ padding: 14 }}>
+            <View style={styles.cuentaCaja}>
             {agruparRenglones(ordenActiva?.items || []).map((g, i) => g.promo ? (
               // PROMO (PLAN_OFERTAS_V1): la cuenta la enseña JUNTA, como se pidió.
               // Quitarla quita la promo entera (trampa 4): nunca "medio 2x1".
               <View key={`p${i}`} style={[styles.itemRow, styles.itemPromo]}>
-                <Ionicons name="gift-outline" size={20} color="#7c3aed" />
+                <Icono nombre="gift-outline" size={20} color={tonos.lila.icono} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.itemName}>{g.promo.nombre}</Text>
                   {g.items.map((it, j) => (
@@ -859,12 +861,12 @@ export default function MesasScreen() {
                 </View>
                 <Text style={styles.itemPrice}>{formatMoney(g.promo.total, currency)}</Text>
                 <TouchableOpacity style={styles.itemQuitar} disabled={quitando} onPress={() => quitarRenglonMesa(g.items[0], g.promo.nombre)}>
-                  <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                  <Icono nombre="trash-outline" size={18} color={colors.danger} />
                 </TouchableOpacity>
               </View>
             ) : (
               <View key={i} style={styles.itemRow}>
-                <IconoProducto valor={g.item.product?.emoji || 'svg:shopping-bag'} size={22} color={colors.textSecondary} />
+                <IconoProducto valor={g.item.product?.emoji || 'svg:shopping-bag'} size={30} color={zc.gris} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.itemName}>{g.item.product?.name || 'Producto'}</Text>
                   {/* Extras del renglón (BLOQUE 11). El precio del renglón ya
@@ -872,18 +874,19 @@ export default function MesasScreen() {
                   {resumenModificadores(leerModificadores(g.item.modifiers)) ? (
                     <Text style={styles.itemMods}>{resumenModificadores(leerModificadores(g.item.modifiers))}</Text>
                   ) : null}
-                  {g.item.notes ? <View style={{ flexDirection: 'row', alignItems: 'center' }}><Ionicons name="document-text-outline" size={12} color={colors.textMuted} /><Text style={[styles.itemNota, { marginLeft: 2 }]}>{g.item.notes}</Text></View> : null}
+                  {g.item.notes ? <View style={{ flexDirection: 'row', alignItems: 'center' }}><Icono nombre="document-text-outline" size={12} color={colors.textMuted} /><Text style={[styles.itemNota, { marginLeft: 2 }]}>{g.item.notes}</Text></View> : null}
                 </View>
                 <Text style={styles.itemQty}>×{g.item.quantity}</Text>
                 <Text style={styles.itemPrice}>{formatMoney(parseFloat(g.item.subtotal || 0), currency)}</Text>
                 <TouchableOpacity style={styles.itemQuitar} disabled={quitando} onPress={() => quitarRenglonMesa(g.item, null)}>
-                  <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                  <Icono nombre="trash-outline" size={18} color={colors.danger} />
                 </TouchableOpacity>
               </View>
             ))}
             {(!ordenActiva?.items || ordenActiva.items.length === 0) && (
               <Text style={styles.emptyItems}>Sin productos aún</Text>
             )}
+            </View>
             {/* Desglose del impuesto de la mesa (BLOQUE 8). Sale del pedido, que
                 lo trae congelado con la tasa que tenía al abrirse: si el dueño la
                 cambia a media comida, la cuenta que el cliente ya vio no se mueve. */}
@@ -905,11 +908,11 @@ export default function MesasScreen() {
 
           <View style={styles.detalleFooter}>
             <TouchableOpacity style={styles.btnSec} onPress={abrirAgregarProductos}>
-              <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
+              <Icono nombre="add-circle-outline" size={18} color={colors.primary} />
               <Text style={styles.btnSecText}>Agregar</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.btnCobrar} onPress={abrirCobrar}>
-              <Ionicons name="cash-outline" size={18} color="#fff" />
+              <Icono nombre="cash-outline" size={18} color="#fff" />
               <Text style={styles.btnCobrarText}>Cobrar {formatMoney(totalOrden, currency)}</Text>
             </TouchableOpacity>
           </View>
@@ -923,11 +926,11 @@ export default function MesasScreen() {
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Agregar a {mesaSel?.name}</Text>
             <TouchableOpacity onPress={() => setModalAgregar(false)}>
-              <Ionicons name="close" size={24} color={colors.textSecondary} />
+              <Icono nombre="close" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
           <View style={styles.searchWrap}>
-            <Ionicons name="search-outline" size={16} color={colors.textMuted} />
+            <Icono nombre="search-outline" size={16} color={colors.textMuted} />
             <TextInput style={styles.searchInput} value={busquedaP} onChangeText={setBusquedaP} placeholder="Buscar producto..." placeholderTextColor={colors.textMuted} />
           </View>
           {/* PROMOS (PLAN_OFERTAS_V1): solo las activas AHORA, arriba. */}
@@ -935,7 +938,10 @@ export default function MesasScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ paddingHorizontal: spacing.md, gap: spacing.sm, paddingBottom: spacing.sm }}>
               {promosActivasMesa.map(p => (
                 <TouchableOpacity key={p.id} style={styles.promoChip} onPress={() => setHojaPromo(p)}>
-                  <Text style={styles.promoChipNombre} numberOfLines={1}>🎁 {p.name}</Text>
+                  <View style={styles.promoChipFila}>
+                    <Icono nombre="regalo" size={15} color={tonos.lila.icono} />
+                    <Text style={styles.promoChipNombre} numberOfLines={1}>{p.name}</Text>
+                  </View>
                   <Text style={styles.promoChipSub} numberOfLines={1}>{textoHuecos(p, productos, categoriasMesa)} · {textoCobro(p, currency)}</Text>
                 </TouchableOpacity>
               ))}
@@ -943,11 +949,12 @@ export default function MesasScreen() {
           )}
           {promosEnCarrito.map(([clave, e]) => (
             <View key={clave} style={styles.promoEnCarrito}>
+              <Icono nombre="regalo" size={16} color={tonos.lila.icono} />
               <Text style={styles.promoEnCarritoTexto} numberOfLines={2}>
-                🎁 {e.renglon.nombre}: {e.renglon.productos.map(p => p.nombre).join(', ')} · {formatMoney(e.renglon.precio, currency)}
+                {e.renglon.nombre}: {e.renglon.productos.map(p => p.nombre).join(', ')} · {formatMoney(e.renglon.precio, currency)}
               </Text>
               <TouchableOpacity onPress={() => quitarPromoDelCarrito(clave)}>
-                <Ionicons name="close-circle" size={20} color={colors.danger} />
+                <Icono nombre="close-circle" size={20} color={colors.danger} />
               </TouchableOpacity>
             </View>
           ))}
@@ -972,31 +979,31 @@ export default function MesasScreen() {
                 let stockEl = null;
                 if (mostrarStock && stock !== null) {
                   if (stock === 0) {
-                    stockEl = <Text style={{ fontSize: 10, color: '#ef4444', fontWeight: '600', marginTop: 2 }}>Sin stock</Text>;
+                    stockEl = <Text style={styles.stockAgotado}>Sin stock</Text>;
                   } else if (stock <= 3) {
-                    stockEl = <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}><SvgIcon name="triangle-alert" size={10} color="#f59e0b" /><Text style={{ fontSize: 10, color: '#f59e0b', fontWeight: '600', marginLeft: 2 }}>{stock} disp.</Text></View>;
+                    stockEl = <View style={styles.stockPocoFila}><SvgIcon name="triangle-alert" size={11} color={zc.ambar} /><Text style={styles.stockPoco}>{stock} disp.</Text></View>;
                   } else {
-                    stockEl = <Text style={{ fontSize: 10, color: '#10b981', marginTop: 2 }}>{stock} disp.</Text>;
+                    stockEl = <Text style={styles.stockHay}>{stock} disp.</Text>;
                   }
                 }
                 return (
                   <View style={[styles.pCard, mostrarStock && stock === 0 && { opacity: 0.5 }]}>
-                    <IconoProducto valor={item.emoji || 'svg:shopping-bag'} size={28} color={colors.textSecondary} />
+                    <IconoProducto valor={item.emoji || 'svg:shopping-bag'} imagen={item.image} size={40} color={zc.gris} />
                     <Text style={styles.pName} numberOfLines={2}>{item.name}</Text>
                     <Text style={styles.pPrice}>{formatMoney(parseFloat(item.price), currency)}</Text>
                     {stockEl}
                     {qty === 0 ? (
                       <TouchableOpacity style={styles.btnPlusSm} onPress={() => incrementar(item)}>
-                        <Ionicons name="add" size={18} color="#fff" />
+                        <Icono nombre="add" size={18} color="#fff" />
                       </TouchableOpacity>
                     ) : (
                       <View style={styles.qtyRow}>
                         <TouchableOpacity style={styles.qtyBtn} onPress={() => decrementar(item.id)}>
-                          <Ionicons name="remove" size={14} color={colors.primary} />
+                          <Icono nombre="remove" size={14} color={colors.primary} />
                         </TouchableOpacity>
                         <Text style={styles.qtyTxt}>{qty}</Text>
                         <TouchableOpacity style={styles.qtyBtn} onPress={() => incrementar(item)}>
-                          <Ionicons name="add" size={14} color={colors.primary} />
+                          <Icono nombre="add" size={14} color={colors.primary} />
                         </TouchableOpacity>
                       </View>
                     )}
@@ -1054,7 +1061,7 @@ export default function MesasScreen() {
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Cobrar</Text>
             <TouchableOpacity onPress={() => setModalCobrar(false)}>
-              <Ionicons name="close" size={24} color={colors.textSecondary} />
+              <Icono nombre="close" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={{ padding: spacing.xl }} keyboardShouldPersistTaps="handled">
@@ -1065,10 +1072,10 @@ export default function MesasScreen() {
             <Text style={[styles.fieldLabel, { marginTop: spacing.lg }]}>Cliente para puntos <Text style={{ color: colors.textMuted, fontWeight: '400' }}>(opcional)</Text></Text>
             {clienteSelec ? (
               <View style={styles.clienteSelecRow}>
-                <Ionicons name="person-circle-outline" size={20} color={colors.primary} />
+                <Icono nombre="person-circle-outline" size={20} color={colors.primary} />
                 <Text style={styles.clienteSelecNombre} numberOfLines={1}>{clienteSelec.name}</Text>
                 <TouchableOpacity onPress={() => { setClienteSelec(null); setBusqCliente(''); }}>
-                  <Ionicons name="close-circle" size={20} color={colors.textMuted} />
+                  <Icono nombre="close-circle" size={20} color={colors.textMuted} />
                 </TouchableOpacity>
               </View>
             ) : (
@@ -1108,7 +1115,7 @@ export default function MesasScreen() {
                 style={[styles.metodoPagoBtn, metodoPago === m.key && styles.metodoPagoBtnActive]}
                 onPress={() => setMetodoPago(m.key)}
               >
-                <Ionicons name={m.icon} size={20} color={metodoPago === m.key ? '#fff' : colors.textSecondary} />
+                <Icono nombre={m.icon} size={20} color={metodoPago === m.key ? '#fff' : colors.textSecondary} />
                 <Text style={[styles.metodoPagoText, metodoPago === m.key && { color: '#fff' }]}>{m.label}</Text>
               </TouchableOpacity>
             ))}
@@ -1116,8 +1123,8 @@ export default function MesasScreen() {
                 varios comensales que pagan cada quien lo suyo. Arranca cerrado
                 para no estorbarle a la mesa que paga de una sola forma. */}
             <TouchableOpacity style={styles.dividirBtn} onPress={alternarDivision}>
-              <Ionicons
-                name={dividirCuenta ? 'close-circle-outline' : 'git-branch-outline'}
+              <Icono
+                nombre={dividirCuenta ? 'close-circle-outline' : 'git-branch-outline'}
                 size={16}
                 color={colors.primary}
               />
@@ -1247,7 +1254,7 @@ export default function MesasScreen() {
                         />
                       )}
                       <TouchableOpacity style={styles.pagoQuitar} onPress={() => quitarPagoMesa(i)}>
-                        <Ionicons name="close" size={16} color={colors.danger} />
+                        <Icono nombre="close" size={16} color={colors.danger} />
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -1370,7 +1377,7 @@ export default function MesasScreen() {
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Nueva mesa</Text>
                 <TouchableOpacity onPress={() => setModalCrear(false)}>
-                  <Ionicons name="close" size={24} color={colors.textSecondary} />
+                  <Icono nombre="close" size={24} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
               <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
@@ -1398,182 +1405,191 @@ export default function MesasScreen() {
 
 // ─── Estilos ──────────────────────────────────────────────────────────────────
 
+const campo = { backgroundColor: zc.tarjeta, borderRadius: radios.boton, borderWidth: 1, borderColor: zc.linea };
+const caja  = { backgroundColor: zc.tarjeta, borderRadius: radios.tarjeta, ...sombra };
+
 const styles = StyleSheet.create({
-  // Promos (PLAN_OFERTAS_V1) — en violeta, para distinguirlas de los productos.
-  itemPromo:           { backgroundColor: '#f5f3ff', borderRadius: radius.md, paddingHorizontal: spacing.sm },
-  itemPromoProd:       { fontSize: font.sm - 1, color: '#5b21b6', marginTop: 1 },
-  itemPromoAhorro:     { fontSize: font.sm - 2, color: colors.success, fontWeight: '700', marginTop: 2 },
+  // Promos (PLAN_OFERTAS_V1) — el lila las distingue de los productos.
+  itemPromo:           { backgroundColor: tonos.lila.fondo, borderRadius: radios.boton, paddingHorizontal: 10, borderBottomWidth: 0, marginVertical: 3 },
+  itemPromoProd:       { fontSize: 12.5, color: zc.gris, marginTop: 1 },
+  itemPromoAhorro:     { fontSize: 12.5, color: zc.verde, fontWeight: '500', marginTop: 2 },
   itemQuitar:          { padding: spacing.xs, marginLeft: spacing.xs },
-  promoChip:           { maxWidth: 220, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.lg, backgroundColor: '#f5f3ff', borderWidth: 1, borderColor: '#c4b5fd' },
-  promoChipNombre:     { fontSize: font.sm, fontWeight: '800', color: '#6d28d9' },
-  promoChipSub:        { fontSize: font.sm - 2, color: '#7c3aed', marginTop: 1 },
-  promoEnCarrito:      { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginHorizontal: spacing.md, marginBottom: spacing.xs, padding: spacing.sm, borderRadius: radius.md, backgroundColor: '#f5f3ff', borderWidth: 1, borderColor: '#c4b5fd' },
-  promoEnCarritoTexto: { flex: 1, fontSize: font.sm - 1, color: '#5b21b6', fontWeight: '600' },
-  safe:             { flex: 1, backgroundColor: colors.background },
+  promoChip:           { maxWidth: 230, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 14, backgroundColor: zc.tarjeta, ...sombra, elevation: 2 },
+  promoChipFila:       { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  promoChipNombre:     { fontSize: 14, fontWeight: '500', color: zc.tinta, flexShrink: 1 },
+  promoChipSub:        { fontSize: 12, color: tonos.lila.icono, marginTop: 2 },
+  promoEnCarrito:      { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginHorizontal: 14, marginBottom: 6, padding: 10, borderRadius: radios.boton, backgroundColor: tonos.lila.fondo },
+  promoEnCarritoTexto: { flex: 1, fontSize: 13, color: zc.tinta },
+  safe:             { flex: 1, backgroundColor: zc.fondo },
   centered:         { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header:           { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.lg, paddingBottom: spacing.sm },
-  title:            { fontSize: font.xl, fontWeight: '800', color: colors.textPrimary },
-  btnAdd:           { backgroundColor: colors.primary, width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  btnAdd:           { backgroundColor: zc.azul, width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  sucursalEnCabecera: { marginTop: 12, marginHorizontal: -18 },
 
-  leyenda:          { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, marginBottom: spacing.sm },
-  leyendaItem:      { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  leyendaDot:       { width: 10, height: 10, borderRadius: 5 },
-  leyendaTxt:       { fontSize: font.sm - 1, color: colors.textMuted, fontWeight: '600' },
-  leyendaCount:     { marginLeft: 'auto', fontSize: font.sm - 1, color: colors.textMuted },
+  leyenda:          { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 18, marginTop: 14, marginBottom: 4 },
+  leyendaItem:      { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  leyendaDot:       { width: 8, height: 8, borderRadius: 4 },
+  leyendaTxt:       { fontSize: 13, color: zc.gris },
+  leyendaCount:     { marginLeft: 'auto', fontSize: 13, color: zc.grisSuave },
 
-  grid:             { padding: spacing.lg, paddingTop: spacing.sm },
+  grid:             { paddingHorizontal: 14, paddingTop: 10, paddingBottom: 16 },
 
-  card:             { flex: 1, borderRadius: radius.lg, padding: spacing.md, borderWidth: 2, minHeight: 130, position: 'relative' },
-  cardLibre:        { backgroundColor: '#f0fdf4', borderColor: '#22c55e' },
-  cardOcupada:      { backgroundColor: '#fff7ed', borderColor: '#f59e0b' },
-  statusDot:        { width: 10, height: 10, borderRadius: 5, position: 'absolute', top: spacing.sm, right: spacing.sm },
-  cardName:         { fontSize: font.md, fontWeight: '800', color: colors.textPrimary, marginBottom: 2 },
-  cardZone:         { fontSize: font.sm - 2, color: colors.textMuted, marginBottom: spacing.xs },
-  cardTotal:        { fontSize: font.xl, fontWeight: '800', color: '#d97706', marginTop: spacing.xs },
-  cardMeta:         { fontSize: font.sm - 2, color: colors.textMuted },
-  cardTiempo:       { fontSize: font.sm - 2, color: '#d97706', fontWeight: '700', marginTop: 2 },
-  cardLibreTag:     { marginTop: spacing.sm, alignSelf: 'flex-start', backgroundColor: '#dcfce7', borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 2 },
-  cardLibreText:    { fontSize: font.sm - 2, fontWeight: '700', color: '#16a34a' },
-  capacidadRow:     { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 'auto', paddingTop: spacing.xs },
-  capacidadText:    { fontSize: font.sm - 2, color: colors.textMuted },
+  // La mesa: tarjeta blanca que flota. El estado lo dice el puntito y la
+  // pastilla, no el fondo entero (regla del diseño A).
+  card:             { flex: 1, ...caja, padding: 14, minHeight: 130, position: 'relative' },
+  cardLibre:        {},
+  cardOcupada:      {},
+  statusDot:        { width: 9, height: 9, borderRadius: 5, position: 'absolute', top: 14, right: 14 },
+  cardName:         { fontSize: 15.5, fontWeight: '500', color: zc.tinta, marginBottom: 1, paddingRight: 14 },
+  cardZone:         { fontSize: 12.5, color: zc.grisSuave, marginBottom: 4 },
+  cardTotal:        { fontSize: 20, fontWeight: '700', color: zc.tinta, marginTop: 4, fontVariant: ['tabular-nums'] },
+  cardMeta:         { fontSize: 12.5, color: zc.grisSuave },
+  cardTiempo:       { alignSelf: 'flex-start', fontSize: 12, color: zc.ambarTexto, backgroundColor: zc.ambarSuave, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2, marginTop: 6, overflow: 'hidden' },
+  cardLibreTag:     { marginTop: 8, alignSelf: 'flex-start', backgroundColor: zc.verdeSuave, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
+  cardLibreText:    { fontSize: 12, fontWeight: '500', color: zc.verde },
+  capacidadRow:     { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 'auto', paddingTop: 8 },
+  capacidadText:    { fontSize: 12.5, color: zc.grisSuave },
 
   emptyWrap:        { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md },
-  emptyTitle:       { fontSize: font.lg, fontWeight: '700', color: colors.textMuted },
-  btnCrearVacio:    { marginTop: spacing.sm, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, backgroundColor: colors.primary, borderRadius: radius.md },
-  btnCrearVacioText:{ color: '#fff', fontWeight: '700', fontSize: font.md },
+  emptyTitle:       { fontSize: 16, fontWeight: '500', color: zc.gris },
+  btnCrearVacio:    { marginTop: spacing.sm, paddingHorizontal: 18, paddingVertical: 12, backgroundColor: zc.azul, borderRadius: radios.boton },
+  btnCrearVacioText:{ color: '#fff', fontWeight: '500', fontSize: 15 },
 
-  modalSafe:        { flex: 1, backgroundColor: colors.background },
+  modalSafe:        { flex: 1, backgroundColor: zc.fondo },
   dragHandleWrap:   { alignItems: 'center', paddingTop: spacing.sm, paddingBottom: spacing.xs },
-  dragHandle:       { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border },
-  modalHeader:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingBottom: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
-  modalTitle:       { fontSize: font.xl, fontWeight: '800', color: colors.textPrimary },
-  modalSub:         { fontSize: font.sm - 1, color: colors.textMuted, marginTop: 2 },
+  dragHandle:       { width: 36, height: 4, borderRadius: 2, backgroundColor: '#d5dae2' },
+  modalHeader:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: zc.linea },
+  modalTitle:       { fontSize: 19, fontWeight: '500', color: zc.tinta },
+  modalSub:         { fontSize: 13, color: zc.grisSuave, marginTop: 2 },
 
-  fieldLabel:       { fontSize: font.sm, fontWeight: '700', color: colors.textSecondary, marginBottom: spacing.xs },
-  input:            { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.lg, color: colors.textPrimary, backgroundColor: colors.surface, marginBottom: spacing.md },
-  hint:             { fontSize: font.sm - 1, color: colors.textMuted, marginTop: -spacing.xs, marginBottom: spacing.md },
+  fieldLabel:       { fontSize: 13, color: zc.gris, marginBottom: 6 },
+  input:            { ...campo, padding: 12, fontSize: 16, color: zc.tinta, marginBottom: spacing.md },
+  hint:             { fontSize: 12.5, color: zc.grisSuave, marginTop: -spacing.xs, marginBottom: spacing.md },
 
-  itemRow:          { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border, gap: spacing.sm },
+  // La cuenta: renglones dentro de una tarjeta blanca, con divisores casi invisibles.
+  cuentaCaja:       { ...caja, paddingHorizontal: 14, paddingVertical: 4 },
+  itemRow:          { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: zc.linea, gap: 10 },
   itemEmoji:        { fontSize: 22 },
-  itemName:         { fontSize: font.sm, fontWeight: '600', color: colors.textPrimary },
-  itemNota:         { fontSize: font.sm - 2, color: colors.textMuted },
+  itemName:         { fontSize: 14, fontWeight: '500', color: zc.tinta },
+  itemNota:         { fontSize: 12.5, color: zc.grisSuave },
   // Los extras van en ámbar: cambian el precio y lo que prepara la cocina.
-  itemMods:         { fontSize: font.sm - 2, color: '#b45309', fontWeight: '600' },
-  itemQty:          { fontSize: font.sm, fontWeight: '700', color: colors.textSecondary },
-  itemPrice:        { fontSize: font.sm, fontWeight: '700', color: colors.textPrimary, minWidth: 60, textAlign: 'right' },
-  emptyItems:       { textAlign: 'center', color: colors.textMuted, paddingVertical: spacing.xl },
+  itemMods:         { fontSize: 12.5, color: zc.ambarTexto },
+  itemQty:          { fontSize: 13.5, color: zc.gris },
+  itemPrice:        { fontSize: 14, fontWeight: '700', color: zc.tinta, minWidth: 60, textAlign: 'right', fontVariant: ['tabular-nums'] },
+  emptyItems:       { textAlign: 'center', color: zc.grisSuave, paddingVertical: spacing.xl },
 
-  totalRow:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.md, marginTop: spacing.sm },
-  totalLabel:       { fontSize: font.md, fontWeight: '700', color: colors.textSecondary },
-  totalValue:       { fontSize: font.xxl, fontWeight: '800', color: colors.textPrimary },
+  totalRow:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 4, marginTop: spacing.sm },
+  totalLabel:       { fontSize: 14, color: zc.gris },
+  totalValue:       { fontSize: 24, fontWeight: '700', color: zc.tinta, fontVariant: ['tabular-nums'] },
 
-  detalleFooter:    { flexDirection: 'row', padding: spacing.lg, gap: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border },
-  btnSec:           { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, borderWidth: 1, borderColor: colors.primary, borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.surface },
-  btnSecText:       { color: colors.primary, fontWeight: '700', fontSize: font.sm },
-  btnCobrar:        { flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, backgroundColor: colors.success, borderRadius: radius.md, padding: spacing.md },
-  btnCobrarText:    { color: '#fff', fontWeight: '700', fontSize: font.md },
+  detalleFooter:    { flexDirection: 'row', padding: 16, gap: spacing.sm, backgroundColor: zc.tarjeta, borderTopLeftRadius: 18, borderTopRightRadius: 18, ...sombra, elevation: 10 },
+  btnSec:           { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: radios.boton, padding: 13, backgroundColor: zc.azulSuave },
+  btnSecText:       { color: zc.azul, fontWeight: '500', fontSize: 14.5 },
+  btnCobrar:        { flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: zc.azul, borderRadius: radios.boton, padding: 13 },
+  btnCobrarText:    { color: '#fff', fontWeight: '500', fontSize: 15 },
 
-  searchWrap:       { flexDirection: 'row', alignItems: 'center', margin: spacing.md, marginBottom: spacing.xs, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, paddingHorizontal: spacing.md, gap: spacing.xs },
-  searchInput:      { flex: 1, paddingVertical: spacing.md, fontSize: font.md, color: colors.textPrimary },
+  searchWrap:       { flexDirection: 'row', alignItems: 'center', margin: 14, marginBottom: 8, ...campo, paddingHorizontal: 12, gap: 6 },
+  searchInput:      { flex: 1, paddingVertical: 10, fontSize: 14.5, color: zc.tinta },
 
-  pCard:            { flex: 1, backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.sm, alignItems: 'center', borderWidth: 1, borderColor: colors.border },
+  pCard:            { flex: 1, ...caja, padding: 12, alignItems: 'center' },
   pEmoji:           { fontSize: 28, marginBottom: spacing.xs },
-  pName:            { fontSize: font.sm - 1, fontWeight: '600', color: colors.textPrimary, textAlign: 'center', marginBottom: spacing.xs },
-  pPrice:           { fontSize: font.sm, fontWeight: '800', color: colors.primary, marginBottom: spacing.xs },
-  btnPlusSm:        { backgroundColor: colors.primary, width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  qtyRow:           { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  qtyBtn:           { width: 26, height: 26, borderRadius: 13, borderWidth: 1, borderColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
-  qtyTxt:           { fontSize: font.md, fontWeight: '800', color: colors.textPrimary, minWidth: 18, textAlign: 'center' },
-  agregarFooter:    { padding: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border },
+  pName:            { fontSize: 13.5, fontWeight: '500', color: zc.tinta, textAlign: 'center', marginTop: 6, marginBottom: 2 },
+  pPrice:           { fontSize: 14.5, fontWeight: '700', color: zc.azul, marginBottom: 6 },
+  stockAgotado:     { fontSize: 11.5, color: zc.ambarTexto, backgroundColor: zc.ambarSuave, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1, marginBottom: 4, overflow: 'hidden' },
+  stockPocoFila:    { flexDirection: 'row', alignItems: 'center', gap: 3, marginBottom: 4 },
+  stockPoco:        { fontSize: 11.5, color: zc.ambarTexto },
+  stockHay:         { fontSize: 11.5, color: zc.grisSuave, marginBottom: 4 },
+  btnPlusSm:        { backgroundColor: zc.azul, width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  qtyRow:           { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  qtyBtn:           { width: 28, height: 28, borderRadius: 14, backgroundColor: zc.azulSuave, alignItems: 'center', justifyContent: 'center' },
+  qtyTxt:           { fontSize: 15, fontWeight: '700', color: zc.tinta, minWidth: 18, textAlign: 'center' },
+  agregarFooter:    { padding: 16, backgroundColor: zc.tarjeta, borderTopLeftRadius: 18, borderTopRightRadius: 18, ...sombra, elevation: 10 },
 
-  clienteSelecRow:  { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.primary, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.md },
-  clienteSelecNombre: { flex: 1, fontSize: font.md, fontWeight: '600', color: colors.primary },
-  sugerenciasBox:   { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, marginTop: -spacing.xs, marginBottom: spacing.md, overflow: 'hidden' },
-  sugerenciaItem:   { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
-  sugerenciaNombre: { fontSize: font.md, fontWeight: '600', color: colors.textPrimary },
-  sugerenciaTel:    { fontSize: font.sm - 1, color: colors.textMuted, marginTop: 2 },
+  clienteSelecRow:  { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: zc.azulSuave, borderRadius: radios.boton, padding: 12, marginBottom: spacing.md },
+  clienteSelecNombre: { flex: 1, fontSize: 14.5, fontWeight: '500', color: zc.azul },
+  sugerenciasBox:   { ...caja, borderRadius: radios.boton, marginTop: -spacing.xs, marginBottom: spacing.md, overflow: 'hidden' },
+  sugerenciaItem:   { paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: zc.linea },
+  sugerenciaNombre: { fontSize: 14, fontWeight: '500', color: zc.tinta },
+  sugerenciaTel:    { fontSize: 12.5, color: zc.grisSuave, marginTop: 2 },
 
-  cobrarMesa:       { fontSize: font.lg, fontWeight: '700', color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.xs },
-  cobrarTotal:      { fontSize: 48, fontWeight: '800', color: colors.textPrimary, textAlign: 'center', marginBottom: spacing.md },
-  // Propina (BLOQUE 9) — en verde para distinguirla del dinero de la venta:
-  // no es ingreso del negocio, es del empleado.
+  cobrarMesa:       { fontSize: 14, color: zc.gris, textAlign: 'center', marginBottom: 2 },
+  cobrarTotal:      { fontSize: 40, fontWeight: '700', letterSpacing: -0.5, color: zc.tinta, textAlign: 'center', marginBottom: spacing.md, fontVariant: ['tabular-nums'] },
   // ── Dividir la cuenta (BLOQUE 10) ─────────────────────────────────────────
-  dividirBtn:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, paddingVertical: spacing.sm, marginTop: spacing.md, borderRadius: radius.md, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border, backgroundColor: colors.surface },
-  dividirBtnText:    { fontSize: font.sm, fontWeight: '700', color: colors.primary },
-  pagosBox:          { backgroundColor: colors.primary + '10', borderRadius: radius.md, borderWidth: 1, borderColor: colors.primary + '55', padding: spacing.md, marginTop: spacing.sm },
+  dividirBtn:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, marginTop: 4, borderRadius: radios.boton, backgroundColor: zc.azulSuave },
+  dividirBtnText:    { fontSize: 14, fontWeight: '500', color: zc.azul },
+  pagosBox:          { ...caja, padding: 14, marginTop: 10 },
   pagosHeader:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
-  pagosTitulo:       { fontSize: font.sm, fontWeight: '700', color: colors.primary },
-  pagosFaltante:     { fontSize: font.sm, fontWeight: '800', color: colors.primary },
-  divisionTabs:      { flexDirection: 'row', gap: 4, marginBottom: spacing.sm },
-  divisionTab:       { flex: 1, alignItems: 'center', paddingVertical: 7, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.primary + '55', backgroundColor: colors.surface },
-  divisionTabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  divisionTabText:   { fontSize: font.xs, fontWeight: '700', color: colors.primary },
-  divisionAyuda:     { fontSize: font.xs, color: colors.textSecondary, marginBottom: spacing.sm },
-  divisionItemRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, gap: spacing.sm },
-  divisionItemNombre:{ flex: 1, fontSize: font.xs, color: colors.text },
+  pagosTitulo:       { fontSize: 15, fontWeight: '500', color: zc.tinta },
+  pagosFaltante:     { fontSize: 13.5, fontWeight: '500', color: zc.azul },
+  divisionTabs:      { flexDirection: 'row', gap: 6, marginBottom: 10 },
+  divisionTab:       { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: radios.chip, backgroundColor: zc.fondo },
+  divisionTabActive: { backgroundColor: zc.noche },
+  divisionTabText:   { fontSize: 13, color: zc.gris },
+  divisionAyuda:     { fontSize: 12.5, color: zc.grisSuave, marginBottom: 10 },
+  divisionItemRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, gap: spacing.sm },
+  divisionItemNombre:{ flex: 1, fontSize: 13, color: zc.tinta },
   divisionItemPagos: { flexDirection: 'row', gap: 4 },
-  divisionItemChip:  { width: 26, height: 26, alignItems: 'center', justifyContent: 'center', borderRadius: 13, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  divisionItemChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  divisionItemChipText: { fontSize: font.xs, fontWeight: '700', color: colors.textSecondary },
-  pagosPartesRow:    { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginBottom: spacing.sm },
-  pagosPartesLabel:  { fontSize: font.xs, color: colors.textSecondary },
-  pagosParteBtn:     { paddingHorizontal: spacing.md, paddingVertical: 4, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.primary + '55', backgroundColor: colors.surface },
-  pagosParteBtnText: { fontSize: font.sm, fontWeight: '700', color: colors.primary },
-  pagoRow:           { marginBottom: spacing.sm, gap: 4 },
-  pagoMetodos:       { flexDirection: 'row', gap: 4 },
-  pagoMetodoChip:    { flex: 1, alignItems: 'center', paddingVertical: 6, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  pagoMetodoChipActive: { borderColor: colors.primary, backgroundColor: colors.primary },
-  pagoMetodoChipText:{ fontSize: font.xs, fontWeight: '600', color: colors.textSecondary },
-  pagoInputs:        { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  pagoIndice:        { fontSize: font.xs, color: colors.textSecondary, minWidth: 46 },
-  pagoMontoFijo:     { flex: 1, fontSize: font.sm, fontWeight: '700', color: colors.primary, textAlign: 'right' },
-  pagoInput:         { flex: 1, paddingHorizontal: spacing.sm, paddingVertical: 8, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, color: colors.text, fontSize: font.sm, textAlign: 'right' },
-  pagoInputPropina:  { borderColor: colors.success + '77', backgroundColor: colors.success + '10' },
-  pagoQuitar:        { padding: 8, borderRadius: radius.sm, backgroundColor: colors.danger + '20' },
-  pagoAgregar:       { paddingVertical: spacing.sm, alignItems: 'center', borderRadius: radius.sm, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.primary + '77', backgroundColor: colors.surface },
-  pagoAgregarText:   { fontSize: font.sm, fontWeight: '700', color: colors.primary },
-  pagosTotalRow:     { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.primary + '33' },
-  pagosTotalLabel:   { fontSize: font.xs, color: colors.primary },
-  pagosTotalValor:   { fontSize: font.xs, fontWeight: '700', color: colors.primary },
+  divisionItemChip:  { width: 28, height: 28, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: zc.fondo },
+  divisionItemChipActive: { backgroundColor: zc.noche },
+  divisionItemChipText: { fontSize: 12.5, color: zc.gris },
+  pagosPartesRow:    { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
+  pagosPartesLabel:  { fontSize: 13, color: zc.gris },
+  pagosParteBtn:     { paddingHorizontal: 14, paddingVertical: 5, borderRadius: radios.chip, backgroundColor: zc.azulSuave },
+  pagosParteBtnText: { fontSize: 13.5, fontWeight: '500', color: zc.azul },
+  pagoRow:           { marginBottom: 10, gap: 6 },
+  pagoMetodos:       { flexDirection: 'row', gap: 6 },
+  pagoMetodoChip:    { flex: 1, alignItems: 'center', paddingVertical: 7, borderRadius: radios.chip, backgroundColor: zc.fondo },
+  pagoMetodoChipActive: { backgroundColor: zc.noche },
+  pagoMetodoChipText:{ fontSize: 13, color: zc.gris },
+  pagoInputs:        { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  pagoIndice:        { fontSize: 12.5, color: zc.gris, minWidth: 46 },
+  pagoMontoFijo:     { flex: 1, fontSize: 14, fontWeight: '700', color: zc.tinta, textAlign: 'right', fontVariant: ['tabular-nums'] },
+  pagoInput:         { flex: 1, paddingHorizontal: 10, paddingVertical: 8, borderRadius: radios.boton, backgroundColor: zc.fondo, color: zc.tinta, fontSize: 14, textAlign: 'right' },
+  pagoInputPropina:  { backgroundColor: zc.verdeSuave },
+  pagoQuitar:        { padding: 9, borderRadius: radios.boton, backgroundColor: zc.rojoSuave },
+  pagoAgregar:       { paddingVertical: 10, alignItems: 'center', borderRadius: radios.boton, borderWidth: 1, borderStyle: 'dashed', borderColor: '#bcd0f7' },
+  pagoAgregarText:   { fontSize: 14, fontWeight: '500', color: zc.azul },
+  pagosTotalRow:     { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: zc.linea },
+  pagosTotalLabel:   { fontSize: 13.5, color: zc.gris },
+  pagosTotalValor:   { fontSize: 13.5, fontWeight: '700', color: zc.tinta },
 
-  propinaBox:        { backgroundColor: colors.success + '10', borderRadius: radius.md, borderWidth: 1, borderColor: colors.success + '55', padding: spacing.md, marginTop: spacing.lg },
+  // Propina (BLOQUE 9) — el verde la distingue del dinero de la venta: no es
+  // ingreso del negocio, es del empleado.
+  propinaBox:        { ...caja, padding: 14, marginTop: 14 },
   propinaHeader:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
-  propinaMonto:      { fontSize: font.lg, fontWeight: '800', color: colors.success },
-  propinaBotones:    { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.sm },
-  propinaBtn:        { flex: 1, minWidth: 64, alignItems: 'center', paddingVertical: spacing.sm, borderRadius: radius.md, borderWidth: 2, borderColor: colors.border, backgroundColor: colors.surface },
-  propinaBtnActive:  { borderColor: colors.success, backgroundColor: colors.success },
-  propinaBtnNinguna: { borderColor: colors.textSecondary, backgroundColor: colors.textSecondary },
-  propinaBtnPct:     { fontSize: font.sm, fontWeight: '700', color: colors.textPrimary },
-  propinaBtnMonto:   { fontSize: 11, fontWeight: '500', color: colors.textSecondary },
-  propinaInput:      { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.md, color: colors.textPrimary, backgroundColor: colors.background },
-  propinaMetodoRow:  { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm },
-  propinaMetodoBtn:  { flex: 1, alignItems: 'center', paddingVertical: spacing.sm, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  propinaMetodoBtnActive: { borderColor: colors.success, backgroundColor: colors.success },
-  propinaMetodoText: { fontSize: 11, fontWeight: '600', color: colors.textSecondary },
-  propinaEntregaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.success + '55' },
-  propinaEntregaLabel: { fontSize: font.sm, fontWeight: '700', color: colors.success },
-  propinaEntregaValor: { fontSize: font.lg, fontWeight: '800', color: colors.success },
+  propinaMonto:      { fontSize: 18, fontWeight: '700', color: zc.verde },
+  propinaBotones:    { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: spacing.sm },
+  propinaBtn:        { flex: 1, minWidth: 64, alignItems: 'center', paddingVertical: 8, borderRadius: radios.boton, backgroundColor: zc.fondo },
+  propinaBtnActive:  { backgroundColor: zc.verde },
+  propinaBtnNinguna: { backgroundColor: zc.noche },
+  propinaBtnPct:     { fontSize: 14, fontWeight: '500', color: zc.tinta },
+  propinaBtnMonto:   { fontSize: 11, color: zc.gris },
+  propinaInput:      { borderRadius: radios.boton, padding: 11, fontSize: 14.5, color: zc.tinta, backgroundColor: zc.fondo },
+  propinaMetodoRow:  { flexDirection: 'row', gap: 6, marginTop: spacing.sm },
+  propinaMetodoBtn:  { flex: 1, alignItems: 'center', paddingVertical: 7, borderRadius: radios.chip, backgroundColor: zc.fondo },
+  propinaMetodoBtnActive: { backgroundColor: zc.verde },
+  propinaMetodoText: { fontSize: 12, color: zc.gris },
+  propinaEntregaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: zc.linea },
+  propinaEntregaLabel: { fontSize: 13.5, color: zc.gris },
+  propinaEntregaValor: { fontSize: 18, fontWeight: '700', color: zc.tinta },
 
-  metodoPagoBtn:    { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm, backgroundColor: colors.surface },
-  metodoPagoBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  metodoPagoText:   { fontSize: font.md, fontWeight: '600', color: colors.textPrimary },
+  metodoPagoBtn:    { flexDirection: 'row', alignItems: 'center', gap: 10, ...caja, borderRadius: radios.boton, padding: 13, marginBottom: 8 },
+  metodoPagoBtnActive: { backgroundColor: zc.noche },
+  metodoPagoText:   { fontSize: 15, fontWeight: '500', color: zc.tinta },
 
-  btnPrimary:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: colors.primary, borderRadius: radius.md, padding: spacing.md + 2 },
-  btnPrimaryText:   { color: '#fff', fontWeight: '700', fontSize: font.lg },
+  btnPrimary:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: zc.azul, borderRadius: radios.boton, padding: 14 },
+  btnPrimaryText:   { color: '#fff', fontWeight: '500', fontSize: 16 },
   btnDisabled:      { opacity: 0.6 },
 
   toast: {
     position: 'absolute',
     bottom: 100,
     alignSelf: 'center',
-    backgroundColor: 'rgba(16, 185, 129, 0.95)',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm + 2,
-    borderRadius: radius.xl,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
+    backgroundColor: zc.noche,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: radios.chip,
+    ...sombra,
     elevation: 6,
   },
-  toastText: { color: '#fff', fontWeight: '700', fontSize: font.md },
+  toastText: { color: '#fff', fontWeight: '500', fontSize: 14.5 },
 });
