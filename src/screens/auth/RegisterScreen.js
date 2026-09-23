@@ -4,7 +4,8 @@ import {
   ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Alert, Image,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import { colors, spacing, radius, font } from '../../theme';
+import { StatusBar } from 'expo-status-bar';
+import { colors, spacing, radius, font, zc, radios, sombra } from '../../theme';
 import { friendlyError } from '../../utils/errors';
 
 export default function RegisterScreen({ navigation }) {
@@ -50,9 +51,13 @@ export default function RegisterScreen({ navigation }) {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        <StatusBar style="light" />
+        <View style={styles.banda} />
 
         <View style={styles.header}>
-          <Image source={require('../../../assets/icon.png')} style={styles.logoImg} resizeMode="contain" />
+          <View style={styles.logoCaja}>
+            <Image source={require('../../../assets/icon.png')} style={styles.logoImg} resizeMode="contain" />
+          </View>
           <Text style={styles.appName}>Crear cuenta</Text>
           <Text style={styles.subtitle}>Empieza a usar Zenit en minutos</Text>
         </View>
@@ -120,18 +125,23 @@ export default function RegisterScreen({ navigation }) {
   );
 }
 
+const campo = { backgroundColor: zc.tarjeta, borderRadius: radios.boton, borderWidth: 1, borderColor: zc.linea };
+
 const styles = StyleSheet.create({
-  container:        { flexGrow: 1, backgroundColor: colors.background, padding: spacing.xl, justifyContent: 'center' },
-  header:           { alignItems: 'center', marginBottom: spacing.xl },
-  logoImg:          { width: 72, height: 72, marginBottom: spacing.md },
-  appName:          { fontSize: font.xxl, fontWeight: '800', color: colors.textPrimary, letterSpacing: -0.5 },
-  subtitle:         { fontSize: font.md, color: colors.textSecondary, marginTop: spacing.xs },
-  form:             { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.xl, borderWidth: 1, borderColor: colors.border },
-  label:            { fontSize: font.sm, fontWeight: '600', color: colors.textSecondary, marginBottom: spacing.xs },
-  input:            { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.md, color: colors.textPrimary, backgroundColor: colors.background },
-  btnPrimary:       { backgroundColor: colors.primary, borderRadius: radius.md, padding: spacing.md + 2, alignItems: 'center', marginTop: spacing.xl },
-  btnPrimaryText:   { color: '#fff', fontSize: font.lg, fontWeight: '700' },
+  container:        { flexGrow: 1, backgroundColor: zc.fondo, padding: spacing.xl, paddingTop: 70 },
+  // La franja azul noche de arriba (diseño A), igual que en el login
+  banda:            { position: 'absolute', top: 0, left: 0, right: 0, height: 290, backgroundColor: zc.noche, borderBottomLeftRadius: 28, borderBottomRightRadius: 28 },
+  header:           { alignItems: 'center', marginBottom: 26 },
+  logoCaja:         { width: 72, height: 72, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  logoImg:          { width: 54, height: 54 },
+  appName:          { fontSize: 24, fontWeight: '700', color: zc.enNoche, letterSpacing: -0.3 },
+  subtitle:         { fontSize: 14.5, color: zc.enNocheGris, marginTop: 4 },
+  form:             { backgroundColor: zc.tarjeta, borderRadius: 20, padding: 22, ...sombra, elevation: 6 },
+  label:            { fontSize: 13, color: zc.gris, marginBottom: 6 },
+  input:            { ...campo, backgroundColor: zc.fondo, borderColor: zc.fondo, padding: 13, fontSize: 15, color: zc.tinta },
+  btnPrimary:       { backgroundColor: zc.azul, borderRadius: radios.boton, padding: 15, alignItems: 'center', marginTop: 22 },
+  btnPrimaryText:   { color: '#fff', fontSize: 16, fontWeight: '500' },
   linkWrap:         { alignItems: 'center', marginTop: spacing.xl },
-  linkText:         { color: colors.textSecondary, fontSize: font.md },
-  linkStrong:       { color: colors.primary, fontWeight: '700' },
+  linkText:         { color: zc.gris, fontSize: 14.5 },
+  linkStrong:       { color: zc.azul, fontWeight: '500' },
 });

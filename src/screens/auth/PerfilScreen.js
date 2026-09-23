@@ -4,7 +4,7 @@ import {
   TextInput, Alert, ActivityIndicator, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Cabecera, Icono, IconoEnCuadro } from '../../components/ui';
 import * as SecureStore from 'expo-secure-store';
 import { useAuth } from '../../context/AuthContext';
 import { useNetwork } from '../../context/NetworkContext';
@@ -12,7 +12,7 @@ import {
   verificarPinPuesto, pinBloqueado, minutosBloqueoPin,
   registrarFalloPin, resetFallosPin,
 } from '../../offline/credenciales';
-import { colors, spacing, radius, font } from '../../theme';
+import { colors, spacing, radius, font, zc, radios, sombra } from '../../theme';
 
 export default function PerfilScreen() {
   const { permisosRolesEfectivos, seleccionarPerfil, verificarPasswordAdmin, sessionEmail, logout } = useAuth();
@@ -126,17 +126,14 @@ export default function PerfilScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+      {/* Cabecera azul noche (diseño A) */}
+      <Cabecera titulo="¿Quién está usando la app?" subtitulo="Selecciona tu perfil para continuar" />
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <Ionicons name="person-circle-outline" size={52} color={colors.primary} />
-          <Text style={styles.title}>¿Quién está usando la app?</Text>
-          <Text style={styles.subtitle}>Selecciona tu perfil para continuar</Text>
-        </View>
 
         {!online && (
           <View style={styles.avisoOffline}>
-            <Ionicons name="cloud-offline-outline" size={18} color={colors.textSecondary} />
+            <Icono nombre="cloud-offline-outline" size={18} color={zc.ambar} />
             <Text style={styles.avisoOfflineText}>
               Sin conexión. Se usan los puestos y el PIN guardados en este equipo; la
               comprobación puede tardar un momento.
@@ -148,7 +145,7 @@ export default function PerfilScreen() {
           {puestosActivos.map(p => (
             <TouchableOpacity key={p.rol} style={styles.card} onPress={() => elegirPuesto(p)}>
               <View style={styles.cardLeft}>
-                <Ionicons name="person-outline" size={26} color={colors.primary} />
+                <IconoEnCuadro nombre="person-outline" tono="azul" size={42} />
                 <View>
                   <Text style={styles.cardLabel}>{p.label}</Text>
                   {p.nombre
@@ -158,23 +155,23 @@ export default function PerfilScreen() {
                 </View>
               </View>
               <View style={styles.cardRight}>
-                {p.pinSet && <Ionicons name="lock-closed-outline" size={16} color={colors.textMuted} style={{ marginRight: spacing.xs }} />}
-                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                {p.pinSet && <Icono nombre="lock-closed-outline" size={16} color={zc.grisSuave} style={{ marginRight: spacing.xs }} />}
+                <Icono nombre="chevron-forward" size={18} color={zc.flecha} />
               </View>
             </TouchableOpacity>
           ))}
 
           <TouchableOpacity style={[styles.card, styles.cardAdmin]} onPress={elegirAdmin}>
             <View style={styles.cardLeft}>
-              <Ionicons name="shield-checkmark-outline" size={26} color={colors.textSecondary} />
+              <IconoEnCuadro nombre="shield-checkmark-outline" tono="gris" size={42} />
               <View>
-                <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>Administrador</Text>
+                <Text style={styles.cardLabel}>Administrador</Text>
                 <Text style={styles.cardNombreMuted}>Acceso completo</Text>
               </View>
             </View>
             <View style={styles.cardRight}>
-              {pedirPasswordActivo && <Ionicons name="lock-closed-outline" size={16} color={colors.textMuted} style={{ marginRight: spacing.xs }} />}
-              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+              {pedirPasswordActivo && <Icono nombre="lock-closed-outline" size={16} color={zc.grisSuave} style={{ marginRight: spacing.xs }} />}
+              <Icono nombre="chevron-forward" size={18} color={zc.flecha} />
             </View>
           </TouchableOpacity>
 
@@ -186,19 +183,19 @@ export default function PerfilScreen() {
 
       {/* Modal PIN de empleado */}
       <Modal visible={modalPin} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModalPin(false)}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView style={styles.modalSafe}>
           <View style={styles.dragHandleWrap}><View style={styles.dragHandle} /></View>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Ingresar PIN</Text>
               <TouchableOpacity onPress={() => setModalPin(false)}>
-                <Ionicons name="close" size={24} color={colors.textSecondary} />
+                <Icono nombre="close" size={24} color={zc.gris} />
               </TouchableOpacity>
             </View>
             <View style={{ padding: spacing.xl }}>
               {puestoElegido && (
                 <Text style={styles.pinSubtitle}>
-                  PIN de <Text style={{ fontWeight: '800', color: colors.textPrimary }}>
+                  PIN de <Text style={{ fontWeight: '500', color: zc.tinta }}>
                     {puestoElegido.nombre || puestoElegido.label}
                   </Text>
                 </Text>
@@ -229,19 +226,19 @@ export default function PerfilScreen() {
 
       {/* Modal contraseña admin */}
       <Modal visible={modalAdmin} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModalAdmin(false)}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <SafeAreaView style={styles.modalSafe}>
           <View style={styles.dragHandleWrap}><View style={styles.dragHandle} /></View>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Contraseña del administrador</Text>
               <TouchableOpacity onPress={() => setModalAdmin(false)}>
-                <Ionicons name="close" size={24} color={colors.textSecondary} />
+                <Icono nombre="close" size={24} color={zc.gris} />
               </TouchableOpacity>
             </View>
             <View style={{ padding: spacing.xl }}>
               {sessionEmail ? (
                 <Text style={styles.pinSubtitle}>
-                  Cuenta: <Text style={{ fontWeight: '700', color: colors.textPrimary }}>{sessionEmail}</Text>
+                  Cuenta: <Text style={{ fontWeight: '500', color: zc.tinta }}>{sessionEmail}</Text>
                 </Text>
               ) : null}
               <TextInput
@@ -271,32 +268,32 @@ export default function PerfilScreen() {
   );
 }
 
+const caja = { backgroundColor: zc.tarjeta, borderRadius: radios.tarjeta, ...sombra };
+
 const styles = StyleSheet.create({
-  safe:               { flex: 1, backgroundColor: colors.background },
-  content:            { padding: spacing.lg, paddingTop: spacing.xxl },
-  header:             { alignItems: 'center', marginBottom: spacing.xl, gap: spacing.sm },
-  title:              { fontSize: font.xl, fontWeight: '800', color: colors.textPrimary, textAlign: 'center' },
-  subtitle:           { fontSize: font.sm, color: colors.textMuted, textAlign: 'center' },
-  list:               { gap: spacing.sm },
-  avisoOffline:       { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.md },
-  avisoOfflineText:   { flex: 1, fontSize: font.sm, color: colors.textSecondary, lineHeight: 18 },
-  card:               { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg, borderWidth: 1, borderColor: colors.border },
-  cardAdmin:          { opacity: 0.75 },
-  cardLeft:           { flexDirection: 'row', alignItems: 'center', gap: spacing.md, flex: 1 },
+  safe:               { flex: 1, backgroundColor: zc.fondo },
+  content:            { padding: 14, paddingTop: 16 },
+  list:               { gap: 10 },
+  avisoOffline:       { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: zc.ambarSuave, borderRadius: radios.tarjeta, padding: 14, marginBottom: 12 },
+  avisoOfflineText:   { flex: 1, fontSize: 13.5, color: zc.ambarTexto, lineHeight: 19 },
+  card:               { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', ...caja, padding: 14 },
+  cardAdmin:          {},
+  cardLeft:           { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   cardRight:          { flexDirection: 'row', alignItems: 'center' },
-  cardLabel:          { fontSize: font.md, fontWeight: '700', color: colors.textPrimary },
-  cardNombre:         { fontSize: font.sm, color: colors.primary, fontWeight: '600', marginTop: 2 },
-  cardNombreMuted:    { fontSize: font.sm, color: colors.textMuted, marginTop: 2 },
+  cardLabel:          { fontSize: 15.5, fontWeight: '500', color: zc.tinta },
+  cardNombre:         { fontSize: 13.5, color: zc.azul, marginTop: 2 },
+  cardNombreMuted:    { fontSize: 13.5, color: zc.grisSuave, marginTop: 2 },
   btnCerrarSesion:    { alignItems: 'center', padding: spacing.md, marginTop: spacing.sm },
-  btnCerrarSesionText:{ color: colors.textMuted, fontSize: font.sm },
+  btnCerrarSesionText:{ color: zc.gris, fontSize: 14 },
   dragHandleWrap:     { alignItems: 'center', paddingTop: spacing.sm, paddingBottom: spacing.xs },
-  dragHandle:         { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border },
-  modalHeader:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingBottom: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
-  modalTitle:         { fontSize: font.xl, fontWeight: '800', color: colors.textPrimary },
-  pinSubtitle:        { fontSize: font.md, color: colors.textSecondary, marginBottom: spacing.lg },
-  pinInput:           { borderWidth: 2, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: 32, fontWeight: '800', color: colors.textPrimary, backgroundColor: colors.surface, textAlign: 'center', letterSpacing: 8 },
-  pinInputError:      { borderColor: colors.danger },
-  errorText:          { color: colors.danger, fontSize: font.sm, marginTop: spacing.xs, textAlign: 'center' },
-  btnConfirmar:       { backgroundColor: colors.primary, borderRadius: radius.md, padding: spacing.md + 2, alignItems: 'center', marginTop: spacing.xl },
-  btnConfirmarText:   { color: '#fff', fontSize: font.lg, fontWeight: '700' },
+  dragHandle:         { width: 36, height: 4, borderRadius: 2, backgroundColor: '#d5dae2' },
+  modalSafe:          { flex: 1, backgroundColor: zc.fondo },
+  modalHeader:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: zc.linea },
+  modalTitle:         { fontSize: 19, fontWeight: '500', color: zc.tinta },
+  pinSubtitle:        { fontSize: 15, color: zc.gris, marginBottom: spacing.lg },
+  pinInput:           { borderWidth: 1.5, borderColor: zc.linea, borderRadius: radios.boton, padding: 14, fontSize: 30, fontWeight: '700', color: zc.tinta, backgroundColor: zc.tarjeta, textAlign: 'center', letterSpacing: 8 },
+  pinInputError:      { borderColor: zc.rojo },
+  errorText:          { color: zc.rojo, fontSize: 13.5, marginTop: 6, textAlign: 'center' },
+  btnConfirmar:       { backgroundColor: zc.azul, borderRadius: radios.boton, padding: 15, alignItems: 'center', marginTop: spacing.xl },
+  btnConfirmarText:   { color: '#fff', fontSize: 16, fontWeight: '500' },
 });

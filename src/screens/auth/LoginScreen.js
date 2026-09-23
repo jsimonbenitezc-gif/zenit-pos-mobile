@@ -5,7 +5,8 @@ import {
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api/client';
-import { colors, spacing, radius, font } from '../../theme';
+import { StatusBar } from 'expo-status-bar';
+import { colors, spacing, radius, font, zc, radios, sombra } from '../../theme';
 import { friendlyError } from '../../utils/errors';
 
 export default function LoginScreen({ navigation }) {
@@ -61,9 +62,13 @@ export default function LoginScreen({ navigation }) {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        <StatusBar style="light" />
+        <View style={styles.banda} />
 
         <View style={styles.header}>
-          <Image source={require('../../../assets/icon.png')} style={styles.logoImg} resizeMode="contain" />
+          <View style={styles.logoCaja}>
+            <Image source={require('../../../assets/icon.png')} style={styles.logoImg} resizeMode="contain" />
+          </View>
           <Text style={styles.appName}>Zenit POS</Text>
           <Text style={styles.subtitle}>Sistema de punto de venta</Text>
         </View>
@@ -137,27 +142,32 @@ export default function LoginScreen({ navigation }) {
   );
 }
 
+const campo = { backgroundColor: zc.tarjeta, borderRadius: radios.boton, borderWidth: 1, borderColor: zc.linea };
+
 const styles = StyleSheet.create({
-  container:        { flexGrow: 1, backgroundColor: colors.background, padding: spacing.xl, justifyContent: 'center' },
+  container:        { flexGrow: 1, backgroundColor: zc.fondo, padding: spacing.xl, paddingTop: 84 },
+  // La franja azul noche de arriba (diseño A); la tarjeta del formulario se monta encima
+  banda:            { position: 'absolute', top: 0, left: 0, right: 0, height: 330, backgroundColor: zc.noche, borderBottomLeftRadius: 28, borderBottomRightRadius: 28 },
   separadorLocal:   { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.xl },
-  linea:            { flex: 1, height: 1, backgroundColor: colors.border },
-  separadorTexto:   { color: colors.textMuted, fontSize: font.sm },
-  btnLocal:         { marginTop: spacing.lg, borderWidth: 1.5, borderColor: colors.primary, borderRadius: radius.md, padding: spacing.md + 2, alignItems: 'center' },
-  btnLocalText:     { color: colors.primary, fontSize: font.lg, fontWeight: '700' },
-  btnLocalNota:     { color: colors.textMuted, fontSize: font.sm, textAlign: 'center', marginTop: spacing.sm, lineHeight: 18 },
-  header:           { alignItems: 'center', marginBottom: spacing.xxl },
-  logoImg:          { width: 90, height: 90, marginBottom: spacing.md },
-  appName:          { fontSize: font.xxl + 4, fontWeight: '800', color: colors.textPrimary, letterSpacing: -0.5 },
-  subtitle:         { fontSize: font.md, color: colors.textSecondary, marginTop: spacing.xs },
-  form:             { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.xl, borderWidth: 1, borderColor: colors.border },
-  label:            { fontSize: font.sm, fontWeight: '600', color: colors.textSecondary, marginBottom: spacing.xs },
-  input:            { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.md, color: colors.textPrimary, backgroundColor: colors.background },
-  btnLogin:         { backgroundColor: colors.primary, borderRadius: radius.md, padding: spacing.md + 2, alignItems: 'center', marginTop: spacing.xl },
-  btnLoginText:     { color: '#fff', fontSize: font.lg, fontWeight: '700' },
+  linea:            { flex: 1, height: 1, backgroundColor: '#dde2ea' },
+  separadorTexto:   { color: zc.grisSuave, fontSize: 13.5 },
+  btnLocal:         { marginTop: spacing.lg, backgroundColor: zc.tarjeta, borderRadius: radios.boton, padding: 15, alignItems: 'center', ...sombra },
+  btnLocalText:     { color: zc.azul, fontSize: 16, fontWeight: '500' },
+  btnLocalNota:     { color: zc.grisSuave, fontSize: 13, textAlign: 'center', marginTop: spacing.sm, lineHeight: 19 },
+  header:           { alignItems: 'center', marginBottom: 30 },
+  logoCaja:         { width: 84, height: 84, borderRadius: 22, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  logoImg:          { width: 64, height: 64 },
+  appName:          { fontSize: 26, fontWeight: '700', color: zc.enNoche, letterSpacing: -0.3 },
+  subtitle:         { fontSize: 14.5, color: zc.enNocheGris, marginTop: 4 },
+  form:             { backgroundColor: zc.tarjeta, borderRadius: 20, padding: 22, ...sombra, elevation: 6 },
+  label:            { fontSize: 13, color: zc.gris, marginBottom: 6 },
+  input:            { ...campo, backgroundColor: zc.fondo, borderColor: zc.fondo, padding: 13, fontSize: 15, color: zc.tinta },
+  btnLogin:         { backgroundColor: zc.azul, borderRadius: radios.boton, padding: 15, alignItems: 'center', marginTop: 22 },
+  btnLoginText:     { color: '#fff', fontSize: 16, fontWeight: '500' },
   forgotLink:       { alignItems: 'center', marginTop: spacing.md, minHeight: 20, justifyContent: 'center' },
-  forgotText:       { color: colors.primary, fontSize: font.sm, fontWeight: '600' },
+  forgotText:       { color: zc.azul, fontSize: 13.5, fontWeight: '500' },
   registerLink:     { alignItems: 'center', marginTop: spacing.lg },
-  registerText:     { color: colors.textSecondary, fontSize: font.md },
-  registerStrong:   { color: colors.primary, fontWeight: '700' },
-  footer:           { textAlign: 'center', color: colors.textMuted, fontSize: font.sm - 1, marginTop: spacing.xxl },
+  registerText:     { color: zc.gris, fontSize: 14.5 },
+  registerStrong:   { color: zc.azul, fontWeight: '500' },
+  footer:           { textAlign: 'center', color: zc.grisSuave, fontSize: 12, marginTop: spacing.xxl },
 });
