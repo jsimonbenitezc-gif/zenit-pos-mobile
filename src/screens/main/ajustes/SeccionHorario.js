@@ -1,18 +1,21 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TouchableOpacity, TextInput, Modal, ScrollView,
-  Alert, ActivityIndicator, Platform, KeyboardAvoidingView,
+  View, Text, TouchableOpacity, Modal, ScrollView, Pressable,
+  Alert, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../../api/client';
-import { colors, spacing, font } from '../../../theme';
+import { zc, radios, sombra } from '../../../theme';
+import { Icono } from '../../../components/ui';
 import { SectionTitle, SectionCard, MenuItem, SwitchRow } from './shared';
 import { friendlyError } from '../../../utils/errors';
 import {
   configHorario, normalizarHorario, resumenHorario, horarioPorDefecto,
-  HORARIO_DIAS_CORTO,
+  HORARIO_DIAS,
 } from '../../../utils/horarios';
+import {
+  etiquetaHora, HORAS, minutosPara, partesHora, copiarHorario,
+} from '../../../utils/horarioEditor';
 
 /**
  * Horario del negocio (BLOQUE 14).
@@ -29,6 +32,9 @@ import {
  * Es un ajuste de la CUENTA y lo decide el dueño (el backend responde 403 al
  * resto): que lo cambiara un empleado sería dejarle apagar la alarma que vigila
  * sus propias acciones. Por eso la sección solo se monta con `isOwner`.
+ *
+ * Las horas se ELIGEN tocando (hoja de horas y minutos), nunca con el teclado:
+ * escribir "09:00" con los dos puntos era la parte pesada del editor viejo.
  */
 export function SeccionHorario({ settings, onSaved, styles }) {
   const actual = configHorario(settings);
@@ -36,6 +42,11 @@ export function SeccionHorario({ settings, onSaved, styles }) {
   const [modal, setModal]         = useState(false);
   const [semana, setSemana]       = useState(actual || horarioPorDefecto());
   const [guardando, setGuardando] = useState(false);
+  // Qué hora se está eligiendo: { i, campo: 'abre'|'cierra' } o null.
+  const [selector, setSelector]   = useState(null);
+  // El último día que se tocó: debajo de él aparece "Copiar a los demás días".
+  const [ultimo, setUltimo]       = useState(null);
+  const [copiado, setCopiado]     = useState(null);
 
   const resumen = actual
     ? resumenHorario(actual)
@@ -43,6 +54,8 @@ export function SeccionHorario({ settings, onSaved, styles }) {
 
   function abrir() {
     setSemana(actual ? JSON.parse(JSON.stringify(actual)) : horarioPorDefecto());
+    setUltimo(null);
+    setCopiado(null);
     setModal(true);
   }
 
@@ -75,6 +88,23 @@ export function SeccionHorario({ settings, onSaved, styles }) {
       }
       return copia;
     });
+    setCopiado(null);
+    if (campo !== 'cerrado' || !valor) setUltimo(indice);
+  }
+
+  function copiarALosDemas(indice) {
+    const r = copiarHorario(semana, indice);
+    setSemana(r.semana);
+    setUltimo(null);
+    setCopiado(
+      `Listo: ${etiquetaHora(semana[indice].abre)} a ${etiquetaHora(semana[indice].cierra)} en los demás días.` +
+      (semana.some((d, i) => i !== indice && d.cerrado) ? ' Los días cerrados siguen cerrados.' : '')
+    );
+  }
+
+  function elegirHora(valor) {
+    if (!selector) return;
+    cambiarDia(selector.i, selector.campo, valor);
   }
 
   async function guardar() {
@@ -104,6 +134,10 @@ export function SeccionHorario({ settings, onSaved, styles }) {
     }
   }
 
+  // Lunes primero: así piensa la semana un negocio. El índice guardado no cambia (0 = domingo).
+  const ORDEN = [1, 2, 3, 4, 5, 6, 0];
+  const horaEnSelector = selector ? semana[selector.i]?.[selector.campo] : null;
+
   return (
     <>
       <SectionTitle label="Horario del negocio" />
@@ -118,78 +152,129 @@ export function SeccionHorario({ settings, onSaved, styles }) {
       </SectionCard>
 
       <Modal visible={modal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModal(false)}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Horario del negocio</Text>
-              <TouchableOpacity onPress={() => setModal(false)}>
-                <Ionicons name="close" size={26} color={colors.textSecondary} />
-              </TouchableOpacity>
+        <SafeAreaView style={{ flex: 1, backgroundColor: zc.fondo }}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Horario del negocio</Text>
+            <TouchableOpacity onPress={() => setModal(false)}>
+              <Icono nombre="cerrar" size={24} color={zc.gris} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView contentContainerStyle={{ padding: 14, paddingBottom: 32 }}>
+            <View style={local.tarjeta}>
+              {ORDEN.map((i, pos) => {
+                const dia = semana[i];
+                return (
+                  <View key={i} style={[local.fila, pos > 0 && local.filaLinea]}>
+                    <View style={local.filaArriba}>
+                      <Text style={local.dia}>{HORARIO_DIAS[i][0].toUpperCase() + HORARIO_DIAS[i].slice(1)}</Text>
+                      <TouchableOpacity
+                        style={[local.estado, dia.cerrado ? local.estadoCerrado : local.estadoAbierto]}
+                        onPress={() => cambiarDia(i, 'cerrado', !dia.cerrado)}
+                      >
+                        <Text style={[local.estadoTxt, { color: dia.cerrado ? zc.gris : zc.verde }]}>
+                          {dia.cerrado ? 'Cerrado' : 'Abierto'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {!dia.cerrado && (
+                      <View style={local.horas}>
+                        <TouchableOpacity style={local.hora} onPress={() => setSelector({ i, campo: 'abre' })}>
+                          <Text style={local.horaEtq}>Abre</Text>
+                          <Text style={local.horaTxt}>{etiquetaHora(dia.abre)}</Text>
+                        </TouchableOpacity>
+                        <Icono nombre="derecha" size={16} color={zc.flecha} />
+                        <TouchableOpacity style={local.hora} onPress={() => setSelector({ i, campo: 'cierra' })}>
+                          <Text style={local.horaEtq}>Cierra</Text>
+                          <Text style={local.horaTxt}>{etiquetaHora(dia.cierra)}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+
+                    {ultimo === i && !dia.cerrado && (
+                      <TouchableOpacity style={local.copiar} onPress={() => copiarALosDemas(i)}>
+                        <Icono nombre="documento" size={15} color={zc.azul} />
+                        <Text style={local.copiarTxt}>Copiar este horario a los demás días</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                );
+              })}
             </View>
 
-            <ScrollView contentContainerStyle={{ padding: spacing.xl }} keyboardShouldPersistTaps="handled">
-              {semana.map((dia, i) => (
-                <View key={i} style={local.fila}>
-                  <Text style={local.dia}>{HORARIO_DIAS_CORTO[i]}</Text>
+            {copiado ? <Text style={local.copiado}>{copiado}</Text> : null}
 
-                  <TouchableOpacity
-                    style={[local.chip, dia.cerrado && local.chipActivo]}
-                    onPress={() => cambiarDia(i, 'cerrado', !dia.cerrado)}
-                  >
-                    <Text style={[local.chipTexto, dia.cerrado && local.chipTextoActivo]}>cerrado</Text>
-                  </TouchableOpacity>
+            <Text style={local.ayuda}>
+              ¿Cierras después de medianoche? Pon la hora real de cierre (6 p.m. → 2 a.m.): la madrugada
+              cuenta como parte del día anterior. Para abrir 24 horas, pon la misma hora en los dos.
+            </Text>
 
-                  <TextInput
-                    style={[local.hora, dia.cerrado && local.horaApagada]}
-                    value={dia.abre || ''}
-                    editable={!dia.cerrado}
-                    onChangeText={t => cambiarDia(i, 'abre', t)}
-                    placeholder="09:00"
-                    placeholderTextColor={colors.textMuted}
-                    keyboardType="numbers-and-punctuation"
-                    maxLength={5}
-                  />
-                  <Text style={local.a}>a</Text>
-                  <TextInput
-                    style={[local.hora, dia.cerrado && local.horaApagada]}
-                    value={dia.cierra || ''}
-                    editable={!dia.cerrado}
-                    onChangeText={t => cambiarDia(i, 'cierra', t)}
-                    placeholder="18:00"
-                    placeholderTextColor={colors.textMuted}
-                    keyboardType="numbers-and-punctuation"
-                    maxLength={5}
-                  />
-                </View>
-              ))}
-
-              <Text style={local.ayuda}>
-                Si cierras después de medianoche, pon la hora de cierre igual (18:00 → 02:00):
-                el sistema entiende que la madrugada sigue siendo del día anterior.
-                Para 24 horas, pon la misma hora en apertura y cierre.
+            <View style={local.aviso}>
+              <Text style={local.avisoTexto}>
+                El horario <Text style={{ fontWeight: '700' }}>nunca bloquea la caja</Text>: se puede
+                vender, cobrar y abrir turno a cualquier hora. Lo que hace es marcar en el historial
+                —y avisarte— cuando una cancelación, una devolución, un descuento, un ajuste de
+                inventario o un movimiento de caja ocurren fuera de él. Lo único que restringe es
+                autorizar una pantalla de cocina: fuera de horario solo puedes hacerlo tú.
               </Text>
+            </View>
 
-              <View style={local.aviso}>
-                <Text style={local.avisoTexto}>
-                  El horario <Text style={{ fontWeight: '700' }}>nunca bloquea la caja</Text>: se puede
-                  vender, cobrar y abrir turno a cualquier hora. Lo que hace es marcar en el historial
-                  —y avisarte— cuando una cancelación, una devolución, un descuento, un ajuste de
-                  inventario o un movimiento de caja ocurren fuera de él. Lo único que restringe es
-                  autorizar una pantalla de cocina: fuera de horario solo puedes hacerlo tú.
-                </Text>
-              </View>
+            <TouchableOpacity
+              style={[local.btnGuardar, guardando && { opacity: 0.6 }]}
+              onPress={guardar}
+              disabled={guardando}
+            >
+              {guardando
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={local.btnGuardarText}>Guardar horario</Text>}
+            </TouchableOpacity>
+          </ScrollView>
 
-              <TouchableOpacity
-                style={[local.btnGuardar, guardando && { opacity: 0.6 }]}
-                onPress={guardar}
-                disabled={guardando}
-              >
-                {guardando
-                  ? <ActivityIndicator color="#fff" />
-                  : <Text style={local.btnGuardarText}>Guardar horario</Text>}
-              </TouchableOpacity>
-            </ScrollView>
-          </KeyboardAvoidingView>
+          {/* Hoja para elegir la hora: se toca la hora y luego los minutos. */}
+          <Modal visible={!!selector} transparent animationType="fade" onRequestClose={() => setSelector(null)}>
+            <Pressable style={local.velo} onPress={() => setSelector(null)}>
+              <Pressable style={local.hoja} onPress={() => {}}>
+                {selector && (() => {
+                  const { h, m } = partesHora(horaEnSelector);
+                  return (
+                    <>
+                      <Text style={local.hojaTitulo}>
+                        {selector.campo === 'abre' ? 'Abre' : 'Cierra'} el {HORARIO_DIAS[selector.i]} · {etiquetaHora(horaEnSelector)}
+                      </Text>
+                      <Text style={local.hojaEtq}>Hora</Text>
+                      <View style={local.rejilla}>
+                        {HORAS.map(o => (
+                          <TouchableOpacity
+                            key={o.valor}
+                            style={[local.celda, o.valor === h && local.celdaOn]}
+                            onPress={() => elegirHora(`${o.valor}:${m}`)}
+                          >
+                            <Text style={[local.celdaTxt, o.valor === h && local.celdaTxtOn]}>{o.texto}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                      <Text style={local.hojaEtq}>Minutos</Text>
+                      <View style={local.rejilla}>
+                        {minutosPara(horaEnSelector).map(mm => (
+                          <TouchableOpacity
+                            key={mm}
+                            style={[local.celda, local.celdaMin, mm === m && local.celdaOn]}
+                            onPress={() => elegirHora(`${h}:${mm}`)}
+                          >
+                            <Text style={[local.celdaTxt, mm === m && local.celdaTxtOn]}>:{mm}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                      <TouchableOpacity style={local.listo} onPress={() => setSelector(null)}>
+                        <Text style={local.listoTxt}>Listo</Text>
+                      </TouchableOpacity>
+                    </>
+                  );
+                })()}
+              </Pressable>
+            </Pressable>
+          </Modal>
         </SafeAreaView>
       </Modal>
     </>
@@ -197,31 +282,39 @@ export function SeccionHorario({ settings, onSaved, styles }) {
 }
 
 const local = {
-  fila: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm, gap: spacing.xs },
-  dia:  { width: 40, fontSize: font.sm, fontWeight: '700', color: colors.textSecondary },
-  chip: {
-    paddingHorizontal: spacing.sm, paddingVertical: 6, borderRadius: 8,
-    borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface,
-  },
-  chipActivo:      { borderColor: colors.primary, backgroundColor: colors.primary + '18' },
-  chipTexto:       { fontSize: font.sm - 1, color: colors.textMuted },
-  chipTextoActivo: { color: colors.primary, fontWeight: '700' },
-  hora: {
-    flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: 8,
-    paddingHorizontal: spacing.sm, paddingVertical: 6, textAlign: 'center',
-    color: colors.textPrimary, backgroundColor: colors.surface, fontSize: font.md,
-  },
-  horaApagada: { opacity: 0.4 },
-  a:      { color: colors.textMuted, fontSize: font.sm },
-  ayuda:  { fontSize: font.sm, color: colors.textSecondary, marginTop: spacing.md, lineHeight: 20 },
-  aviso: {
-    marginTop: spacing.lg, padding: spacing.md, borderRadius: 10,
-    backgroundColor: colors.success + '10', borderWidth: 1, borderColor: colors.success + '55',
-  },
-  avisoTexto: { fontSize: font.sm, color: colors.textSecondary, lineHeight: 20 },
-  btnGuardar: {
-    backgroundColor: colors.primary, borderRadius: 10, paddingVertical: spacing.md,
-    alignItems: 'center', marginTop: spacing.xl,
-  },
-  btnGuardarText: { color: '#fff', fontWeight: '700', fontSize: font.md },
+  tarjeta: { backgroundColor: zc.tarjeta, borderRadius: radios.tarjeta, paddingHorizontal: 16, ...sombra },
+  fila: { paddingVertical: 12 },
+  filaLinea: { borderTopWidth: 1, borderTopColor: zc.linea },
+  filaArriba: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  dia: { fontSize: 15, fontWeight: '500', color: zc.tinta },
+  estado: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: radios.chip },
+  estadoAbierto: { backgroundColor: zc.verdeSuave },
+  estadoCerrado: { backgroundColor: zc.fondo },
+  estadoTxt: { fontSize: 13, fontWeight: '500' },
+  horas: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
+  hora: { flex: 1, backgroundColor: zc.fondo, borderRadius: radios.boton, paddingVertical: 8, paddingHorizontal: 12 },
+  horaEtq: { fontSize: 11, color: zc.gris },
+  horaTxt: { fontSize: 16, fontWeight: '700', color: zc.tinta, marginTop: 1 },
+  copiar: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, alignSelf: 'flex-start',
+    backgroundColor: zc.azulSuave, borderRadius: radios.chip, paddingHorizontal: 12, paddingVertical: 7 },
+  copiarTxt: { fontSize: 13, color: zc.azul, fontWeight: '500' },
+  copiado: { fontSize: 13, color: zc.verde, marginTop: 10, lineHeight: 18 },
+  ayuda: { fontSize: 13, color: zc.gris, marginTop: 14, lineHeight: 19 },
+  aviso: { marginTop: 12, padding: 14, borderRadius: radios.tarjeta, backgroundColor: zc.verdeSuave },
+  avisoTexto: { fontSize: 13, color: zc.gris, lineHeight: 19 },
+  btnGuardar: { backgroundColor: zc.azul, borderRadius: radios.boton, paddingVertical: 14, alignItems: 'center', marginTop: 18 },
+  btnGuardarText: { color: '#fff', fontWeight: '500', fontSize: 15 },
+
+  velo: { flex: 1, backgroundColor: 'rgba(17,24,39,0.45)', justifyContent: 'flex-end' },
+  hoja: { backgroundColor: zc.tarjeta, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 18, paddingBottom: 28 },
+  hojaTitulo: { fontSize: 17, fontWeight: '500', color: zc.tinta, marginBottom: 6 },
+  hojaEtq: { fontSize: 12, color: zc.gris, marginTop: 10, marginBottom: 6 },
+  rejilla: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  celda: { width: '23.5%', paddingVertical: 9, borderRadius: radios.boton, backgroundColor: zc.fondo, alignItems: 'center' },
+  celdaMin: { width: '18.5%' },
+  celdaOn: { backgroundColor: zc.noche },
+  celdaTxt: { fontSize: 13.5, color: zc.tinta },
+  celdaTxtOn: { color: '#fff', fontWeight: '500' },
+  listo: { marginTop: 16, backgroundColor: zc.azul, borderRadius: radios.boton, paddingVertical: 13, alignItems: 'center' },
+  listoTxt: { color: '#fff', fontSize: 15, fontWeight: '500' },
 };
