@@ -216,7 +216,7 @@ export default function RentabilidadScreen() {
         </View>
       ))}
 
-      <ScrollView horizontal style={{ flexGrow: 0 }} showsHorizontalScrollIndicator={false}
+      <ScrollView horizontal style={{ flexGrow: 0, flexShrink: 0 }} showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.chipsFila}>
         {ORDENES.map(o => (
           <TouchableOpacity

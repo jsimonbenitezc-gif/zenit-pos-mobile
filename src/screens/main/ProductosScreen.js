@@ -548,7 +548,7 @@ const styles = StyleSheet.create({
   tabTextActive: { color: zc.tinta, fontWeight: '500' },
   searchWrap:      { flexDirection: 'row', alignItems: 'center', marginTop: 10, ...campo, borderWidth: 0, paddingHorizontal: 12, gap: 8 },
   search:          { flex: 1, paddingVertical: 10, fontSize: 14.5, color: zc.tinta },
-  catScroll:       { flexGrow: 0, marginTop: 12, marginBottom: 10, paddingVertical: 2 },
+  catScroll:       { flexGrow: 0, flexShrink: 0, marginTop: 12, marginBottom: 10, paddingVertical: 2 },
   catChip:         { paddingHorizontal: 13, paddingVertical: 7, borderRadius: radios.chip, backgroundColor: zc.tarjeta, elevation: 1, shadowColor: zc.noche, shadowOpacity: 0.05, shadowRadius: 2, shadowOffset: { width: 0, height: 1 } },
   catChipActive:   { backgroundColor: zc.noche },
   catChipText:     { fontSize: 13.5, color: zc.gris },

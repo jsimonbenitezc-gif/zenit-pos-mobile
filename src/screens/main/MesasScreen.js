@@ -935,7 +935,7 @@ export default function MesasScreen() {
           </View>
           {/* PROMOS (PLAN_OFERTAS_V1): solo las activas AHORA, arriba. */}
           {!loadingProductos && promosActivasMesa.length > 0 && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ paddingHorizontal: spacing.md, gap: spacing.sm, paddingBottom: spacing.sm }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }} contentContainerStyle={{ paddingHorizontal: spacing.md, gap: spacing.sm, paddingBottom: spacing.sm }}>
               {promosActivasMesa.map(p => (
                 <TouchableOpacity key={p.id} style={styles.promoChip} onPress={() => setHojaPromo(p)}>
                   <View style={styles.promoChipFila}>

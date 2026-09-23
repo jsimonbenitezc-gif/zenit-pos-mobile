@@ -1805,7 +1805,7 @@ const styles = StyleSheet.create({
   sugerenciaNombre:{ fontSize: 14, fontWeight: '500', color: zc.tinta, flex: 1 },
   sugerenciaTel:  { fontSize: 12.5, color: zc.grisSuave },
   sugerenciaClose:{ padding: spacing.sm, alignItems: 'center' },
-  catScroll:      { flexGrow: 0, marginBottom: 10, paddingVertical: 2 },
+  catScroll:      { flexGrow: 0, flexShrink: 0, marginBottom: 10, paddingVertical: 2 },
   catChip:        { paddingHorizontal: 13, paddingVertical: 7, borderRadius: radios.chip, backgroundColor: zc.tarjeta, elevation: 1, shadowColor: zc.noche, shadowOpacity: 0.05, shadowRadius: 2, shadowOffset: { width: 0, height: 1 } },
   catChipActive:  { backgroundColor: zc.noche },
   catChipText:    { fontSize: 13.5, color: zc.gris },
@@ -1960,8 +1960,8 @@ const styles = StyleSheet.create({
 
   // Promos (PLAN_OFERTAS_V1): el lila las distingue de los productos
   avisoPromoDesc:     { fontSize: 13, color: tonos.lila.icono, marginBottom: spacing.md },
-  promosRow:          { flexGrow: 0, marginBottom: 10, paddingVertical: 2 },
-  promoChip:          { maxWidth: 230, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 14, backgroundColor: zc.tarjeta, ...sombra, elevation: 2 },
+  promosRow:          { flexGrow: 0, flexShrink: 0, marginBottom: 10, paddingVertical: 4 },
+  promoChip:          { maxWidth: 270, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 14, backgroundColor: zc.tarjeta, ...sombra, elevation: 2 },
   promoChipFila:      { flexDirection: 'row', alignItems: 'center', gap: 6 },
   promoChipNombre:    { fontSize: 14, fontWeight: '500', color: zc.tinta, flexShrink: 1 },
   promoChipSub:       { fontSize: 12, color: tonos.lila.icono, marginTop: 2 },

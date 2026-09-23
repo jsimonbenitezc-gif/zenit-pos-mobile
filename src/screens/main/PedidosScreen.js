@@ -356,7 +356,7 @@ export default function PedidosScreen() {
           para que el borde redondeado del chip no se recorte. */}
       <ScrollView
         horizontal
-        style={{ flexGrow: 0 }}
+        style={{ flexGrow: 0, flexShrink: 0 }}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 14, gap: spacing.sm, alignItems: 'center', minHeight: 56 }}
       >
