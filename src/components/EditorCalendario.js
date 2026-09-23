@@ -11,7 +11,7 @@
 // dueño del bar no crea que se equivocó.
 // ============================================================================
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
-import { colors, spacing, radius, font } from '../theme';
+import { colors, spacing, radius, font, zc, tonos, radios, sombra } from '../theme';
 
 const DIAS = [
   { d: 1, t: 'L' }, { d: 2, t: 'M' }, { d: 3, t: 'M' }, { d: 4, t: 'J' },
@@ -68,18 +68,20 @@ export default function EditorCalendario({ valor, onChange }) {
   );
 }
 
+const campo = { backgroundColor: zc.tarjeta, borderRadius: radios.boton, borderWidth: 1, borderColor: zc.linea };
+
 const styles = StyleSheet.create({
   fila:         { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  opcion:       { flex: 1, paddingVertical: spacing.sm, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, alignItems: 'center', backgroundColor: colors.surface },
-  opcionActiva: { backgroundColor: colors.primary, borderColor: colors.primary },
-  opcionTexto:  { fontSize: font.sm - 1, fontWeight: '700', color: colors.textSecondary },
-  detalle:      { marginTop: spacing.sm, gap: spacing.xs },
+  opcion:       { flex: 1, paddingVertical: 10, borderRadius: radios.boton, alignItems: 'center', backgroundColor: zc.tarjeta, ...sombra, elevation: 1 },
+  opcionActiva: { backgroundColor: zc.noche },
+  opcionTexto:  { fontSize: 13.5, color: zc.gris },
+  detalle:      { marginTop: 10, gap: 6 },
   dias:         { flexDirection: 'row', gap: 6, justifyContent: 'space-between' },
-  dia:          { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
-  diaActivo:    { backgroundColor: '#7c3aed', borderColor: '#7c3aed' },
-  diaTexto:     { fontSize: font.sm, fontWeight: '800', color: colors.textSecondary },
-  etiqueta:     { fontSize: font.sm - 1, fontWeight: '700', color: colors.textSecondary, marginTop: spacing.sm },
-  input:        { flex: 1, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: font.md, color: colors.textPrimary, textAlign: 'center' },
-  a:            { fontSize: font.sm, color: colors.textMuted },
-  nota:         { fontSize: font.sm - 2, color: '#7c3aed' },
+  dia:          { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: zc.tarjeta, ...sombra, elevation: 1 },
+  diaActivo:    { backgroundColor: tonos.lila.icono },
+  diaTexto:     { fontSize: 13.5, fontWeight: '500', color: zc.gris },
+  etiqueta:     { fontSize: 13, color: zc.gris, marginTop: 8 },
+  input:        { flex: 1, ...campo, paddingHorizontal: 12, paddingVertical: 9, fontSize: 15, color: zc.tinta, textAlign: 'center' },
+  a:            { fontSize: 13.5, color: zc.grisSuave },
+  nota:         { fontSize: 12.5, color: tonos.lila.icono },
 });

@@ -11,8 +11,8 @@
 // ============================================================================
 import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, Modal, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, radius, font } from '../theme';
+import { Icono } from './ui';
+import { colors, spacing, radius, font, zc, radios, sombra } from '../theme';
 import { formatMoney } from '../utils/money';
 import {
   gruposDeProducto, precioConModificadores, gruposIncompletos,
@@ -97,7 +97,7 @@ export default function ModalModificadores({
           <View style={styles.header}>
             <Text style={styles.titulo} numberOfLines={1}>{producto?.name || 'Producto'}</Text>
             <TouchableOpacity onPress={onCancel} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Ionicons name="close" size={24} color={colors.textSecondary} />
+              <Icono nombre="close" size={24} color={zc.gris} />
             </TouchableOpacity>
           </View>
 
@@ -126,10 +126,10 @@ export default function ModalModificadores({
                         onPress={() => alternar(grupo, opcion.id)}
                         activeOpacity={0.7}
                       >
-                        <Ionicons
-                          name={marcada ? 'checkbox' : 'square-outline'}
+                        <Icono
+                          nombre={marcada ? 'checkbox' : 'square-outline'}
                           size={20}
-                          color={marcada ? colors.primary : colors.textMuted}
+                          color={marcada ? zc.azul : zc.grisSuave}
                         />
                         <Text style={styles.opcionNombre} numberOfLines={1}>{opcion.name}</Text>
                         {delta !== 0 && (
@@ -171,45 +171,45 @@ export default function ModalModificadores({
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  overlay: { flex: 1, backgroundColor: 'rgba(17,24,39,0.55)', justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    padding: spacing.lg,
+    backgroundColor: zc.fondo,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 18,
     paddingBottom: spacing.xl,
   },
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md },
-  titulo: { flex: 1, fontSize: font.lg, fontWeight: '700', color: colors.textPrimary },
-  grupo: { marginBottom: spacing.lg },
-  grupoHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
-  grupoTitulo: { flex: 1, fontSize: 15, fontWeight: '700', color: colors.textPrimary },
+  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
+  titulo: { flex: 1, fontSize: 19, fontWeight: '500', color: zc.tinta },
+  grupo: { marginBottom: 16 },
+  grupoHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  grupoTitulo: { flex: 1, fontSize: 15, fontWeight: '500', color: zc.tinta },
   badgeObligatorio: {
-    fontSize: 11, fontWeight: '700', color: '#b45309',
-    backgroundColor: '#fef3c7', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2,
+    fontSize: 12, color: zc.ambarTexto,
+    backgroundColor: zc.ambarSuave, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, overflow: 'hidden',
   },
-  pista: { fontSize: 12, color: colors.textMuted },
+  pista: { fontSize: 12.5, color: zc.grisSuave },
   opcion: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    paddingVertical: spacing.sm, paddingHorizontal: spacing.md,
-    borderWidth: 2, borderColor: colors.border, borderRadius: radius.md,
-    marginBottom: spacing.xs,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingVertical: 11, paddingHorizontal: 14,
+    backgroundColor: zc.tarjeta, borderWidth: 1.5, borderColor: 'transparent', borderRadius: radios.boton,
+    marginBottom: 6, ...sombra, elevation: 1,
   },
-  opcionActiva: { borderColor: colors.primary, backgroundColor: '#eef2ff' },
-  opcionNombre: { flex: 1, fontSize: 15, color: colors.textPrimary },
-  delta: { fontSize: 14, fontWeight: '700', color: colors.success },
-  deltaNegativo: { color: colors.textMuted },
-  aviso: { color: '#b45309', fontSize: 13, marginBottom: spacing.sm },
+  opcionActiva: { borderColor: zc.azul, backgroundColor: zc.azulSuave },
+  opcionNombre: { flex: 1, fontSize: 15, color: zc.tinta },
+  delta: { fontSize: 14, fontWeight: '700', color: zc.verde },
+  deltaNegativo: { color: zc.gris },
+  aviso: { color: zc.ambarTexto, fontSize: 13, marginBottom: spacing.sm },
   footer: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md,
+    borderTopWidth: 1, borderTopColor: zc.linea, paddingTop: 14,
   },
-  precioLabel: { fontSize: 12, color: colors.textMuted },
-  precioValor: { fontSize: 20, fontWeight: '800', color: colors.textPrimary },
+  precioLabel: { fontSize: 12.5, color: zc.gris },
+  precioValor: { fontSize: 22, fontWeight: '700', color: zc.tinta },
   btnAgregar: {
-    backgroundColor: colors.primary, borderRadius: radius.md,
-    paddingHorizontal: spacing.xl, paddingVertical: spacing.md,
+    backgroundColor: zc.azul, borderRadius: radios.boton,
+    paddingHorizontal: spacing.xl, paddingVertical: 13,
   },
-  btnDeshabilitado: { backgroundColor: colors.textMuted },
-  btnAgregarTexto: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  btnDeshabilitado: { backgroundColor: zc.grisSuave },
+  btnAgregarTexto: { color: '#fff', fontSize: 16, fontWeight: '500' },
 });
