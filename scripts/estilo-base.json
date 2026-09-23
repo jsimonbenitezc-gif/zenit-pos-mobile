@@ -1,6 +1,6 @@
 {
-  "base": "336d64a",
-  "bloque": "PLAN_REDISENO_V1 Bloque 3",
+  "base": "60f44c2",
+  "bloque": "PLAN_REDISENO_V1 Bloque 3 (base movida tras la lógica nueva del selector de iconos)",
   "grupos": {},
   "permitidos": []
 }
