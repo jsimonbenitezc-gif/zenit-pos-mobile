@@ -1,0 +1,22 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<ellipse cx="16" cy="24.8" rx="14.4" ry="5.2" fill="url(#cp_plato)"/>
+<ellipse cx="16" cy="24.4" rx="11.4" ry="3.6" fill="url(#cp_plato_centro)"/>
+<path d="M23.6 13.6C27.6 13.2 29.4 15.4 28.8 18C28.2 20.4 25.8 21.4 23 20.8" stroke="url(#cp_asa)" stroke-width="2.4" stroke-linecap="round"/>
+<path d="M4.4 13.4H25.6C25.6 20 21.2 25 15 25C8.8 25 4.4 20 4.4 13.4Z" fill="url(#cp_taza)"/>
+<path d="M4.4 13.4H25.6C25.6 20 21.2 25 15 25C8.8 25 4.4 20 4.4 13.4Z" fill="url(#cp_taza_sombra)"/>
+<ellipse cx="15" cy="13.4" rx="10.6" ry="3.8" fill="url(#cp_borde)"/>
+<ellipse cx="15" cy="13.5" rx="9.4" ry="3" fill="url(#cp_cafe)"/>
+<path d="M15 16C12.4 15.2 11.2 13.6 12.2 12.4C13 11.6 14.4 12 15 12.8C15.6 12 17 11.6 17.8 12.4C18.8 13.6 17.6 15.2 15 16Z" fill="url(#cp_espuma)"/>
+<path d="M15 16V17.2" stroke="#FFF8EE" stroke-width="0.8" stroke-linecap="round"/>
+<path d="M6.6 17C7.4 19.6 9.2 21.8 11.6 22.8" stroke="#FFFFFF" stroke-opacity="0.8" stroke-width="1" stroke-linecap="round"/>
+<defs>
+<radialGradient id="cp_plato" cx="0.45" cy="0.35" r="0.75"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#CFD6E6"/></radialGradient>
+<radialGradient id="cp_plato_centro" cx="0.5" cy="0.4" r="0.7"><stop stop-color="#E4E9F3"/><stop offset="1" stop-color="#F8F9FC"/></radialGradient>
+<linearGradient id="cp_asa" x1="26" y1="13.4" x2="26" y2="21" gradientUnits="userSpaceOnUse"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#C9CFE0"/></linearGradient>
+<linearGradient id="cp_taza" x1="15" y1="13.4" x2="15" y2="25" gradientUnits="userSpaceOnUse"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#DCE1EE"/></linearGradient>
+<radialGradient id="cp_taza_sombra" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(24 23) rotate(-135) scale(11 7)"><stop stop-color="#8F98B5" stop-opacity="0.55"/><stop offset="1" stop-color="#8F98B5" stop-opacity="0"/></radialGradient>
+<linearGradient id="cp_borde" x1="15" y1="9.6" x2="15" y2="17.2" gradientUnits="userSpaceOnUse"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#E2E6F0"/></linearGradient>
+<radialGradient id="cp_cafe" cx="0.5" cy="0.45" r="0.7"><stop stop-color="#C98A5A"/><stop offset="1" stop-color="#7A4222"/></radialGradient>
+<radialGradient id="cp_espuma" cx="0.45" cy="0.35" r="0.8"><stop stop-color="#FFFDF8"/><stop offset="1" stop-color="#F3E1C8"/></radialGradient>
+</defs>
+</svg>

@@ -1,0 +1,3832 @@
+{
+ "version": 1,
+ "estilo": "fluent-color",
+ "grupos": [
+  {
+   "id": "taqueria",
+   "nombre": "Taquería y antojitos",
+   "tipos": [
+    "restaurante"
+   ],
+   "iconos": [
+    "taco",
+    "burrito",
+    "tamale",
+    "hot_pepper",
+    "ear_of_corn",
+    "onion",
+    "avocado",
+    "lemon",
+    "cheese_wedge",
+    "beans",
+    "z_torta",
+    "z_quesadilla",
+    "z_sope",
+    "z_esquite",
+    "z_pozole",
+    "z_tostada_marisco",
+    "z_tlayuda",
+    "z_chilaquiles",
+    "z_trompo",
+    "z_enchiladas",
+    "z_taco_arabe"
+   ]
+  },
+  {
+   "id": "hamburguesas",
+   "nombre": "Hamburguesas y hot dogs",
+   "tipos": [
+    "restaurante"
+   ],
+   "iconos": [
+    "hamburger",
+    "hot_dog",
+    "french_fries",
+    "sandwich",
+    "onion",
+    "salt",
+    "z_torta",
+    "z_papas_canasta",
+    "z_boneless"
+   ]
+  },
+  {
+   "id": "pollo",
+   "nombre": "Pollo y carnes",
+   "tipos": [
+    "restaurante"
+   ],
+   "iconos": [
+    "poultry_leg",
+    "chicken",
+    "cut_of_meat",
+    "meat_on_bone",
+    "bacon",
+    "fire",
+    "z_alitas",
+    "z_pollo_asado",
+    "z_cubeta_pollo",
+    "z_arrachera",
+    "z_costillas",
+    "z_parrillada",
+    "z_boneless"
+   ]
+  },
+  {
+   "id": "pizzeria",
+   "nombre": "Pizzería e italiana",
+   "tipos": [
+    "restaurante"
+   ],
+   "iconos": [
+    "pizza",
+    "spaghetti",
+    "cheese_wedge",
+    "tomato",
+    "garlic",
+    "olive",
+    "wine_glass",
+    "z_lasana",
+    "z_calzone"
+   ]
+  },
+  {
+   "id": "mariscos",
+   "nombre": "Mariscos",
+   "tipos": [
+    "restaurante"
+   ],
+   "iconos": [
+    "shrimp",
+    "crab",
+    "lobster",
+    "fish",
+    "oyster",
+    "octopus",
+    "squid",
+    "fried_shrimp",
+    "z_coctel_camaron",
+    "z_ceviche",
+    "z_aguachile",
+    "z_tostada_marisco",
+    "z_mojarra_frita"
+   ]
+  },
+  {
+   "id": "desayunos",
+   "nombre": "Desayunos y fonda",
+   "tipos": [
+    "restaurante"
+   ],
+   "iconos": [
+    "pancakes",
+    "waffle",
+    "cooking",
+    "egg",
+    "bacon",
+    "beans",
+    "pot_of_food",
+    "shallow_pan_of_food",
+    "fondue",
+    "bowl_with_spoon",
+    "green_salad",
+    "roasted_sweet_potato",
+    "z_pozole",
+    "z_licuado",
+    "z_jugo_verde",
+    "z_cafe_olla",
+    "z_chilaquiles",
+    "z_huevos_rancheros",
+    "z_enchiladas",
+    "z_molletes",
+    "z_comida_corrida",
+    "z_bowl",
+    "z_wrap"
+   ]
+  },
+  {
+   "id": "japonesa",
+   "nombre": "Japonesa, china y asiática",
+   "tipos": [
+    "restaurante"
+   ],
+   "iconos": [
+    "sushi",
+    "bento_box",
+    "rice_ball",
+    "rice_cracker",
+    "fried_shrimp",
+    "fish_cake_with_swirl",
+    "sake",
+    "steaming_bowl",
+    "cooked_rice",
+    "curry_rice",
+    "dumpling",
+    "takeout_box",
+    "fortune_cookie",
+    "chopsticks",
+    "oden",
+    "dango",
+    "moon_cake",
+    "z_maki",
+    "z_ramen",
+    "z_onigiri_salmon",
+    "z_arroz_frito",
+    "z_pollo_agridulce"
+   ]
+  },
+  {
+   "id": "arabe",
+   "nombre": "Árabe",
+   "tipos": [
+    "restaurante"
+   ],
+   "iconos": [
+    "stuffed_flatbread",
+    "falafel",
+    "flatbread",
+    "oden",
+    "z_taco_arabe",
+    "z_kibbe",
+    "z_hummus",
+    "z_wrap"
+   ]
+  },
+  {
+   "id": "bar",
+   "nombre": "Bar y cantina",
+   "tipos": [
+    "restaurante"
+   ],
+   "iconos": [
+    "beer_mug",
+    "clinking_beer_mugs",
+    "wine_glass",
+    "cocktail_glass",
+    "tropical_drink",
+    "tumbler_glass",
+    "bottle_with_popping_cork",
+    "clinking_glasses",
+    "ice",
+    "mate",
+    "pouring_liquid",
+    "sake",
+    "z_michelada",
+    "z_caguama",
+    "z_cubeta",
+    "z_caballito",
+    "z_mezcal",
+    "z_alitas",
+    "z_papas_canasta",
+    "z_boneless"
+   ]
+  },
+  {
+   "id": "cafe",
+   "nombre": "Cafetería",
+   "tipos": [
+    "restaurante",
+    "panaderia"
+   ],
+   "iconos": [
+    "hot_beverage",
+    "teapot",
+    "teacup_without_handle",
+    "bubble_tea",
+    "glass_of_milk",
+    "baby_bottle",
+    "croissant",
+    "cupcake",
+    "shortcake",
+    "z_churros",
+    "z_crepa",
+    "z_frappe",
+    "z_cafe_olla",
+    "z_capuchino",
+    "z_concha",
+    "z_rol_canela"
+   ]
+  },
+  {
+   "id": "jugos",
+   "nombre": "Jugos y aguas",
+   "tipos": [
+    "restaurante",
+    "tienda"
+   ],
+   "iconos": [
+    "cup_with_straw",
+    "beverage_box",
+    "coconut",
+    "strawberry",
+    "tangerine",
+    "pineapple",
+    "mango",
+    "watermelon",
+    "lemon",
+    "z_agua_fresca",
+    "z_licuado",
+    "z_raspado",
+    "z_coco_popote",
+    "z_jugo_verde"
+   ]
+  },
+  {
+   "id": "postres",
+   "nombre": "Postres y dulces",
+   "tipos": [
+    "restaurante",
+    "panaderia",
+    "tienda"
+   ],
+   "iconos": [
+    "soft_ice_cream",
+    "shaved_ice",
+    "ice_cream",
+    "custard",
+    "doughnut",
+    "cookie",
+    "birthday_cake",
+    "shortcake",
+    "cupcake",
+    "pie",
+    "chocolate_bar",
+    "candy",
+    "lollipop",
+    "honey_pot",
+    "popcorn",
+    "z_churros",
+    "z_paleta_hielo",
+    "z_nieve_vaso",
+    "z_fresas_crema",
+    "z_crepa",
+    "z_raspado",
+    "z_tres_leches"
+   ]
+  },
+  {
+   "id": "panaderia",
+   "nombre": "Panadería",
+   "tipos": [
+    "panaderia",
+    "restaurante"
+   ],
+   "iconos": [
+    "bread",
+    "baguette_bread",
+    "croissant",
+    "bagel",
+    "pretzel",
+    "waffle",
+    "doughnut",
+    "flatbread",
+    "butter",
+    "birthday_cake",
+    "z_concha",
+    "z_rol_canela",
+    "z_bolillo",
+    "z_tres_leches"
+   ]
+  },
+  {
+   "id": "frutas",
+   "nombre": "Frutas",
+   "tipos": [
+    "restaurante",
+    "tienda"
+   ],
+   "iconos": [
+    "grapes",
+    "melon",
+    "watermelon",
+    "tangerine",
+    "lemon",
+    "banana",
+    "pineapple",
+    "mango",
+    "red_apple",
+    "green_apple",
+    "pear",
+    "peach",
+    "cherries",
+    "strawberry",
+    "blueberries",
+    "kiwi_fruit",
+    "coconut"
+   ]
+  },
+  {
+   "id": "verduras",
+   "nombre": "Verduras",
+   "tipos": [
+    "restaurante",
+    "tienda"
+   ],
+   "iconos": [
+    "tomato",
+    "avocado",
+    "eggplant",
+    "potato",
+    "carrot",
+    "ear_of_corn",
+    "hot_pepper",
+    "bell_pepper",
+    "cucumber",
+    "leafy_green",
+    "broccoli",
+    "garlic",
+    "onion",
+    "peanuts",
+    "beans",
+    "chestnut",
+    "olive"
+   ]
+  },
+  {
+   "id": "tienda",
+   "nombre": "Tienda y abarrotes",
+   "tipos": [
+    "tienda"
+   ],
+   "iconos": [
+    "shopping_cart",
+    "canned_food",
+    "beverage_box",
+    "cup_with_straw",
+    "chocolate_bar",
+    "candy",
+    "roll_of_paper",
+    "soap",
+    "salt",
+    "butter",
+    "glass_of_milk",
+    "bread",
+    "egg",
+    "mobile_phone",
+    "z_caguama"
+   ]
+  },
+  {
+   "id": "farmacia",
+   "nombre": "Farmacia",
+   "tipos": [
+    "farmacia"
+   ],
+   "iconos": [
+    "pill",
+    "adhesive_bandage",
+    "thermometer",
+    "lotion_bottle",
+    "face_with_medical_mask",
+    "test_tube",
+    "stethoscope",
+    "roll_of_paper",
+    "soap"
+   ]
+  },
+  {
+   "id": "ropa",
+   "nombre": "Ropa y calzado",
+   "tipos": [
+    "ropa"
+   ],
+   "iconos": [
+    "t_shirt",
+    "dress",
+    "jeans",
+    "running_shoe",
+    "high_heeled_shoe",
+    "billed_cap",
+    "handbag",
+    "socks",
+    "coat",
+    "necktie",
+    "shorts",
+    "bikini",
+    "womans_hat",
+    "backpack"
+   ]
+  },
+  {
+   "id": "salon",
+   "nombre": "Salón de belleza",
+   "tipos": [
+    "salon"
+   ],
+   "iconos": [
+    "person_getting_haircut",
+    "nail_polish",
+    "lipstick",
+    "scissors",
+    "barber_pole",
+    "lotion_bottle",
+    "hair_pick",
+    "mirror"
+   ]
+  },
+  {
+   "id": "servicio",
+   "nombre": "Servicio",
+   "tipos": [
+    "restaurante"
+   ],
+   "iconos": [
+    "fork_and_knife_with_plate",
+    "fork_and_knife",
+    "spoon",
+    "kitchen_knife",
+    "jar",
+    "cook",
+    "receipt",
+    "credit_card"
+   ]
+  },
+  {
+   "id": "general",
+   "nombre": "General",
+   "tipos": [
+    "restaurante",
+    "tienda",
+    "ropa",
+    "salon",
+    "farmacia",
+    "panaderia",
+    "otro"
+   ],
+   "iconos": [
+    "package",
+    "wrapped_gift",
+    "label",
+    "star",
+    "sparkles",
+    "fire",
+    "motor_scooter",
+    "receipt",
+    "shopping_bags",
+    "light_bulb",
+    "pushpin",
+    "money_bag",
+    "party_popper",
+    "red_heart",
+    "thumbs_up",
+    "house",
+    "automobile",
+    "clipboard",
+    "check_mark_button",
+    "alarm_clock",
+    "bell"
+   ]
+  }
+ ],
+ "iconos": [
+  {
+   "id": "taco",
+   "nombre": "Taco",
+   "buscar": [
+    "tacos",
+    "pastor",
+    "suadero",
+    "bistec",
+    "carnitas"
+   ],
+   "emoji": "🌮",
+   "llave": "1f32e",
+   "grupos": [
+    "taqueria"
+   ]
+  },
+  {
+   "id": "burrito",
+   "nombre": "Burrito",
+   "buscar": [
+    "burritos",
+    "wrap",
+    "burro"
+   ],
+   "emoji": "🌯",
+   "llave": "1f32f",
+   "grupos": [
+    "taqueria"
+   ]
+  },
+  {
+   "id": "tamale",
+   "nombre": "Tamal",
+   "buscar": [
+    "tamales"
+   ],
+   "emoji": "🫔",
+   "llave": "1fad4",
+   "grupos": [
+    "taqueria"
+   ]
+  },
+  {
+   "id": "hot_pepper",
+   "nombre": "Chile",
+   "buscar": [
+    "picante",
+    "salsa",
+    "jalapeño",
+    "habanero"
+   ],
+   "emoji": "🌶️",
+   "llave": "1f336",
+   "grupos": [
+    "taqueria",
+    "verduras"
+   ]
+  },
+  {
+   "id": "ear_of_corn",
+   "nombre": "Elote",
+   "buscar": [
+    "maíz",
+    "esquite"
+   ],
+   "emoji": "🌽",
+   "llave": "1f33d",
+   "grupos": [
+    "taqueria",
+    "verduras"
+   ]
+  },
+  {
+   "id": "onion",
+   "nombre": "Cebolla",
+   "buscar": [
+    "aros de cebolla"
+   ],
+   "emoji": "🧅",
+   "llave": "1f9c5",
+   "grupos": [
+    "taqueria",
+    "hamburguesas",
+    "verduras"
+   ]
+  },
+  {
+   "id": "avocado",
+   "nombre": "Aguacate",
+   "buscar": [
+    "guacamole"
+   ],
+   "emoji": "🥑",
+   "llave": "1f951",
+   "grupos": [
+    "taqueria",
+    "verduras"
+   ]
+  },
+  {
+   "id": "lemon",
+   "nombre": "Limón",
+   "buscar": [
+    "limones"
+   ],
+   "emoji": "🍋",
+   "llave": "1f34b",
+   "grupos": [
+    "taqueria",
+    "jugos",
+    "frutas"
+   ]
+  },
+  {
+   "id": "cheese_wedge",
+   "nombre": "Queso",
+   "buscar": [
+    "quesadilla"
+   ],
+   "emoji": "🧀",
+   "llave": "1f9c0",
+   "grupos": [
+    "taqueria",
+    "pizzeria"
+   ]
+  },
+  {
+   "id": "beans",
+   "nombre": "Frijoles",
+   "buscar": [
+    "frijol",
+    "charros"
+   ],
+   "emoji": "🫘",
+   "llave": "1fad8",
+   "grupos": [
+    "taqueria",
+    "desayunos",
+    "verduras"
+   ]
+  },
+  {
+   "id": "hamburger",
+   "nombre": "Hamburguesa",
+   "buscar": [
+    "hamburguesas",
+    "burger"
+   ],
+   "emoji": "🍔",
+   "llave": "1f354",
+   "grupos": [
+    "hamburguesas"
+   ]
+  },
+  {
+   "id": "hot_dog",
+   "nombre": "Hot dog",
+   "buscar": [
+    "jocho",
+    "salchicha"
+   ],
+   "emoji": "🌭",
+   "llave": "1f32d",
+   "grupos": [
+    "hamburguesas"
+   ]
+  },
+  {
+   "id": "french_fries",
+   "nombre": "Papas fritas",
+   "buscar": [
+    "papas",
+    "francesa"
+   ],
+   "emoji": "🍟",
+   "llave": "1f35f",
+   "grupos": [
+    "hamburguesas"
+   ]
+  },
+  {
+   "id": "sandwich",
+   "nombre": "Sándwich",
+   "buscar": [
+    "sandwich",
+    "torta",
+    "baguette"
+   ],
+   "emoji": "🥪",
+   "llave": "1f96a",
+   "grupos": [
+    "hamburguesas"
+   ]
+  },
+  {
+   "id": "salt",
+   "nombre": "Sal",
+   "buscar": [
+    "salero"
+   ],
+   "emoji": "🧂",
+   "llave": "1f9c2",
+   "grupos": [
+    "hamburguesas",
+    "tienda"
+   ]
+  },
+  {
+   "id": "poultry_leg",
+   "nombre": "Pollo",
+   "buscar": [
+    "pierna",
+    "muslo",
+    "alitas",
+    "boneless"
+   ],
+   "emoji": "🍗",
+   "llave": "1f357",
+   "grupos": [
+    "pollo"
+   ]
+  },
+  {
+   "id": "chicken",
+   "nombre": "Gallina",
+   "buscar": [
+    "pollo entero",
+    "pollo asado"
+   ],
+   "emoji": "🐔",
+   "llave": "1f414",
+   "grupos": [
+    "pollo"
+   ]
+  },
+  {
+   "id": "cut_of_meat",
+   "nombre": "Carne",
+   "buscar": [
+    "arrachera",
+    "bistec",
+    "corte",
+    "filete"
+   ],
+   "emoji": "🥩",
+   "llave": "1f969",
+   "grupos": [
+    "pollo"
+   ]
+  },
+  {
+   "id": "meat_on_bone",
+   "nombre": "Costilla",
+   "buscar": [
+    "costillas",
+    "hueso",
+    "parrillada"
+   ],
+   "emoji": "🍖",
+   "llave": "1f356",
+   "grupos": [
+    "pollo"
+   ]
+  },
+  {
+   "id": "bacon",
+   "nombre": "Tocino",
+   "buscar": [
+    "bacon"
+   ],
+   "emoji": "🥓",
+   "llave": "1f953",
+   "grupos": [
+    "pollo",
+    "desayunos"
+   ]
+  },
+  {
+   "id": "fire",
+   "nombre": "Fuego",
+   "buscar": [
+    "al carbón",
+    "asado",
+    "promoción",
+    "popular"
+   ],
+   "emoji": "🔥",
+   "llave": "1f525",
+   "grupos": [
+    "pollo",
+    "general"
+   ]
+  },
+  {
+   "id": "pizza",
+   "nombre": "Pizza",
+   "buscar": [
+    "pizzas",
+    "rebanada"
+   ],
+   "emoji": "🍕",
+   "llave": "1f355",
+   "grupos": [
+    "pizzeria"
+   ]
+  },
+  {
+   "id": "spaghetti",
+   "nombre": "Espagueti",
+   "buscar": [
+    "pasta",
+    "spaghetti",
+    "fideos"
+   ],
+   "emoji": "🍝",
+   "llave": "1f35d",
+   "grupos": [
+    "pizzeria"
+   ]
+  },
+  {
+   "id": "tomato",
+   "nombre": "Jitomate",
+   "buscar": [
+    "tomate"
+   ],
+   "emoji": "🍅",
+   "llave": "1f345",
+   "grupos": [
+    "pizzeria",
+    "verduras"
+   ]
+  },
+  {
+   "id": "garlic",
+   "nombre": "Ajo",
+   "buscar": [],
+   "emoji": "🧄",
+   "llave": "1f9c4",
+   "grupos": [
+    "pizzeria",
+    "verduras"
+   ]
+  },
+  {
+   "id": "olive",
+   "nombre": "Aceituna",
+   "buscar": [
+    "aceitunas",
+    "olivo"
+   ],
+   "emoji": "🫒",
+   "llave": "1fad2",
+   "grupos": [
+    "pizzeria",
+    "verduras"
+   ]
+  },
+  {
+   "id": "wine_glass",
+   "nombre": "Vino tinto",
+   "buscar": [
+    "vino",
+    "copa de vino"
+   ],
+   "emoji": "🍷",
+   "llave": "1f377",
+   "grupos": [
+    "pizzeria",
+    "bar"
+   ]
+  },
+  {
+   "id": "shrimp",
+   "nombre": "Camarón",
+   "buscar": [
+    "camarones",
+    "coctel"
+   ],
+   "emoji": "🦐",
+   "llave": "1f990",
+   "grupos": [
+    "mariscos"
+   ]
+  },
+  {
+   "id": "crab",
+   "nombre": "Cangrejo",
+   "buscar": [
+    "jaiba"
+   ],
+   "emoji": "🦀",
+   "llave": "1f980",
+   "grupos": [
+    "mariscos"
+   ]
+  },
+  {
+   "id": "lobster",
+   "nombre": "Langosta",
+   "buscar": [],
+   "emoji": "🦞",
+   "llave": "1f99e",
+   "grupos": [
+    "mariscos"
+   ]
+  },
+  {
+   "id": "fish",
+   "nombre": "Pescado",
+   "buscar": [
+    "filete de pescado",
+    "mojarra"
+   ],
+   "emoji": "🐟",
+   "llave": "1f41f",
+   "grupos": [
+    "mariscos"
+   ]
+  },
+  {
+   "id": "oyster",
+   "nombre": "Ostión",
+   "buscar": [
+    "ostiones",
+    "ostra"
+   ],
+   "emoji": "🦪",
+   "llave": "1f9aa",
+   "grupos": [
+    "mariscos"
+   ]
+  },
+  {
+   "id": "octopus",
+   "nombre": "Pulpo",
+   "buscar": [],
+   "emoji": "🐙",
+   "llave": "1f419",
+   "grupos": [
+    "mariscos"
+   ]
+  },
+  {
+   "id": "squid",
+   "nombre": "Calamar",
+   "buscar": [
+    "calamares"
+   ],
+   "emoji": "🦑",
+   "llave": "1f991",
+   "grupos": [
+    "mariscos"
+   ]
+  },
+  {
+   "id": "fried_shrimp",
+   "nombre": "Camarón empanizado",
+   "buscar": [
+    "tempura",
+    "camarón frito"
+   ],
+   "emoji": "🍤",
+   "llave": "1f364",
+   "grupos": [
+    "mariscos",
+    "japonesa"
+   ]
+  },
+  {
+   "id": "pancakes",
+   "nombre": "Hot cakes",
+   "buscar": [
+    "hotcakes",
+    "panqueques"
+   ],
+   "emoji": "🥞",
+   "llave": "1f95e",
+   "grupos": [
+    "desayunos"
+   ]
+  },
+  {
+   "id": "waffle",
+   "nombre": "Waffle",
+   "buscar": [
+    "wafle",
+    "gofre"
+   ],
+   "emoji": "🧇",
+   "llave": "1f9c7",
+   "grupos": [
+    "desayunos",
+    "panaderia"
+   ]
+  },
+  {
+   "id": "cooking",
+   "nombre": "Huevo estrellado",
+   "buscar": [
+    "huevos",
+    "desayuno",
+    "sartén"
+   ],
+   "emoji": "🍳",
+   "llave": "1f373",
+   "grupos": [
+    "desayunos"
+   ]
+  },
+  {
+   "id": "egg",
+   "nombre": "Huevo",
+   "buscar": [
+    "huevos"
+   ],
+   "emoji": "🥚",
+   "llave": "1f95a",
+   "grupos": [
+    "desayunos",
+    "tienda"
+   ]
+  },
+  {
+   "id": "pot_of_food",
+   "nombre": "Caldo",
+   "buscar": [
+    "sopa",
+    "pozole",
+    "menudo",
+    "olla"
+   ],
+   "emoji": "🍲",
+   "llave": "1f372",
+   "grupos": [
+    "desayunos"
+   ]
+  },
+  {
+   "id": "shallow_pan_of_food",
+   "nombre": "Guisado",
+   "buscar": [
+    "paella",
+    "cazuela"
+   ],
+   "emoji": "🥘",
+   "llave": "1f958",
+   "grupos": [
+    "desayunos"
+   ]
+  },
+  {
+   "id": "fondue",
+   "nombre": "Fondue",
+   "buscar": [
+    "cazuela"
+   ],
+   "emoji": "🫕",
+   "llave": "1fad5",
+   "grupos": [
+    "desayunos"
+   ]
+  },
+  {
+   "id": "bowl_with_spoon",
+   "nombre": "Cereal",
+   "buscar": [
+    "avena",
+    "plato hondo",
+    "bowl"
+   ],
+   "emoji": "🥣",
+   "llave": "1f963",
+   "grupos": [
+    "desayunos"
+   ]
+  },
+  {
+   "id": "green_salad",
+   "nombre": "Ensalada",
+   "buscar": [
+    "ensaladas",
+    "verde"
+   ],
+   "emoji": "🥗",
+   "llave": "1f957",
+   "grupos": [
+    "desayunos"
+   ]
+  },
+  {
+   "id": "roasted_sweet_potato",
+   "nombre": "Camote",
+   "buscar": [
+    "batata"
+   ],
+   "emoji": "🍠",
+   "llave": "1f360",
+   "grupos": [
+    "desayunos"
+   ]
+  },
+  {
+   "id": "sushi",
+   "nombre": "Sushi",
+   "buscar": [
+    "nigiri"
+   ],
+   "emoji": "🍣",
+   "llave": "1f363",
+   "grupos": [
+    "japonesa"
+   ]
+  },
+  {
+   "id": "bento_box",
+   "nombre": "Bento",
+   "buscar": [
+    "caja de comida",
+    "comida corrida"
+   ],
+   "emoji": "🍱",
+   "llave": "1f371",
+   "grupos": [
+    "japonesa"
+   ]
+  },
+  {
+   "id": "rice_ball",
+   "nombre": "Onigiri",
+   "buscar": [
+    "bola de arroz"
+   ],
+   "emoji": "🍙",
+   "llave": "1f359",
+   "grupos": [
+    "japonesa"
+   ]
+  },
+  {
+   "id": "rice_cracker",
+   "nombre": "Galleta de arroz",
+   "buscar": [],
+   "emoji": "🍘",
+   "llave": "1f358",
+   "grupos": [
+    "japonesa"
+   ]
+  },
+  {
+   "id": "fish_cake_with_swirl",
+   "nombre": "Kamaboko",
+   "buscar": [
+    "surimi"
+   ],
+   "emoji": "🍥",
+   "llave": "1f365",
+   "grupos": [
+    "japonesa"
+   ]
+  },
+  {
+   "id": "sake",
+   "nombre": "Sake",
+   "buscar": [],
+   "emoji": "🍶",
+   "llave": "1f376",
+   "grupos": [
+    "japonesa",
+    "bar"
+   ]
+  },
+  {
+   "id": "steaming_bowl",
+   "nombre": "Ramen",
+   "buscar": [
+    "sopa de fideos",
+    "maruchan"
+   ],
+   "emoji": "🍜",
+   "llave": "1f35c",
+   "grupos": [
+    "japonesa"
+   ]
+  },
+  {
+   "id": "cooked_rice",
+   "nombre": "Arroz",
+   "buscar": [
+    "arroz blanco"
+   ],
+   "emoji": "🍚",
+   "llave": "1f35a",
+   "grupos": [
+    "japonesa"
+   ]
+  },
+  {
+   "id": "curry_rice",
+   "nombre": "Curry",
+   "buscar": [
+    "arroz con curry"
+   ],
+   "emoji": "🍛",
+   "llave": "1f35b",
+   "grupos": [
+    "japonesa"
+   ]
+  },
+  {
+   "id": "dumpling",
+   "nombre": "Dumpling",
+   "buscar": [
+    "empanada",
+    "gyoza"
+   ],
+   "emoji": "🥟",
+   "llave": "1f95f",
+   "grupos": [
+    "japonesa"
+   ]
+  },
+  {
+   "id": "takeout_box",
+   "nombre": "Comida china",
+   "buscar": [
+    "para llevar",
+    "arroz frito"
+   ],
+   "emoji": "🥡",
+   "llave": "1f961",
+   "grupos": [
+    "japonesa"
+   ]
+  },
+  {
+   "id": "fortune_cookie",
+   "nombre": "Galleta de la fortuna",
+   "buscar": [],
+   "emoji": "🥠",
+   "llave": "1f960",
+   "grupos": [
+    "japonesa"
+   ]
+  },
+  {
+   "id": "chopsticks",
+   "nombre": "Palillos",
+   "buscar": [],
+   "emoji": "🥢",
+   "llave": "1f962",
+   "grupos": [
+    "japonesa"
+   ]
+  },
+  {
+   "id": "oden",
+   "nombre": "Brocheta",
+   "buscar": [
+    "oden",
+    "banderilla"
+   ],
+   "emoji": "🍢",
+   "llave": "1f362",
+   "grupos": [
+    "japonesa",
+    "arabe"
+   ]
+  },
+  {
+   "id": "dango",
+   "nombre": "Dango",
+   "buscar": [
+    "dulce japonés"
+   ],
+   "emoji": "🍡",
+   "llave": "1f361",
+   "grupos": [
+    "japonesa"
+   ]
+  },
+  {
+   "id": "moon_cake",
+   "nombre": "Pastel de luna",
+   "buscar": [],
+   "emoji": "🥮",
+   "llave": "1f96e",
+   "grupos": [
+    "japonesa"
+   ]
+  },
+  {
+   "id": "stuffed_flatbread",
+   "nombre": "Pan árabe",
+   "buscar": [
+    "shawarma",
+    "kebab",
+    "gyro"
+   ],
+   "emoji": "🥙",
+   "llave": "1f959",
+   "grupos": [
+    "arabe"
+   ]
+  },
+  {
+   "id": "falafel",
+   "nombre": "Falafel",
+   "buscar": [
+    "croquetas"
+   ],
+   "emoji": "🧆",
+   "llave": "1f9c6",
+   "grupos": [
+    "arabe"
+   ]
+  },
+  {
+   "id": "flatbread",
+   "nombre": "Tortilla",
+   "buscar": [
+    "pan plano",
+    "tortillas",
+    "tlayuda"
+   ],
+   "emoji": "🫓",
+   "llave": "1fad3",
+   "grupos": [
+    "arabe",
+    "panaderia"
+   ]
+  },
+  {
+   "id": "beer_mug",
+   "nombre": "Cerveza",
+   "buscar": [
+    "chela",
+    "tarro"
+   ],
+   "emoji": "🍺",
+   "llave": "1f37a",
+   "grupos": [
+    "bar"
+   ]
+  },
+  {
+   "id": "clinking_beer_mugs",
+   "nombre": "Cervezas",
+   "buscar": [
+    "brindis",
+    "cubeta"
+   ],
+   "emoji": "🍻",
+   "llave": "1f37b",
+   "grupos": [
+    "bar"
+   ]
+  },
+  {
+   "id": "cocktail_glass",
+   "nombre": "Martini",
+   "buscar": [
+    "coctel",
+    "cóctel"
+   ],
+   "emoji": "🍸",
+   "llave": "1f378",
+   "grupos": [
+    "bar"
+   ]
+  },
+  {
+   "id": "tropical_drink",
+   "nombre": "Bebida tropical",
+   "buscar": [
+    "coctel",
+    "piña colada",
+    "margarita"
+   ],
+   "emoji": "🍹",
+   "llave": "1f379",
+   "grupos": [
+    "bar"
+   ]
+  },
+  {
+   "id": "tumbler_glass",
+   "nombre": "Whisky",
+   "buscar": [
+    "tequila",
+    "mezcal",
+    "caballito",
+    "shot"
+   ],
+   "emoji": "🥃",
+   "llave": "1f943",
+   "grupos": [
+    "bar"
+   ]
+  },
+  {
+   "id": "bottle_with_popping_cork",
+   "nombre": "Champaña",
+   "buscar": [
+    "botella",
+    "descorche"
+   ],
+   "emoji": "🍾",
+   "llave": "1f37e",
+   "grupos": [
+    "bar"
+   ]
+  },
+  {
+   "id": "clinking_glasses",
+   "nombre": "Copas",
+   "buscar": [
+    "brindis",
+    "espumoso"
+   ],
+   "emoji": "🥂",
+   "llave": "1f942",
+   "grupos": [
+    "bar"
+   ]
+  },
+  {
+   "id": "ice",
+   "nombre": "Hielo",
+   "buscar": [
+    "bolsa de hielo"
+   ],
+   "emoji": "🧊",
+   "llave": "1f9ca",
+   "grupos": [
+    "bar"
+   ]
+  },
+  {
+   "id": "mate",
+   "nombre": "Mate",
+   "buscar": [
+    "té de hierba"
+   ],
+   "emoji": "🧉",
+   "llave": "1f9c9",
+   "grupos": [
+    "bar"
+   ]
+  },
+  {
+   "id": "pouring_liquid",
+   "nombre": "Servir",
+   "buscar": [
+    "jarra",
+    "bebida servida"
+   ],
+   "emoji": "🫗",
+   "llave": "1fad7",
+   "grupos": [
+    "bar"
+   ]
+  },
+  {
+   "id": "hot_beverage",
+   "nombre": "Café",
+   "buscar": [
+    "cafe",
+    "americano",
+    "capuchino",
+    "latte"
+   ],
+   "emoji": "☕",
+   "llave": "2615",
+   "grupos": [
+    "cafe"
+   ]
+  },
+  {
+   "id": "teapot",
+   "nombre": "Tetera",
+   "buscar": [
+    "té"
+   ],
+   "emoji": "🫖",
+   "llave": "1fad6",
+   "grupos": [
+    "cafe"
+   ]
+  },
+  {
+   "id": "teacup_without_handle",
+   "nombre": "Té",
+   "buscar": [
+    "té verde",
+    "infusión"
+   ],
+   "emoji": "🍵",
+   "llave": "1f375",
+   "grupos": [
+    "cafe"
+   ]
+  },
+  {
+   "id": "bubble_tea",
+   "nombre": "Té de burbujas",
+   "buscar": [
+    "boba",
+    "frappé"
+   ],
+   "emoji": "🧋",
+   "llave": "1f9cb",
+   "grupos": [
+    "cafe"
+   ]
+  },
+  {
+   "id": "glass_of_milk",
+   "nombre": "Leche",
+   "buscar": [
+    "vaso de leche"
+   ],
+   "emoji": "🥛",
+   "llave": "1f95b",
+   "grupos": [
+    "cafe",
+    "tienda"
+   ]
+  },
+  {
+   "id": "baby_bottle",
+   "nombre": "Biberón",
+   "buscar": [
+    "mamila"
+   ],
+   "emoji": "🍼",
+   "llave": "1f37c",
+   "grupos": [
+    "cafe"
+   ]
+  },
+  {
+   "id": "croissant",
+   "nombre": "Cuerno",
+   "buscar": [
+    "croissant",
+    "cuernito"
+   ],
+   "emoji": "🥐",
+   "llave": "1f950",
+   "grupos": [
+    "cafe",
+    "panaderia"
+   ]
+  },
+  {
+   "id": "cupcake",
+   "nombre": "Panqué",
+   "buscar": [
+    "cupcake",
+    "magdalena"
+   ],
+   "emoji": "🧁",
+   "llave": "1f9c1",
+   "grupos": [
+    "cafe",
+    "postres"
+   ]
+  },
+  {
+   "id": "shortcake",
+   "nombre": "Rebanada de pastel",
+   "buscar": [
+    "pastel",
+    "tres leches",
+    "pay"
+   ],
+   "emoji": "🍰",
+   "llave": "1f370",
+   "grupos": [
+    "cafe",
+    "postres"
+   ]
+  },
+  {
+   "id": "cup_with_straw",
+   "nombre": "Refresco",
+   "buscar": [
+    "soda",
+    "vaso con popote",
+    "bebida"
+   ],
+   "emoji": "🥤",
+   "llave": "1f964",
+   "grupos": [
+    "jugos",
+    "tienda"
+   ]
+  },
+  {
+   "id": "beverage_box",
+   "nombre": "Jugo",
+   "buscar": [
+    "juguito",
+    "cajita"
+   ],
+   "emoji": "🧃",
+   "llave": "1f9c3",
+   "grupos": [
+    "jugos",
+    "tienda"
+   ]
+  },
+  {
+   "id": "coconut",
+   "nombre": "Coco",
+   "buscar": [],
+   "emoji": "🥥",
+   "llave": "1f965",
+   "grupos": [
+    "jugos",
+    "frutas"
+   ]
+  },
+  {
+   "id": "strawberry",
+   "nombre": "Fresa",
+   "buscar": [
+    "fresas"
+   ],
+   "emoji": "🍓",
+   "llave": "1f353",
+   "grupos": [
+    "jugos",
+    "frutas"
+   ]
+  },
+  {
+   "id": "tangerine",
+   "nombre": "Naranja",
+   "buscar": [
+    "jugo de naranja"
+   ],
+   "emoji": "🍊",
+   "llave": "1f34a",
+   "grupos": [
+    "jugos",
+    "frutas"
+   ]
+  },
+  {
+   "id": "pineapple",
+   "nombre": "Piña",
+   "buscar": [],
+   "emoji": "🍍",
+   "llave": "1f34d",
+   "grupos": [
+    "jugos",
+    "frutas"
+   ]
+  },
+  {
+   "id": "mango",
+   "nombre": "Mango",
+   "buscar": [],
+   "emoji": "🥭",
+   "llave": "1f96d",
+   "grupos": [
+    "jugos",
+    "frutas"
+   ]
+  },
+  {
+   "id": "watermelon",
+   "nombre": "Sandía",
+   "buscar": [],
+   "emoji": "🍉",
+   "llave": "1f349",
+   "grupos": [
+    "jugos",
+    "frutas"
+   ]
+  },
+  {
+   "id": "soft_ice_cream",
+   "nombre": "Helado de cono",
+   "buscar": [
+    "helado",
+    "nieve",
+    "cono"
+   ],
+   "emoji": "🍦",
+   "llave": "1f366",
+   "grupos": [
+    "postres"
+   ]
+  },
+  {
+   "id": "shaved_ice",
+   "nombre": "Raspado",
+   "buscar": [
+    "granizado",
+    "hielo raspado"
+   ],
+   "emoji": "🍧",
+   "llave": "1f367",
+   "grupos": [
+    "postres"
+   ]
+  },
+  {
+   "id": "ice_cream",
+   "nombre": "Helado en copa",
+   "buscar": [
+    "helado",
+    "nieve"
+   ],
+   "emoji": "🍨",
+   "llave": "1f368",
+   "grupos": [
+    "postres"
+   ]
+  },
+  {
+   "id": "custard",
+   "nombre": "Flan",
+   "buscar": [
+    "pudín"
+   ],
+   "emoji": "🍮",
+   "llave": "1f36e",
+   "grupos": [
+    "postres"
+   ]
+  },
+  {
+   "id": "doughnut",
+   "nombre": "Dona",
+   "buscar": [
+    "donas"
+   ],
+   "emoji": "🍩",
+   "llave": "1f369",
+   "grupos": [
+    "postres",
+    "panaderia"
+   ]
+  },
+  {
+   "id": "cookie",
+   "nombre": "Galleta",
+   "buscar": [
+    "galletas"
+   ],
+   "emoji": "🍪",
+   "llave": "1f36a",
+   "grupos": [
+    "postres"
+   ]
+  },
+  {
+   "id": "birthday_cake",
+   "nombre": "Pastel de cumpleaños",
+   "buscar": [
+    "pastel",
+    "cumpleaños"
+   ],
+   "emoji": "🎂",
+   "llave": "1f382",
+   "grupos": [
+    "postres",
+    "panaderia"
+   ]
+  },
+  {
+   "id": "pie",
+   "nombre": "Pay",
+   "buscar": [
+    "tarta"
+   ],
+   "emoji": "🥧",
+   "llave": "1f967",
+   "grupos": [
+    "postres"
+   ]
+  },
+  {
+   "id": "chocolate_bar",
+   "nombre": "Chocolate",
+   "buscar": [
+    "barra"
+   ],
+   "emoji": "🍫",
+   "llave": "1f36b",
+   "grupos": [
+    "postres",
+    "tienda"
+   ]
+  },
+  {
+   "id": "candy",
+   "nombre": "Dulce",
+   "buscar": [
+    "caramelo",
+    "dulces"
+   ],
+   "emoji": "🍬",
+   "llave": "1f36c",
+   "grupos": [
+    "postres",
+    "tienda"
+   ]
+  },
+  {
+   "id": "lollipop",
+   "nombre": "Paleta",
+   "buscar": [
+    "chupa"
+   ],
+   "emoji": "🍭",
+   "llave": "1f36d",
+   "grupos": [
+    "postres"
+   ]
+  },
+  {
+   "id": "honey_pot",
+   "nombre": "Miel",
+   "buscar": [],
+   "emoji": "🍯",
+   "llave": "1f36f",
+   "grupos": [
+    "postres"
+   ]
+  },
+  {
+   "id": "popcorn",
+   "nombre": "Palomitas",
+   "buscar": [
+    "palomitas de maíz"
+   ],
+   "emoji": "🍿",
+   "llave": "1f37f",
+   "grupos": [
+    "postres"
+   ]
+  },
+  {
+   "id": "bread",
+   "nombre": "Pan",
+   "buscar": [
+    "pan de caja",
+    "bolillo"
+   ],
+   "emoji": "🍞",
+   "llave": "1f35e",
+   "grupos": [
+    "panaderia",
+    "tienda"
+   ]
+  },
+  {
+   "id": "baguette_bread",
+   "nombre": "Baguette",
+   "buscar": [
+    "bolillo",
+    "pan francés",
+    "birote"
+   ],
+   "emoji": "🥖",
+   "llave": "1f956",
+   "grupos": [
+    "panaderia"
+   ]
+  },
+  {
+   "id": "bagel",
+   "nombre": "Bagel",
+   "buscar": [
+    "rosca"
+   ],
+   "emoji": "🥯",
+   "llave": "1f96f",
+   "grupos": [
+    "panaderia"
+   ]
+  },
+  {
+   "id": "pretzel",
+   "nombre": "Pretzel",
+   "buscar": [],
+   "emoji": "🥨",
+   "llave": "1f968",
+   "grupos": [
+    "panaderia"
+   ]
+  },
+  {
+   "id": "butter",
+   "nombre": "Mantequilla",
+   "buscar": [
+    "margarina"
+   ],
+   "emoji": "🧈",
+   "llave": "1f9c8",
+   "grupos": [
+    "panaderia",
+    "tienda"
+   ]
+  },
+  {
+   "id": "grapes",
+   "nombre": "Uvas",
+   "buscar": [
+    "uva"
+   ],
+   "emoji": "🍇",
+   "llave": "1f347",
+   "grupos": [
+    "frutas"
+   ]
+  },
+  {
+   "id": "melon",
+   "nombre": "Melón",
+   "buscar": [],
+   "emoji": "🍈",
+   "llave": "1f348",
+   "grupos": [
+    "frutas"
+   ]
+  },
+  {
+   "id": "banana",
+   "nombre": "Plátano",
+   "buscar": [
+    "banana"
+   ],
+   "emoji": "🍌",
+   "llave": "1f34c",
+   "grupos": [
+    "frutas"
+   ]
+  },
+  {
+   "id": "red_apple",
+   "nombre": "Manzana roja",
+   "buscar": [
+    "manzana"
+   ],
+   "emoji": "🍎",
+   "llave": "1f34e",
+   "grupos": [
+    "frutas"
+   ]
+  },
+  {
+   "id": "green_apple",
+   "nombre": "Manzana verde",
+   "buscar": [
+    "manzana"
+   ],
+   "emoji": "🍏",
+   "llave": "1f34f",
+   "grupos": [
+    "frutas"
+   ]
+  },
+  {
+   "id": "pear",
+   "nombre": "Pera",
+   "buscar": [],
+   "emoji": "🍐",
+   "llave": "1f350",
+   "grupos": [
+    "frutas"
+   ]
+  },
+  {
+   "id": "peach",
+   "nombre": "Durazno",
+   "buscar": [
+    "melocotón"
+   ],
+   "emoji": "🍑",
+   "llave": "1f351",
+   "grupos": [
+    "frutas"
+   ]
+  },
+  {
+   "id": "cherries",
+   "nombre": "Cerezas",
+   "buscar": [
+    "cereza"
+   ],
+   "emoji": "🍒",
+   "llave": "1f352",
+   "grupos": [
+    "frutas"
+   ]
+  },
+  {
+   "id": "blueberries",
+   "nombre": "Moras azules",
+   "buscar": [
+    "arándanos",
+    "mora"
+   ],
+   "emoji": "🫐",
+   "llave": "1fad0",
+   "grupos": [
+    "frutas"
+   ]
+  },
+  {
+   "id": "kiwi_fruit",
+   "nombre": "Kiwi",
+   "buscar": [],
+   "emoji": "🥝",
+   "llave": "1f95d",
+   "grupos": [
+    "frutas"
+   ]
+  },
+  {
+   "id": "eggplant",
+   "nombre": "Berenjena",
+   "buscar": [],
+   "emoji": "🍆",
+   "llave": "1f346",
+   "grupos": [
+    "verduras"
+   ]
+  },
+  {
+   "id": "potato",
+   "nombre": "Papa",
+   "buscar": [
+    "papas"
+   ],
+   "emoji": "🥔",
+   "llave": "1f954",
+   "grupos": [
+    "verduras"
+   ]
+  },
+  {
+   "id": "carrot",
+   "nombre": "Zanahoria",
+   "buscar": [],
+   "emoji": "🥕",
+   "llave": "1f955",
+   "grupos": [
+    "verduras"
+   ]
+  },
+  {
+   "id": "bell_pepper",
+   "nombre": "Pimiento",
+   "buscar": [
+    "morrón"
+   ],
+   "emoji": "🫑",
+   "llave": "1fad1",
+   "grupos": [
+    "verduras"
+   ]
+  },
+  {
+   "id": "cucumber",
+   "nombre": "Pepino",
+   "buscar": [],
+   "emoji": "🥒",
+   "llave": "1f952",
+   "grupos": [
+    "verduras"
+   ]
+  },
+  {
+   "id": "leafy_green",
+   "nombre": "Lechuga",
+   "buscar": [
+    "hojas verdes"
+   ],
+   "emoji": "🥬",
+   "llave": "1f96c",
+   "grupos": [
+    "verduras"
+   ]
+  },
+  {
+   "id": "broccoli",
+   "nombre": "Brócoli",
+   "buscar": [],
+   "emoji": "🥦",
+   "llave": "1f966",
+   "grupos": [
+    "verduras"
+   ]
+  },
+  {
+   "id": "peanuts",
+   "nombre": "Cacahuate",
+   "buscar": [
+    "cacahuates",
+    "maní"
+   ],
+   "emoji": "🥜",
+   "llave": "1f95c",
+   "grupos": [
+    "verduras"
+   ]
+  },
+  {
+   "id": "chestnut",
+   "nombre": "Castaña",
+   "buscar": [
+    "nuez"
+   ],
+   "emoji": "🌰",
+   "llave": "1f330",
+   "grupos": [
+    "verduras"
+   ]
+  },
+  {
+   "id": "shopping_cart",
+   "nombre": "Carrito",
+   "buscar": [
+    "súper",
+    "abarrotes",
+    "compras"
+   ],
+   "emoji": "🛒",
+   "llave": "1f6d2",
+   "grupos": [
+    "tienda"
+   ]
+  },
+  {
+   "id": "canned_food",
+   "nombre": "Lata",
+   "buscar": [
+    "enlatado",
+    "conserva"
+   ],
+   "emoji": "🥫",
+   "llave": "1f96b",
+   "grupos": [
+    "tienda"
+   ]
+  },
+  {
+   "id": "roll_of_paper",
+   "nombre": "Papel higiénico",
+   "buscar": [
+    "papel de baño"
+   ],
+   "emoji": "🧻",
+   "llave": "1f9fb",
+   "grupos": [
+    "tienda",
+    "farmacia"
+   ]
+  },
+  {
+   "id": "soap",
+   "nombre": "Jabón",
+   "buscar": [],
+   "emoji": "🧼",
+   "llave": "1f9fc",
+   "grupos": [
+    "tienda",
+    "farmacia"
+   ]
+  },
+  {
+   "id": "mobile_phone",
+   "nombre": "Celular",
+   "buscar": [
+    "recarga",
+    "teléfono"
+   ],
+   "emoji": "📱",
+   "llave": "1f4f1",
+   "grupos": [
+    "tienda"
+   ]
+  },
+  {
+   "id": "pill",
+   "nombre": "Pastilla",
+   "buscar": [
+    "medicina",
+    "medicamento",
+    "cápsula"
+   ],
+   "emoji": "💊",
+   "llave": "1f48a",
+   "grupos": [
+    "farmacia"
+   ]
+  },
+  {
+   "id": "adhesive_bandage",
+   "nombre": "Curita",
+   "buscar": [
+    "venda"
+   ],
+   "emoji": "🩹",
+   "llave": "1fa79",
+   "grupos": [
+    "farmacia"
+   ]
+  },
+  {
+   "id": "thermometer",
+   "nombre": "Termómetro",
+   "buscar": [
+    "temperatura"
+   ],
+   "emoji": "🌡️",
+   "llave": "1f321",
+   "grupos": [
+    "farmacia"
+   ]
+  },
+  {
+   "id": "lotion_bottle",
+   "nombre": "Crema",
+   "buscar": [
+    "loción",
+    "shampoo",
+    "botella"
+   ],
+   "emoji": "🧴",
+   "llave": "1f9f4",
+   "grupos": [
+    "farmacia",
+    "salon"
+   ]
+  },
+  {
+   "id": "face_with_medical_mask",
+   "nombre": "Cubrebocas",
+   "buscar": [
+    "mascarilla"
+   ],
+   "emoji": "😷",
+   "llave": "1f637",
+   "grupos": [
+    "farmacia"
+   ]
+  },
+  {
+   "id": "test_tube",
+   "nombre": "Laboratorio",
+   "buscar": [
+    "análisis",
+    "tubo de ensayo"
+   ],
+   "emoji": "🧪",
+   "llave": "1f9ea",
+   "grupos": [
+    "farmacia"
+   ]
+  },
+  {
+   "id": "stethoscope",
+   "nombre": "Estetoscopio",
+   "buscar": [
+    "consulta",
+    "doctor"
+   ],
+   "emoji": "🩺",
+   "llave": "1fa7a",
+   "grupos": [
+    "farmacia"
+   ]
+  },
+  {
+   "id": "t_shirt",
+   "nombre": "Playera",
+   "buscar": [
+    "camiseta",
+    "remera"
+   ],
+   "emoji": "👕",
+   "llave": "1f455",
+   "grupos": [
+    "ropa"
+   ]
+  },
+  {
+   "id": "dress",
+   "nombre": "Vestido",
+   "buscar": [],
+   "emoji": "👗",
+   "llave": "1f457",
+   "grupos": [
+    "ropa"
+   ]
+  },
+  {
+   "id": "jeans",
+   "nombre": "Pantalón",
+   "buscar": [
+    "jeans",
+    "mezclilla"
+   ],
+   "emoji": "👖",
+   "llave": "1f456",
+   "grupos": [
+    "ropa"
+   ]
+  },
+  {
+   "id": "running_shoe",
+   "nombre": "Tenis",
+   "buscar": [
+    "zapatillas"
+   ],
+   "emoji": "👟",
+   "llave": "1f45f",
+   "grupos": [
+    "ropa"
+   ]
+  },
+  {
+   "id": "high_heeled_shoe",
+   "nombre": "Zapato de tacón",
+   "buscar": [
+    "tacones",
+    "zapatos"
+   ],
+   "emoji": "👠",
+   "llave": "1f460",
+   "grupos": [
+    "ropa"
+   ]
+  },
+  {
+   "id": "billed_cap",
+   "nombre": "Gorra",
+   "buscar": [],
+   "emoji": "🧢",
+   "llave": "1f9e2",
+   "grupos": [
+    "ropa"
+   ]
+  },
+  {
+   "id": "handbag",
+   "nombre": "Bolsa",
+   "buscar": [
+    "bolso"
+   ],
+   "emoji": "👜",
+   "llave": "1f45c",
+   "grupos": [
+    "ropa"
+   ]
+  },
+  {
+   "id": "socks",
+   "nombre": "Calcetines",
+   "buscar": [
+    "calcetas"
+   ],
+   "emoji": "🧦",
+   "llave": "1f9e6",
+   "grupos": [
+    "ropa"
+   ]
+  },
+  {
+   "id": "coat",
+   "nombre": "Chamarra",
+   "buscar": [
+    "abrigo",
+    "chaqueta"
+   ],
+   "emoji": "🧥",
+   "llave": "1f9e5",
+   "grupos": [
+    "ropa"
+   ]
+  },
+  {
+   "id": "necktie",
+   "nombre": "Camisa",
+   "buscar": [
+    "corbata"
+   ],
+   "emoji": "👔",
+   "llave": "1f454",
+   "grupos": [
+    "ropa"
+   ]
+  },
+  {
+   "id": "shorts",
+   "nombre": "Short",
+   "buscar": [
+    "bermuda"
+   ],
+   "emoji": "🩳",
+   "llave": "1fa73",
+   "grupos": [
+    "ropa"
+   ]
+  },
+  {
+   "id": "bikini",
+   "nombre": "Traje de baño",
+   "buscar": [
+    "bikini"
+   ],
+   "emoji": "👙",
+   "llave": "1f459",
+   "grupos": [
+    "ropa"
+   ]
+  },
+  {
+   "id": "womans_hat",
+   "nombre": "Sombrero",
+   "buscar": [],
+   "emoji": "👒",
+   "llave": "1f452",
+   "grupos": [
+    "ropa"
+   ]
+  },
+  {
+   "id": "backpack",
+   "nombre": "Mochila",
+   "buscar": [],
+   "emoji": "🎒",
+   "llave": "1f392",
+   "grupos": [
+    "ropa"
+   ]
+  },
+  {
+   "id": "person_getting_haircut",
+   "nombre": "Corte de pelo",
+   "buscar": [
+    "corte",
+    "peinado",
+    "estética"
+   ],
+   "emoji": "💇",
+   "llave": "1f487",
+   "grupos": [
+    "salon"
+   ]
+  },
+  {
+   "id": "nail_polish",
+   "nombre": "Uñas",
+   "buscar": [
+    "manicure",
+    "pedicure"
+   ],
+   "emoji": "💅",
+   "llave": "1f485",
+   "grupos": [
+    "salon"
+   ]
+  },
+  {
+   "id": "lipstick",
+   "nombre": "Labial",
+   "buscar": [
+    "maquillaje"
+   ],
+   "emoji": "💄",
+   "llave": "1f484",
+   "grupos": [
+    "salon"
+   ]
+  },
+  {
+   "id": "scissors",
+   "nombre": "Tijeras",
+   "buscar": [
+    "corte"
+   ],
+   "emoji": "✂️",
+   "llave": "2702",
+   "grupos": [
+    "salon"
+   ]
+  },
+  {
+   "id": "barber_pole",
+   "nombre": "Barbería",
+   "buscar": [
+    "barbero"
+   ],
+   "emoji": "💈",
+   "llave": "1f488",
+   "grupos": [
+    "salon"
+   ]
+  },
+  {
+   "id": "hair_pick",
+   "nombre": "Peine",
+   "buscar": [
+    "cepillo"
+   ],
+   "emoji": "🪮",
+   "llave": "1faae",
+   "grupos": [
+    "salon"
+   ]
+  },
+  {
+   "id": "mirror",
+   "nombre": "Espejo",
+   "buscar": [],
+   "emoji": "🪞",
+   "llave": "1fa9e",
+   "grupos": [
+    "salon"
+   ]
+  },
+  {
+   "id": "fork_and_knife_with_plate",
+   "nombre": "Plato",
+   "buscar": [
+    "platillo",
+    "comida",
+    "plato del día"
+   ],
+   "emoji": "🍽️",
+   "llave": "1f37d",
+   "grupos": [
+    "servicio"
+   ]
+  },
+  {
+   "id": "fork_and_knife",
+   "nombre": "Cubiertos",
+   "buscar": [
+    "tenedor",
+    "comida"
+   ],
+   "emoji": "🍴",
+   "llave": "1f374",
+   "grupos": [
+    "servicio"
+   ]
+  },
+  {
+   "id": "spoon",
+   "nombre": "Cuchara",
+   "buscar": [],
+   "emoji": "🥄",
+   "llave": "1f944",
+   "grupos": [
+    "servicio"
+   ]
+  },
+  {
+   "id": "kitchen_knife",
+   "nombre": "Cuchillo",
+   "buscar": [],
+   "emoji": "🔪",
+   "llave": "1f52a",
+   "grupos": [
+    "servicio"
+   ]
+  },
+  {
+   "id": "jar",
+   "nombre": "Frasco",
+   "buscar": [
+    "salsa",
+    "conserva"
+   ],
+   "emoji": "🫙",
+   "llave": "1fad9",
+   "grupos": [
+    "servicio"
+   ]
+  },
+  {
+   "id": "cook",
+   "nombre": "Chef",
+   "buscar": [
+    "cocinero",
+    "especialidad"
+   ],
+   "emoji": "🧑‍🍳",
+   "llave": "1f9d1-200d-1f373",
+   "grupos": [
+    "servicio"
+   ]
+  },
+  {
+   "id": "receipt",
+   "nombre": "Ticket",
+   "buscar": [
+    "recibo",
+    "cuenta"
+   ],
+   "emoji": "🧾",
+   "llave": "1f9fe",
+   "grupos": [
+    "servicio",
+    "general"
+   ]
+  },
+  {
+   "id": "credit_card",
+   "nombre": "Tarjeta",
+   "buscar": [
+    "pago"
+   ],
+   "emoji": "💳",
+   "llave": "1f4b3",
+   "grupos": [
+    "servicio"
+   ]
+  },
+  {
+   "id": "package",
+   "nombre": "Caja",
+   "buscar": [
+    "paquete",
+    "producto"
+   ],
+   "emoji": "📦",
+   "llave": "1f4e6",
+   "grupos": [
+    "general"
+   ]
+  },
+  {
+   "id": "wrapped_gift",
+   "nombre": "Regalo",
+   "buscar": [
+    "promoción",
+    "combo"
+   ],
+   "emoji": "🎁",
+   "llave": "1f381",
+   "grupos": [
+    "general"
+   ]
+  },
+  {
+   "id": "label",
+   "nombre": "Etiqueta",
+   "buscar": [
+    "oferta",
+    "precio"
+   ],
+   "emoji": "🏷️",
+   "llave": "1f3f7",
+   "grupos": [
+    "general"
+   ]
+  },
+  {
+   "id": "star",
+   "nombre": "Estrella",
+   "buscar": [
+    "favorito",
+    "especial"
+   ],
+   "emoji": "⭐",
+   "llave": "2b50",
+   "grupos": [
+    "general"
+   ]
+  },
+  {
+   "id": "sparkles",
+   "nombre": "Brillos",
+   "buscar": [
+    "nuevo",
+    "novedad"
+   ],
+   "emoji": "✨",
+   "llave": "2728",
+   "grupos": [
+    "general"
+   ]
+  },
+  {
+   "id": "motor_scooter",
+   "nombre": "Moto",
+   "buscar": [
+    "envío",
+    "domicilio",
+    "reparto"
+   ],
+   "emoji": "🛵",
+   "llave": "1f6f5",
+   "grupos": [
+    "general"
+   ]
+  },
+  {
+   "id": "shopping_bags",
+   "nombre": "Bolsas de compras",
+   "buscar": [
+    "compras"
+   ],
+   "emoji": "🛍️",
+   "llave": "1f6cd",
+   "grupos": [
+    "general"
+   ]
+  },
+  {
+   "id": "light_bulb",
+   "nombre": "Foco",
+   "buscar": [
+    "idea"
+   ],
+   "emoji": "💡",
+   "llave": "1f4a1",
+   "grupos": [
+    "general"
+   ]
+  },
+  {
+   "id": "pushpin",
+   "nombre": "Chincheta",
+   "buscar": [
+    "fijado"
+   ],
+   "emoji": "📌",
+   "llave": "1f4cc",
+   "grupos": [
+    "general"
+   ]
+  },
+  {
+   "id": "money_bag",
+   "nombre": "Dinero",
+   "buscar": [
+    "bolsa de dinero"
+   ],
+   "emoji": "💰",
+   "llave": "1f4b0",
+   "grupos": [
+    "general"
+   ]
+  },
+  {
+   "id": "party_popper",
+   "nombre": "Fiesta",
+   "buscar": [
+    "celebración"
+   ],
+   "emoji": "🎉",
+   "llave": "1f389",
+   "grupos": [
+    "general"
+   ]
+  },
+  {
+   "id": "red_heart",
+   "nombre": "Corazón",
+   "buscar": [
+    "favorito"
+   ],
+   "emoji": "❤️",
+   "llave": "2764",
+   "grupos": [
+    "general"
+   ]
+  },
+  {
+   "id": "thumbs_up",
+   "nombre": "Pulgar arriba",
+   "buscar": [
+    "me gusta"
+   ],
+   "emoji": "👍",
+   "llave": "1f44d",
+   "grupos": [
+    "general"
+   ]
+  },
+  {
+   "id": "house",
+   "nombre": "Casa",
+   "buscar": [
+    "hogar"
+   ],
+   "emoji": "🏠",
+   "llave": "1f3e0",
+   "grupos": [
+    "general"
+   ]
+  },
+  {
+   "id": "automobile",
+   "nombre": "Coche",
+   "buscar": [
+    "auto",
+    "carro"
+   ],
+   "emoji": "🚗",
+   "llave": "1f697",
+   "grupos": [
+    "general"
+   ]
+  },
+  {
+   "id": "clipboard",
+   "nombre": "Portapapeles",
+   "buscar": [
+    "lista"
+   ],
+   "emoji": "📋",
+   "llave": "1f4cb",
+   "grupos": [
+    "general"
+   ]
+  },
+  {
+   "id": "check_mark_button",
+   "nombre": "Palomita",
+   "buscar": [
+    "listo"
+   ],
+   "emoji": "✅",
+   "llave": "2705",
+   "grupos": [
+    "general"
+   ]
+  },
+  {
+   "id": "alarm_clock",
+   "nombre": "Reloj",
+   "buscar": [
+    "alarma",
+    "horario"
+   ],
+   "emoji": "⏰",
+   "llave": "23f0",
+   "grupos": [
+    "general"
+   ]
+  },
+  {
+   "id": "bell",
+   "nombre": "Campana",
+   "buscar": [
+    "aviso"
+   ],
+   "emoji": "🔔",
+   "llave": "1f514",
+   "grupos": [
+    "general"
+   ]
+  },
+  {
+   "id": "z_torta",
+   "nombre": "Torta",
+   "buscar": [
+    "tortas",
+    "bolillo",
+    "telera",
+    "lonche"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-torta",
+   "grupos": [
+    "taqueria",
+    "hamburguesas"
+   ]
+  },
+  {
+   "id": "z_quesadilla",
+   "nombre": "Quesadilla",
+   "buscar": [
+    "quesadillas",
+    "sincronizada",
+    "gringa"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-quesadilla",
+   "grupos": [
+    "taqueria"
+   ]
+  },
+  {
+   "id": "z_sope",
+   "nombre": "Sope",
+   "buscar": [
+    "sopes",
+    "gordita",
+    "huarache",
+    "tostada"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-sope",
+   "grupos": [
+    "taqueria"
+   ]
+  },
+  {
+   "id": "z_esquite",
+   "nombre": "Esquite",
+   "buscar": [
+    "esquites",
+    "elote en vaso",
+    "vasito"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-esquite",
+   "grupos": [
+    "taqueria"
+   ]
+  },
+  {
+   "id": "z_pozole",
+   "nombre": "Pozole",
+   "buscar": [
+    "pozole rojo",
+    "caldo",
+    "menudo",
+    "birria",
+    "consomé"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-pozole",
+   "grupos": [
+    "taqueria",
+    "desayunos"
+   ]
+  },
+  {
+   "id": "z_michelada",
+   "nombre": "Michelada",
+   "buscar": [
+    "michelado",
+    "chelada",
+    "clamato",
+    "cerveza preparada"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-michelada",
+   "grupos": [
+    "bar"
+   ]
+  },
+  {
+   "id": "z_caguama",
+   "nombre": "Caguama",
+   "buscar": [
+    "caguamón",
+    "cerveza",
+    "botella",
+    "ballena",
+    "litro"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-caguama",
+   "grupos": [
+    "bar",
+    "tienda"
+   ]
+  },
+  {
+   "id": "z_cubeta",
+   "nombre": "Cubeta de cervezas",
+   "buscar": [
+    "cubeta",
+    "cervezas",
+    "promoción",
+    "six"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-cubeta",
+   "grupos": [
+    "bar"
+   ]
+  },
+  {
+   "id": "z_caballito",
+   "nombre": "Caballito",
+   "buscar": [
+    "shot",
+    "tequila",
+    "trago",
+    "chupito"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-caballito",
+   "grupos": [
+    "bar"
+   ]
+  },
+  {
+   "id": "z_mezcal",
+   "nombre": "Mezcal",
+   "buscar": [
+    "copita",
+    "jícara",
+    "mezcalito",
+    "trago"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-mezcal",
+   "grupos": [
+    "bar"
+   ]
+  },
+  {
+   "id": "z_churros",
+   "nombre": "Churros",
+   "buscar": [
+    "churro",
+    "churrería"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-churros",
+   "grupos": [
+    "postres",
+    "cafe"
+   ]
+  },
+  {
+   "id": "z_paleta_hielo",
+   "nombre": "Paleta de hielo",
+   "buscar": [
+    "paleta",
+    "paletería",
+    "helado de agua",
+    "bolis"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-paleta_hielo",
+   "grupos": [
+    "postres"
+   ]
+  },
+  {
+   "id": "z_nieve_vaso",
+   "nombre": "Nieve en vaso",
+   "buscar": [
+    "nieve",
+    "helado",
+    "bolas de helado",
+    "nevería"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-nieve_vaso",
+   "grupos": [
+    "postres"
+   ]
+  },
+  {
+   "id": "z_fresas_crema",
+   "nombre": "Fresas con crema",
+   "buscar": [
+    "fresas",
+    "crema",
+    "postre de fresa"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-fresas_crema",
+   "grupos": [
+    "postres"
+   ]
+  },
+  {
+   "id": "z_crepa",
+   "nombre": "Crepa",
+   "buscar": [
+    "crepas",
+    "nutella",
+    "crepería"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-crepa",
+   "grupos": [
+    "postres",
+    "cafe"
+   ]
+  },
+  {
+   "id": "z_agua_fresca",
+   "nombre": "Agua fresca",
+   "buscar": [
+    "agua de jamaica",
+    "horchata",
+    "jarra",
+    "agua de sabor"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-agua_fresca",
+   "grupos": [
+    "jugos"
+   ]
+  },
+  {
+   "id": "z_licuado",
+   "nombre": "Licuado",
+   "buscar": [
+    "licuados",
+    "malteada",
+    "smoothie",
+    "batido"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-licuado",
+   "grupos": [
+    "jugos",
+    "desayunos"
+   ]
+  },
+  {
+   "id": "z_raspado",
+   "nombre": "Raspado",
+   "buscar": [
+    "raspados",
+    "granizado",
+    "hielo raspado",
+    "diablito"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-raspado",
+   "grupos": [
+    "jugos",
+    "postres"
+   ]
+  },
+  {
+   "id": "z_coco_popote",
+   "nombre": "Coco con popote",
+   "buscar": [
+    "coco",
+    "agua de coco"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-coco_popote",
+   "grupos": [
+    "jugos"
+   ]
+  },
+  {
+   "id": "z_jugo_verde",
+   "nombre": "Jugo verde",
+   "buscar": [
+    "jugo",
+    "verde",
+    "detox",
+    "nopal"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-jugo_verde",
+   "grupos": [
+    "jugos",
+    "desayunos"
+   ]
+  },
+  {
+   "id": "z_coctel_camaron",
+   "nombre": "Coctel de camarón",
+   "buscar": [
+    "coctel",
+    "campechana",
+    "vuelve a la vida",
+    "copa"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-coctel_camaron",
+   "grupos": [
+    "mariscos"
+   ]
+  },
+  {
+   "id": "z_ceviche",
+   "nombre": "Ceviche",
+   "buscar": [
+    "cebiche",
+    "ceviche de pescado"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-ceviche",
+   "grupos": [
+    "mariscos"
+   ]
+  },
+  {
+   "id": "z_aguachile",
+   "nombre": "Aguachile",
+   "buscar": [
+    "aguachiles",
+    "camarón",
+    "molcajete"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-aguachile",
+   "grupos": [
+    "mariscos"
+   ]
+  },
+  {
+   "id": "z_tostada_marisco",
+   "nombre": "Tostada de marisco",
+   "buscar": [
+    "tostada",
+    "tostadas",
+    "tostada de ceviche",
+    "atún"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-tostada_marisco",
+   "grupos": [
+    "mariscos",
+    "taqueria"
+   ]
+  },
+  {
+   "id": "z_mojarra_frita",
+   "nombre": "Mojarra frita",
+   "buscar": [
+    "pescado frito",
+    "mojarra",
+    "pescado",
+    "huachinango"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-mojarra_frita",
+   "grupos": [
+    "mariscos"
+   ]
+  },
+  {
+   "id": "z_frappe",
+   "nombre": "Frappé",
+   "buscar": [
+    "frapuccino",
+    "café frío",
+    "moka",
+    "frappe"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-frappe",
+   "grupos": [
+    "cafe"
+   ]
+  },
+  {
+   "id": "z_cafe_olla",
+   "nombre": "Café de olla",
+   "buscar": [
+    "café",
+    "olla",
+    "canela",
+    "jarrito"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-cafe_olla",
+   "grupos": [
+    "cafe",
+    "desayunos"
+   ]
+  },
+  {
+   "id": "z_capuchino",
+   "nombre": "Capuchino",
+   "buscar": [
+    "cappuccino",
+    "latte",
+    "café con leche",
+    "arte latte"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-capuchino",
+   "grupos": [
+    "cafe"
+   ]
+  },
+  {
+   "id": "z_concha",
+   "nombre": "Concha",
+   "buscar": [
+    "conchas",
+    "pan dulce",
+    "pan de dulce"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-concha",
+   "grupos": [
+    "panaderia",
+    "cafe"
+   ]
+  },
+  {
+   "id": "z_rol_canela",
+   "nombre": "Rol de canela",
+   "buscar": [
+    "rol",
+    "canela",
+    "cinnamon roll",
+    "pan dulce"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-rol_canela",
+   "grupos": [
+    "panaderia",
+    "cafe"
+   ]
+  },
+  {
+   "id": "z_bolillo",
+   "nombre": "Bolillo",
+   "buscar": [
+    "bolillos",
+    "telera",
+    "pan salado",
+    "birote"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-bolillo",
+   "grupos": [
+    "panaderia"
+   ]
+  },
+  {
+   "id": "z_tres_leches",
+   "nombre": "Pastel de tres leches",
+   "buscar": [
+    "tres leches",
+    "pastel",
+    "rebanada"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-tres_leches",
+   "grupos": [
+    "postres",
+    "panaderia"
+   ]
+  },
+  {
+   "id": "z_tlayuda",
+   "nombre": "Tlayuda",
+   "buscar": [
+    "tlayudas",
+    "clayuda",
+    "oaxaca",
+    "tasajo"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-tlayuda",
+   "grupos": [
+    "taqueria"
+   ]
+  },
+  {
+   "id": "z_chilaquiles",
+   "nombre": "Chilaquiles",
+   "buscar": [
+    "chilaquil",
+    "totopos",
+    "rojos",
+    "verdes"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-chilaquiles",
+   "grupos": [
+    "desayunos",
+    "taqueria"
+   ]
+  },
+  {
+   "id": "z_trompo",
+   "nombre": "Trompo al pastor",
+   "buscar": [
+    "trompo",
+    "pastor",
+    "al pastor",
+    "orden de pastor"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-trompo",
+   "grupos": [
+    "taqueria"
+   ]
+  },
+  {
+   "id": "z_huevos_rancheros",
+   "nombre": "Huevos rancheros",
+   "buscar": [
+    "huevos",
+    "rancheros",
+    "huevos estrellados"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-huevos_rancheros",
+   "grupos": [
+    "desayunos"
+   ]
+  },
+  {
+   "id": "z_enchiladas",
+   "nombre": "Enchiladas",
+   "buscar": [
+    "enchilada",
+    "entomatadas",
+    "enmoladas",
+    "suizas"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-enchiladas",
+   "grupos": [
+    "desayunos",
+    "taqueria"
+   ]
+  },
+  {
+   "id": "z_molletes",
+   "nombre": "Molletes",
+   "buscar": [
+    "mollete",
+    "pan con frijoles"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-molletes",
+   "grupos": [
+    "desayunos"
+   ]
+  },
+  {
+   "id": "z_comida_corrida",
+   "nombre": "Comida corrida",
+   "buscar": [
+    "menú del día",
+    "plato del día",
+    "comida",
+    "fonda",
+    "paquete"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-comida_corrida",
+   "grupos": [
+    "desayunos"
+   ]
+  },
+  {
+   "id": "z_bowl",
+   "nombre": "Bowl",
+   "buscar": [
+    "poke",
+    "ensalada",
+    "tazón",
+    "saludable",
+    "vegano"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-bowl",
+   "grupos": [
+    "desayunos"
+   ]
+  },
+  {
+   "id": "z_alitas",
+   "nombre": "Alitas",
+   "buscar": [
+    "alas",
+    "wings",
+    "búfalo",
+    "bbq"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-alitas",
+   "grupos": [
+    "pollo",
+    "bar"
+   ]
+  },
+  {
+   "id": "z_pollo_asado",
+   "nombre": "Pollo asado",
+   "buscar": [
+    "pollo rostizado",
+    "pollo entero",
+    "pollo al carbón"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-pollo_asado",
+   "grupos": [
+    "pollo"
+   ]
+  },
+  {
+   "id": "z_cubeta_pollo",
+   "nombre": "Cubeta de pollo",
+   "buscar": [
+    "pollo frito",
+    "piezas",
+    "cubeta",
+    "familiar"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-cubeta_pollo",
+   "grupos": [
+    "pollo"
+   ]
+  },
+  {
+   "id": "z_arrachera",
+   "nombre": "Arrachera",
+   "buscar": [
+    "carne asada",
+    "corte",
+    "bistec",
+    "sirloin"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-arrachera",
+   "grupos": [
+    "pollo"
+   ]
+  },
+  {
+   "id": "z_costillas",
+   "nombre": "Costillas",
+   "buscar": [
+    "costillitas",
+    "ribs",
+    "bbq",
+    "cerdo"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-costillas",
+   "grupos": [
+    "pollo"
+   ]
+  },
+  {
+   "id": "z_parrillada",
+   "nombre": "Parrillada",
+   "buscar": [
+    "asador",
+    "carne asada",
+    "chorizo",
+    "parrilla"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-parrillada",
+   "grupos": [
+    "pollo"
+   ]
+  },
+  {
+   "id": "z_papas_canasta",
+   "nombre": "Papas en canasta",
+   "buscar": [
+    "papas",
+    "papas fritas",
+    "francesas",
+    "canasta"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-papas_canasta",
+   "grupos": [
+    "hamburguesas",
+    "bar"
+   ]
+  },
+  {
+   "id": "z_boneless",
+   "nombre": "Boneless",
+   "buscar": [
+    "boneles",
+    "pollo sin hueso",
+    "nuggets",
+    "tenders"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-boneless",
+   "grupos": [
+    "hamburguesas",
+    "pollo",
+    "bar"
+   ]
+  },
+  {
+   "id": "z_lasana",
+   "nombre": "Lasaña",
+   "buscar": [
+    "lasagna",
+    "lasaña",
+    "pasta"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-lasana",
+   "grupos": [
+    "pizzeria"
+   ]
+  },
+  {
+   "id": "z_calzone",
+   "nombre": "Calzone",
+   "buscar": [
+    "calzón",
+    "empanada",
+    "pizza cerrada"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-calzone",
+   "grupos": [
+    "pizzeria"
+   ]
+  },
+  {
+   "id": "z_maki",
+   "nombre": "Rollo de sushi",
+   "buscar": [
+    "maki",
+    "sushi",
+    "rollo",
+    "california"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-maki",
+   "grupos": [
+    "japonesa"
+   ]
+  },
+  {
+   "id": "z_ramen",
+   "nombre": "Ramen",
+   "buscar": [
+    "sopa japonesa",
+    "fideos",
+    "noodles"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-ramen",
+   "grupos": [
+    "japonesa"
+   ]
+  },
+  {
+   "id": "z_onigiri_salmon",
+   "nombre": "Onigiri de salmón",
+   "buscar": [
+    "onigiri",
+    "salmón",
+    "bola de arroz"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-onigiri_salmon",
+   "grupos": [
+    "japonesa"
+   ]
+  },
+  {
+   "id": "z_arroz_frito",
+   "nombre": "Arroz frito",
+   "buscar": [
+    "arroz chino",
+    "chaufa",
+    "yakimeshi"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-arroz_frito",
+   "grupos": [
+    "japonesa"
+   ]
+  },
+  {
+   "id": "z_pollo_agridulce",
+   "nombre": "Pollo agridulce",
+   "buscar": [
+    "agridulce",
+    "pollo a la naranja",
+    "chino"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-pollo_agridulce",
+   "grupos": [
+    "japonesa"
+   ]
+  },
+  {
+   "id": "z_taco_arabe",
+   "nombre": "Taco árabe",
+   "buscar": [
+    "tacos árabes",
+    "pan árabe",
+    "puebla"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-taco_arabe",
+   "grupos": [
+    "arabe",
+    "taqueria"
+   ]
+  },
+  {
+   "id": "z_kibbe",
+   "nombre": "Kibbe",
+   "buscar": [
+    "kibi",
+    "quipe",
+    "kepe"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-kibbe",
+   "grupos": [
+    "arabe"
+   ]
+  },
+  {
+   "id": "z_hummus",
+   "nombre": "Hummus",
+   "buscar": [
+    "humus",
+    "garbanzo",
+    "dip"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-hummus",
+   "grupos": [
+    "arabe"
+   ]
+  },
+  {
+   "id": "z_wrap",
+   "nombre": "Wrap",
+   "buscar": [
+    "burrito",
+    "rollo",
+    "sincronizada",
+    "saludable"
+   ],
+   "emoji": null,
+   "llave": null,
+   "valor": "svg:z-wrap",
+   "grupos": [
+    "arabe",
+    "desayunos"
+   ]
+  }
+ ]
+}

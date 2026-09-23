@@ -1,10 +1,13 @@
 import React from 'react';
 import { Text, Image } from 'react-native';
 import SvgIcon from './SvgIcon';
+import { archivoDeValor } from '../iconos';
 
 /**
  * Renderiza el icono de un producto/categoria.
- * Prioridad: imagen (foto) > SVG (prefijo svg:) > emoji unicode.
+ * Prioridad: foto > icono Fluent (el emoji de la lista, o un propio `svg:z-`) >
+ * icono de línea (`svg:`) > emoji del sistema (el que no está en la lista) > caja.
+ * Ver src/iconos/index.js.
  *
  * @param {string} valor — 'svg:burger', '🍔', o null
  * @param {string} imagen — data URI / URL de una foto (opcional; tiene prioridad)
@@ -25,6 +28,18 @@ export default function IconoProducto({ valor, imagen, size = 24, color = '#3741
   }
 
   if (!valor) {
+    return <SvgIcon name="package" size={size} color={color} />;
+  }
+
+  // Icono de color (PLAN_REDISENO_V1 §3.3): el emoji guardado se DIBUJA con Fluent,
+  // sin cambiarlo en la base; las apps viejas lo siguen viendo como emoji.
+  const archivo = archivoDeValor(valor);
+  if (archivo) {
+    return <Image source={archivo} style={{ width: size, height: size }} resizeMode="contain" />;
+  }
+
+  // Un icono propio que este equipo todavía no conoce: caja, nunca un hueco.
+  if (valor.startsWith('svg:z-')) {
     return <SvgIcon name="package" size={size} color={color} />;
   }
 

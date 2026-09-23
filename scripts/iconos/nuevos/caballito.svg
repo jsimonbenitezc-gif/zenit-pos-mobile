@@ -1,0 +1,20 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g transform="translate(-4.6 4.2) scale(1.25 0.82)">
+<path d="M8.6 4.4H21.4L20 28C19.9 29.2 18.9 30 17.8 30H12.2C11.1 30 10.1 29.2 10 28L8.6 4.4Z" fill="url(#k_vaso)"/>
+<path d="M9.4 12.2H20.6L19.6 27.2C19.5 28 18.9 28.6 18.1 28.6H11.9C11.1 28.6 10.5 28 10.4 27.2L9.4 12.2Z" fill="url(#k_tequila)"/>
+<path d="M9.4 12.2H20.6L19.6 27.2C19.5 28 18.9 28.6 18.1 28.6H11.9C11.1 28.6 10.5 28 10.4 27.2L9.4 12.2Z" fill="url(#k_tequila_sombra)"/>
+<ellipse cx="15" cy="12.2" rx="5.6" ry="0.8" fill="#FFE59A"/>
+<path d="M10.2 6.4L11.4 26.8" stroke="#FFFFFF" stroke-opacity="0.7" stroke-width="1.1" stroke-linecap="round"/>
+<path d="M8.2 4.4C8.2 3.8 8.7 3.4 9.3 3.4H20.7C21.3 3.4 21.8 3.8 21.8 4.4V4.8C21.8 5.3 21.4 5.6 20.9 5.6H9.1C8.6 5.6 8.2 5.3 8.2 4.8V4.4Z" fill="url(#k_borde)"/>
+</g>
+<path d="M20.4 22.6C21.2 18.8 26.6 18.2 28.8 21.4L23 26C21.4 25.8 20 24.4 20.4 22.6Z" fill="url(#k_limon)"/>
+<path d="M21.6 22.4C22.6 20.4 25.6 20.2 27 21.8" stroke="#F4FFCB" stroke-width="0.8" stroke-linecap="round"/>
+<path d="M22.6 24.1L25.4 21.3M24.2 24.9L26.6 22.3" stroke="#E7F7A6" stroke-opacity="0.8" stroke-width="0.5" stroke-linecap="round"/>
+<defs>
+<linearGradient id="k_vaso" x1="15" y1="4.4" x2="15" y2="30" gradientUnits="userSpaceOnUse"><stop stop-color="#EAFCFF"/><stop offset="1" stop-color="#C3E8F6"/></linearGradient>
+<linearGradient id="k_tequila" x1="15" y1="12.2" x2="15" y2="28.6" gradientUnits="userSpaceOnUse"><stop stop-color="#FFD66A"/><stop offset="0.6" stop-color="#F4A93C"/><stop offset="1" stop-color="#D98224"/></linearGradient>
+<radialGradient id="k_tequila_sombra" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(19.5 27) rotate(-110) scale(10 4)"><stop stop-color="#A85B12" stop-opacity="0.5"/><stop offset="1" stop-color="#A85B12" stop-opacity="0"/></radialGradient>
+<linearGradient id="k_borde" x1="15" y1="3.4" x2="15" y2="5.6" gradientUnits="userSpaceOnUse"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#CDEFFB"/></linearGradient>
+<linearGradient id="k_limon" x1="24.6" y1="18.4" x2="24.6" y2="26" gradientUnits="userSpaceOnUse"><stop stop-color="#C9EC5B"/><stop offset="1" stop-color="#6FAF22"/></linearGradient>
+</defs>
+</svg>

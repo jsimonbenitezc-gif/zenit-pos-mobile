@@ -1,0 +1,28 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M7.4 7.6H24.6L22.4 28.2C22.3 29.2 21.4 30 20.4 30H11.6C10.6 30 9.7 29.2 9.6 28.2L7.4 7.6Z" fill="url(#m_vaso)"/>
+<path d="M8.6 11.2H23.4L21.6 27.6C21.5 28.3 20.9 28.8 20.2 28.8H11.8C11.1 28.8 10.5 28.3 10.4 27.6L8.6 11.2Z" fill="url(#m_bebida)"/>
+<path d="M8.6 11.2H23.4L21.6 27.6C21.5 28.3 20.9 28.8 20.2 28.8H11.8C11.1 28.8 10.5 28.3 10.4 27.6L8.6 11.2Z" fill="url(#m_bebida_sombra)"/>
+<ellipse cx="16" cy="11.3" rx="7.4" ry="1" fill="#E7824A"/>
+<circle cx="13" cy="17" r="0.6" fill="#FFD2A0" fill-opacity="0.7"/>
+<circle cx="17.6" cy="21.4" r="0.5" fill="#FFD2A0" fill-opacity="0.7"/>
+<circle cx="14.8" cy="24.6" r="0.45" fill="#FFD2A0" fill-opacity="0.6"/>
+<circle cx="18.8" cy="15" r="0.45" fill="#FFD2A0" fill-opacity="0.6"/>
+<path d="M9.2 13C9.6 17.6 10.3 23.2 11 27.2" stroke="#FFFFFF" stroke-opacity="0.55" stroke-width="1" stroke-linecap="round"/>
+<path d="M7 6.2C7 5.5 7.6 4.9 8.3 4.9H23.7C24.4 4.9 25 5.5 25 6.2V8.6C25 9.2 24.5 9.6 23.9 9.6H8.1C7.5 9.6 7 9.2 7 8.6V6.2Z" fill="url(#m_chile)"/>
+<circle cx="9.4" cy="6.4" r="0.45" fill="#FFF3EA"/>
+<circle cx="11.6" cy="7.8" r="0.4" fill="#FFF3EA"/>
+<circle cx="13.8" cy="6.1" r="0.45" fill="#FFF3EA"/>
+<circle cx="16.4" cy="7.6" r="0.4" fill="#FFF3EA"/>
+<circle cx="18.8" cy="6.3" r="0.45" fill="#FFF3EA"/>
+<circle cx="21" cy="7.9" r="0.4" fill="#FFF3EA"/>
+<circle cx="23" cy="6.5" r="0.4" fill="#FFF3EA"/>
+<path d="M21.4 4.4C22.6 1.9 26.4 1.6 28.2 3.8L22.6 7.2C21.6 6.8 21 5.5 21.4 4.4Z" fill="url(#m_limon)"/>
+<path d="M22.4 4.3C23.4 2.8 25.7 2.6 26.9 3.8" stroke="#F4FFCB" stroke-width="0.7" stroke-linecap="round"/>
+<defs>
+<linearGradient id="m_vaso" x1="16" y1="7.6" x2="16" y2="30" gradientUnits="userSpaceOnUse"><stop stop-color="#E4FBFF"/><stop offset="1" stop-color="#BFE6F5"/></linearGradient>
+<linearGradient id="m_bebida" x1="16" y1="11.2" x2="16" y2="28.8" gradientUnits="userSpaceOnUse"><stop stop-color="#F0823F"/><stop offset="0.6" stop-color="#C9452A"/><stop offset="1" stop-color="#9A2A1E"/></linearGradient>
+<radialGradient id="m_bebida_sombra" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(22 26) rotate(-120) scale(10 5)"><stop stop-color="#6E1B14" stop-opacity="0.55"/><stop offset="1" stop-color="#6E1B14" stop-opacity="0"/></radialGradient>
+<linearGradient id="m_chile" x1="16" y1="4.9" x2="16" y2="9.6" gradientUnits="userSpaceOnUse"><stop stop-color="#FF5A3D"/><stop offset="1" stop-color="#C82A1F"/></linearGradient>
+<linearGradient id="m_limon" x1="24.8" y1="1.6" x2="24.8" y2="7.2" gradientUnits="userSpaceOnUse"><stop stop-color="#C9EC5B"/><stop offset="1" stop-color="#6FAF22"/></linearGradient>
+</defs>
+</svg>

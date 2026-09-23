@@ -1,0 +1,17 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g transform="rotate(-20 16 16)">
+<path d="M1.8 16.6C1.8 12.2 8.2 9 16 9C23.8 9 30.2 12.2 30.2 16.6C30.2 20.8 23.8 24 16 24C8.2 24 1.8 20.8 1.8 16.6Z" fill="url(#bo_pan)"/>
+<path d="M1.8 16.6C1.8 12.2 8.2 9 16 9C23.8 9 30.2 12.2 30.2 16.6C30.2 20.8 23.8 24 16 24C8.2 24 1.8 20.8 1.8 16.6Z" fill="url(#bo_luz)"/>
+<path d="M1.8 16.6C1.8 12.2 8.2 9 16 9C23.8 9 30.2 12.2 30.2 16.6C30.2 20.8 23.8 24 16 24C8.2 24 1.8 20.8 1.8 16.6Z" fill="url(#bo_sombra)"/>
+<path d="M6.4 15.8C10 13.2 20.4 12.6 26 14.8" stroke="url(#bo_corte)" stroke-width="2" stroke-linecap="round"/>
+<path d="M6.8 14.9C10.4 12.5 20 12 25.6 13.9" stroke="#FFF1D6" stroke-opacity="0.8" stroke-width="0.7" stroke-linecap="round"/>
+<path d="M1.9 16.4C1.2 16.2 0.8 16.8 1.1 17.3L2.4 17.4Z" fill="#D8894A"/>
+<path d="M30.1 16.4C30.8 16.2 31.2 16.8 30.9 17.3L29.6 17.4Z" fill="#D8894A"/>
+</g>
+<defs>
+<linearGradient id="bo_pan" x1="16" y1="9" x2="16" y2="24" gradientUnits="userSpaceOnUse"><stop stop-color="#FFC974"/><stop offset="0.6" stop-color="#EFA04F"/><stop offset="1" stop-color="#C77433"/></linearGradient>
+<radialGradient id="bo_luz" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(11 12) rotate(8) scale(10 3.6)"><stop stop-color="#FFEBCB" stop-opacity="0.9"/><stop offset="1" stop-color="#FFEBCB" stop-opacity="0"/></radialGradient>
+<radialGradient id="bo_sombra" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(26 22) rotate(-160) scale(14 6)"><stop stop-color="#8E5230" stop-opacity="0.55"/><stop offset="1" stop-color="#8E5230" stop-opacity="0"/></radialGradient>
+<linearGradient id="bo_corte" x1="6.4" y1="14" x2="26" y2="14" gradientUnits="userSpaceOnUse"><stop stop-color="#E8B06A" stop-opacity="0.6"/><stop offset="0.5" stop-color="#FFE0A8"/><stop offset="1" stop-color="#E8B06A" stop-opacity="0.6"/></linearGradient>
+</defs>
+</svg>

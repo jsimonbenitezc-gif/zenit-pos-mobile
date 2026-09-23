@@ -1,0 +1,22 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect x="19.4" y="3" width="2.2" height="11" rx="1.1" transform="rotate(22 20.5 8.5)" fill="url(#nv_cuchara)"/>
+<circle cx="11.2" cy="11.8" r="5" fill="url(#nv_fresa)"/>
+<circle cx="19.6" cy="11" r="5.2" fill="url(#nv_limon)"/>
+<circle cx="15.4" cy="8" r="5" fill="url(#nv_vainilla)"/>
+<ellipse cx="13.8" cy="5.8" rx="1.8" ry="0.9" fill="#FFFFFF" fill-opacity="0.7"/>
+<ellipse cx="9.6" cy="10" rx="1.4" ry="0.7" fill="#FFFFFF" fill-opacity="0.5"/>
+<ellipse cx="18.2" cy="9" rx="1.4" ry="0.7" fill="#FFFFFF" fill-opacity="0.5"/>
+<path d="M5.8 14.6H26.2L23.8 28.4C23.6 29.4 22.8 30.2 21.8 30.2H10.2C9.2 30.2 8.4 29.4 8.2 28.4L5.8 14.6Z" fill="url(#nv_vaso)"/>
+<path d="M5.8 14.6H26.2L23.8 28.4C23.6 29.4 22.8 30.2 21.8 30.2H10.2C9.2 30.2 8.4 29.4 8.2 28.4L5.8 14.6Z" fill="url(#nv_vaso_sombra)"/>
+<path d="M8 19.6H24M8.8 24.4H23.2" stroke="#8FC3EA" stroke-width="1.2" stroke-linecap="round" stroke-dasharray="0.1 2.2"/>
+<rect x="5" y="13.6" width="22" height="2.2" rx="1.1" fill="url(#nv_borde)"/>
+<defs>
+<linearGradient id="nv_cuchara" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#FFE3A8"/><stop offset="1" stop-color="#E8B25E"/></linearGradient>
+<radialGradient id="nv_fresa" cx="0.38" cy="0.32" r="0.8"><stop stop-color="#FFC4D6"/><stop offset="1" stop-color="#F06C95"/></radialGradient>
+<radialGradient id="nv_limon" cx="0.38" cy="0.32" r="0.8"><stop stop-color="#E8F9B0"/><stop offset="1" stop-color="#9BD144"/></radialGradient>
+<radialGradient id="nv_vainilla" cx="0.38" cy="0.32" r="0.8"><stop stop-color="#FFFBEF"/><stop offset="1" stop-color="#F4DDA8"/></radialGradient>
+<linearGradient id="nv_vaso" x1="16" y1="14.6" x2="16" y2="30.2" gradientUnits="userSpaceOnUse"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#DCE9F6"/></linearGradient>
+<radialGradient id="nv_vaso_sombra" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(25 29) rotate(-130) scale(11 7)"><stop stop-color="#94A9C8" stop-opacity="0.55"/><stop offset="1" stop-color="#94A9C8" stop-opacity="0"/></radialGradient>
+<linearGradient id="nv_borde" x1="16" y1="13.6" x2="16" y2="15.8" gradientUnits="userSpaceOnUse"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#D6E3F2"/></linearGradient>
+</defs>
+</svg>

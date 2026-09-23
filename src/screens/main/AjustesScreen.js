@@ -39,6 +39,7 @@ import { SeccionImpuestos } from './ajustes/SeccionImpuestos';
 import { SeccionPropinas } from './ajustes/SeccionPropinas';
 import { SeccionHorario } from './ajustes/SeccionHorario';
 import { SeccionPantallasKDS } from './ajustes/SeccionPantallasKDS';
+import AvisoLicencias from '../../components/AvisoLicencias';
 
 
 const TIPOS_NEGOCIO = [
@@ -1328,6 +1329,10 @@ export default function AjustesScreen({ navigation }) {
                     onPress={checkForUpdates}
                     last
                   />
+                </SectionCard>
+
+                <SectionCard>
+                  <AvisoLicencias />
                 </SectionCard>
               </>
             ),

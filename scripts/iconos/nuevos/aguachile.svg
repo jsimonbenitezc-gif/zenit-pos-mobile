@@ -1,0 +1,24 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<ellipse cx="16" cy="19.6" rx="14.4" ry="8.4" fill="url(#ac_plato)"/>
+<ellipse cx="16" cy="19.6" rx="14.4" ry="8.4" fill="url(#ac_plato_sombra)"/>
+<ellipse cx="16" cy="18.6" rx="12.2" ry="6.6" fill="url(#ac_salsa)"/>
+<path d="M7.2 17.4C7.2 14.4 9.8 12.4 12.8 12.4C15 12.4 16.4 13.8 16.4 15.6C16.4 17 15.2 17.6 13.8 17.4C12.6 17.2 12.4 16 11.2 16C10 16 9.4 17.4 9.8 18.6Z" fill="url(#ac_camaron)"/>
+<path d="M9.6 14.8L11.2 16.4M11.6 13.4L13 15.2M13.8 13L14.4 14.8" stroke="#FFE3D6" stroke-width="0.6" stroke-linecap="round"/>
+<path d="M16.4 21.6C16.4 18.6 19 16.6 22 16.6C24.2 16.6 25.6 18 25.6 19.8C25.6 21.2 24.4 21.8 23 21.6C21.8 21.4 21.6 20.2 20.4 20.2C19.2 20.2 18.6 21.6 19 22.8Z" fill="url(#ac_camaron)"/>
+<path d="M18.8 19L20.4 20.6M20.8 17.6L22.2 19.4M23 17.2L23.6 19" stroke="#FFE3D6" stroke-width="0.6" stroke-linecap="round"/>
+<ellipse cx="20.6" cy="13.4" rx="2.6" ry="1.6" fill="url(#ac_pepino)"/>
+<ellipse cx="20.6" cy="13.4" rx="1.8" ry="1" fill="#E4F7C9"/>
+<ellipse cx="9.8" cy="22.2" rx="2.4" ry="1.5" fill="url(#ac_pepino)"/>
+<ellipse cx="9.8" cy="22.2" rx="1.6" ry="0.9" fill="#E4F7C9"/>
+<path d="M13.6 21.4C14.8 20.6 16.2 20.8 16.8 21.8" stroke="#C54AA0" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M24.6 15.2C25.8 14.6 27.2 15 27.6 16" stroke="#C54AA0" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M4.6 12.2C5.6 9.4 9.2 9 10.8 11.4L6.4 14.4C5.2 14.2 4.3 13.2 4.6 12.2Z" fill="url(#ac_limon)"/>
+<defs>
+<radialGradient id="ac_plato" cx="0.45" cy="0.35" r="0.75"><stop stop-color="#E7DCD2"/><stop offset="1" stop-color="#9C8C80"/></radialGradient>
+<radialGradient id="ac_plato_sombra" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(27 25) rotate(-150) scale(14 6)"><stop stop-color="#5E4F46" stop-opacity="0.5"/><stop offset="1" stop-color="#5E4F46" stop-opacity="0"/></radialGradient>
+<radialGradient id="ac_salsa" cx="0.45" cy="0.35" r="0.8"><stop stop-color="#A6E27A"/><stop offset="1" stop-color="#4E9E2E"/></radialGradient>
+<linearGradient id="ac_camaron" x1="16" y1="12.4" x2="16" y2="22.8" gradientUnits="userSpaceOnUse"><stop stop-color="#FFC6B0"/><stop offset="1" stop-color="#F48A6A"/></linearGradient>
+<radialGradient id="ac_pepino" cx="0.5" cy="0.5" r="0.5"><stop stop-color="#7BC24A"/><stop offset="1" stop-color="#3D8426"/></radialGradient>
+<linearGradient id="ac_limon" x1="7.6" y1="9.4" x2="7.6" y2="14.4" gradientUnits="userSpaceOnUse"><stop stop-color="#C9EC5B"/><stop offset="1" stop-color="#6FAF22"/></linearGradient>
+</defs>
+</svg>

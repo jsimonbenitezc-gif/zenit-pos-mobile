@@ -1,0 +1,23 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<ellipse cx="16" cy="24.6" rx="15" ry="5.4" fill="url(#cz_tabla)"/>
+<path d="M2.8 21.8C2.8 14.2 8.6 8.4 16 8.4C23.4 8.4 29.2 14.2 29.2 21.8C29.2 22.8 28.4 23.6 27.4 23.6H4.6C3.6 23.6 2.8 22.8 2.8 21.8Z" fill="url(#cz_masa)"/>
+<path d="M2.8 21.8C2.8 14.2 8.6 8.4 16 8.4C23.4 8.4 29.2 14.2 29.2 21.8C29.2 22.8 28.4 23.6 27.4 23.6H4.6C3.6 23.6 2.8 22.8 2.8 21.8Z" fill="url(#cz_luz)"/>
+<path d="M2.8 21.8C2.8 14.2 8.6 8.4 16 8.4C23.4 8.4 29.2 14.2 29.2 21.8C29.2 22.8 28.4 23.6 27.4 23.6H4.6C3.6 23.6 2.8 22.8 2.8 21.8Z" fill="url(#cz_sombra)"/>
+<path d="M3.6 22.6C4.8 21.6 6 23 7.2 22C8.4 21 9.6 22.6 10.8 21.6C12 20.6 13.2 22.2 14.4 21.2C15.6 20.2 16.8 21.8 18 20.8C19.2 19.8 20.4 21.4 21.6 20.4C22.8 19.4 24 21 25.2 20C26.4 19 27.6 20.6 28.6 20" stroke="url(#cz_orilla)" stroke-width="1.8" stroke-linecap="round"/>
+<path d="M24.6 16.4C26.6 16.6 28.6 18 29.4 20.2C29.8 21.4 29.2 22.6 28 23L24 23.6C23.2 21.4 23.4 18.6 24.6 16.4Z" fill="url(#cz_salsa)"/>
+<path d="M25.2 17.2C26.8 17.6 28.2 18.8 28.6 20.4C27.6 21.2 26.8 20.4 26 21.2C25.2 22 24.4 21.2 24.2 20.2C24.2 19 24.6 17.8 25.2 17.2Z" fill="url(#cz_queso)"/>
+<path d="M26.8 22.6C27 23.6 26.6 24.6 26.8 25.4" stroke="#FFD84A" stroke-width="1.1" stroke-linecap="round"/>
+<path d="M13.4 13.2L15 14.8M16.8 12.4L18 14.4M20 13.6L21 15.4" stroke="#B8702A" stroke-width="1.1" stroke-linecap="round"/>
+<circle cx="10.6" cy="16.4" r="0.8" fill="#E8502E" fill-opacity="0.75"/>
+<circle cx="23.4" cy="17.6" r="0.7" fill="#E8502E" fill-opacity="0.75"/>
+<path d="M10.2 11.4C11.8 10.2 13.6 9.8 15 9.8" stroke="#FFF1D6" stroke-opacity="0.8" stroke-width="1" stroke-linecap="round"/>
+<defs>
+<linearGradient id="cz_salsa" x1="26" y1="16.4" x2="26" y2="23.6" gradientUnits="userSpaceOnUse"><stop stop-color="#F0603A"/><stop offset="1" stop-color="#B8301A"/></linearGradient>
+<radialGradient id="cz_queso" cx="0.4" cy="0.35" r="0.8"><stop stop-color="#FFF4A0"/><stop offset="1" stop-color="#F6C43A"/></radialGradient>
+<radialGradient id="cz_tabla" cx="0.45" cy="0.35" r="0.75"><stop stop-color="#F4C88E"/><stop offset="1" stop-color="#C08A52"/></radialGradient>
+<linearGradient id="cz_masa" x1="16" y1="8.4" x2="16" y2="23.6" gradientUnits="userSpaceOnUse"><stop stop-color="#FFD890"/><stop offset="0.6" stop-color="#F2AE58"/><stop offset="1" stop-color="#D08438"/></linearGradient>
+<radialGradient id="cz_luz" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(11 12) rotate(30) scale(9 5)"><stop stop-color="#FFF1D6" stop-opacity="0.8"/><stop offset="1" stop-color="#FFF1D6" stop-opacity="0"/></radialGradient>
+<radialGradient id="cz_sombra" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(28 22) rotate(-145) scale(14 9)"><stop stop-color="#A45A22" stop-opacity="0.55"/><stop offset="1" stop-color="#A45A22" stop-opacity="0"/></radialGradient>
+<linearGradient id="cz_orilla" x1="3" y1="21" x2="29" y2="21" gradientUnits="userSpaceOnUse"><stop stop-color="#E8A04A"/><stop offset="1" stop-color="#C47A30"/></linearGradient>
+</defs>
+</svg>

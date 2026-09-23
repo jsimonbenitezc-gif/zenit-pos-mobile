@@ -1,0 +1,26 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<ellipse cx="16" cy="22" rx="15" ry="7.4" fill="url(#af_plato)"/>
+<ellipse cx="16" cy="22" rx="15" ry="7.4" fill="url(#af_plato_sombra)"/>
+<path d="M4.6 19.6C4.6 13.4 9.6 9.4 16 9.4C22.4 9.4 27.4 13.4 27.4 19.6C27.4 21.8 22.4 23.6 16 23.6C9.6 23.6 4.6 21.8 4.6 19.6Z" fill="url(#af_arroz)"/>
+<path d="M4.6 19.6C4.6 13.4 9.6 9.4 16 9.4C22.4 9.4 27.4 13.4 27.4 19.6C27.4 21.8 22.4 23.6 16 23.6C9.6 23.6 4.6 21.8 4.6 19.6Z" fill="url(#af_sombra)"/>
+<rect x="9.4" y="14" width="1.6" height="1.4" rx="0.4" fill="#F29A2A"/>
+<rect x="16.4" y="11.6" width="1.6" height="1.4" rx="0.4" fill="#F29A2A"/>
+<rect x="21.4" y="16.4" width="1.6" height="1.4" rx="0.4" fill="#F29A2A"/>
+<rect x="12.6" y="19.2" width="1.6" height="1.4" rx="0.4" fill="#F29A2A"/>
+<circle cx="13.4" cy="13.2" r="0.8" fill="#6FC04A"/>
+<circle cx="19.4" cy="14.6" r="0.8" fill="#6FC04A"/>
+<circle cx="10.8" cy="17.6" r="0.8" fill="#6FC04A"/>
+<circle cx="23.4" cy="19.4" r="0.7" fill="#6FC04A"/>
+<circle cx="17.6" cy="19.6" r="0.7" fill="#6FC04A"/>
+<ellipse cx="15.2" cy="16" rx="1.4" ry="0.9" fill="#FFE070"/>
+<ellipse cx="20" cy="12" rx="1.2" ry="0.8" fill="#FFE070"/>
+<ellipse cx="8.2" cy="20" rx="1.2" ry="0.8" fill="#FFE070"/>
+<path d="M20.8 18.6C21.8 17.6 23.4 17.8 23.8 19C23 19.8 21.6 19.8 20.8 18.6Z" fill="#FFA07A"/>
+<path d="M11.4 11.6C12.4 10.6 14 10.8 14.4 12C13.6 12.8 12.2 12.8 11.4 11.6Z" fill="#FFA07A"/>
+<defs>
+<radialGradient id="af_plato" cx="0.45" cy="0.35" r="0.75"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#D2DDEA"/></radialGradient>
+<radialGradient id="af_plato_sombra" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(28 27) rotate(-155) scale(14 6)"><stop stop-color="#8FA3BF" stop-opacity="0.5"/><stop offset="1" stop-color="#8FA3BF" stop-opacity="0"/></radialGradient>
+<radialGradient id="af_arroz" cx="0.42" cy="0.3" r="0.8"><stop stop-color="#FFF0C8"/><stop offset="1" stop-color="#E4B86A"/></radialGradient>
+<radialGradient id="af_sombra" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(25 22) rotate(-150) scale(12 6)"><stop stop-color="#A8742A" stop-opacity="0.45"/><stop offset="1" stop-color="#A8742A" stop-opacity="0"/></radialGradient>
+</defs>
+</svg>

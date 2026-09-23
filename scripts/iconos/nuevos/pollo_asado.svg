@@ -1,0 +1,26 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<ellipse cx="16" cy="23" rx="15" ry="6.8" fill="url(#pa_plato)"/>
+<ellipse cx="16" cy="23" rx="15" ry="6.8" fill="url(#pa_plato_sombra)"/>
+<path d="M4.4 18C4.4 13.2 9.6 9.6 16 9.6C22.4 9.6 27.6 13.2 27.6 18C27.6 22 22.4 24.6 16 24.6C9.6 24.6 4.4 22 4.4 18Z" fill="url(#pa_pollo)"/>
+<path d="M4.4 18C4.4 13.2 9.6 9.6 16 9.6C22.4 9.6 27.6 13.2 27.6 18C27.6 22 22.4 24.6 16 24.6C9.6 24.6 4.4 22 4.4 18Z" fill="url(#pa_luz)"/>
+<path d="M4.4 18C4.4 13.2 9.6 9.6 16 9.6C22.4 9.6 27.6 13.2 27.6 18C27.6 22 22.4 24.6 16 24.6C9.6 24.6 4.4 22 4.4 18Z" fill="url(#pa_sombra)"/>
+<path d="M16 10.4C15.4 14 15.4 18.6 16 23.6" stroke="#8E3A12" stroke-opacity="0.4" stroke-width="0.9" stroke-linecap="round"/>
+<path d="M9 14.6C10.6 13.8 11.6 15.2 13.2 14.4M18.8 14.2C20.4 13.4 21.4 14.8 23 14" stroke="#7A2A0E" stroke-opacity="0.6" stroke-width="0.9" stroke-linecap="round"/>
+<path d="M8.6 19.6C10.2 18.8 11.2 20.2 12.8 19.4M19.2 19.4C20.8 18.6 21.8 20 23.4 19.2" stroke="#7A2A0E" stroke-opacity="0.6" stroke-width="0.9" stroke-linecap="round"/>
+<path d="M19.4 14.2C19.8 11 22.2 8.4 24.6 8.2C26.4 8 27.4 9.6 26.8 11.4C26 13.6 23.4 15.8 20.8 16.4Z" fill="url(#pa_pierna)"/>
+<rect x="25.2" y="5" width="1.8" height="4.6" rx="0.9" transform="rotate(35 26.1 7.3)" fill="url(#pa_hueso)"/>
+<circle cx="28" cy="5.2" r="1.1" fill="url(#pa_hueso)"/><circle cx="27" cy="4.4" r="1.1" fill="url(#pa_hueso)"/>
+<path d="M12.6 14.2C12.2 11 9.8 8.4 7.4 8.2C5.6 8 4.6 9.6 5.2 11.4C6 13.6 8.6 15.8 11.2 16.4Z" fill="url(#pa_pierna)"/>
+<rect x="5" y="5" width="1.8" height="4.6" rx="0.9" transform="rotate(-35 5.9 7.3)" fill="url(#pa_hueso)"/>
+<circle cx="4" cy="5.2" r="1.1" fill="url(#pa_hueso)"/><circle cx="5" cy="4.4" r="1.1" fill="url(#pa_hueso)"/>
+<ellipse cx="10.6" cy="12.4" rx="3.4" ry="1.2" transform="rotate(-15 10.6 12.4)" fill="#FFD6A8" fill-opacity="0.55"/>
+<defs>
+<linearGradient id="pa_pierna" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#FFC06A"/><stop offset="1" stop-color="#C8621E"/></linearGradient>
+<radialGradient id="pa_plato" cx="0.45" cy="0.35" r="0.75"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#D2DDEA"/></radialGradient>
+<radialGradient id="pa_plato_sombra" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(28 27) rotate(-155) scale(14 6)"><stop stop-color="#8FA3BF" stop-opacity="0.5"/><stop offset="1" stop-color="#8FA3BF" stop-opacity="0"/></radialGradient>
+<linearGradient id="pa_pollo" x1="16" y1="9.6" x2="16" y2="24.6" gradientUnits="userSpaceOnUse"><stop stop-color="#F8B058"/><stop offset="0.55" stop-color="#E07A2A"/><stop offset="1" stop-color="#B0521A"/></linearGradient>
+<radialGradient id="pa_luz" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(11 13) rotate(20) scale(9 4)"><stop stop-color="#FFE0B0" stop-opacity="0.7"/><stop offset="1" stop-color="#FFE0B0" stop-opacity="0"/></radialGradient>
+<radialGradient id="pa_sombra" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(25 23) rotate(-150) scale(13 7)"><stop stop-color="#7A2A0E" stop-opacity="0.5"/><stop offset="1" stop-color="#7A2A0E" stop-opacity="0"/></radialGradient>
+<radialGradient id="pa_hueso" cx="0.4" cy="0.35" r="0.8"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#E8E0D4"/></radialGradient>
+</defs>
+</svg>

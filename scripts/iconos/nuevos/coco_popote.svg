@@ -1,0 +1,21 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M20.6 1.8L17.4 11.4" stroke="url(#co_popote)" stroke-width="2" stroke-linecap="round"/>
+<path d="M20.6 1.8L22.8 1.2" stroke="#E23A62" stroke-width="2" stroke-linecap="round"/>
+<path d="M3.2 18.4C3.2 11.6 8.9 7.6 16 7.6C23.1 7.6 28.8 11.6 28.8 18.4C28.8 25.2 23.1 30 16 30C8.9 30 3.2 25.2 3.2 18.4Z" fill="url(#co_cascara)"/>
+<path d="M3.2 18.4C3.2 11.6 8.9 7.6 16 7.6C23.1 7.6 28.8 11.6 28.8 18.4C28.8 25.2 23.1 30 16 30C8.9 30 3.2 25.2 3.2 18.4Z" fill="url(#co_luz)"/>
+<path d="M3.2 18.4C3.2 11.6 8.9 7.6 16 7.6C23.1 7.6 28.8 11.6 28.8 18.4C28.8 25.2 23.1 30 16 30C8.9 30 3.2 25.2 3.2 18.4Z" fill="url(#co_sombra)"/>
+<path d="M8 16.4C9.6 20.4 9.8 24.4 8.6 27.2M13.6 17.6C14.4 21.6 14.2 25.4 13.2 29M19.4 17.4C19.6 21.4 19.2 25.4 18.2 29.2M24.2 16C24.6 19.6 24.2 23 23 26" stroke="#3E7D2B" stroke-opacity="0.35" stroke-width="0.8" stroke-linecap="round"/>
+<ellipse cx="16" cy="11.4" rx="9" ry="3.6" fill="url(#co_corte)"/>
+<ellipse cx="16" cy="11.6" rx="7.4" ry="2.6" fill="url(#co_pulpa)"/>
+<ellipse cx="16.2" cy="11.8" rx="5.4" ry="1.7" fill="url(#co_agua)"/>
+<ellipse cx="9.6" cy="15" rx="2.6" ry="1.2" transform="rotate(-25 9.6 15)" fill="#E6FAC8" fill-opacity="0.5"/>
+<defs>
+<linearGradient id="co_popote" x1="20.6" y1="1.8" x2="17.4" y2="11.4" gradientUnits="userSpaceOnUse"><stop stop-color="#FF6B8A"/><stop offset="1" stop-color="#E23A62"/></linearGradient>
+<linearGradient id="co_cascara" x1="16" y1="7.6" x2="16" y2="30" gradientUnits="userSpaceOnUse"><stop stop-color="#A6DA5E"/><stop offset="1" stop-color="#5E9E2E"/></linearGradient>
+<radialGradient id="co_luz" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(9 16) rotate(55) scale(8 5)"><stop stop-color="#DDF6A8" stop-opacity="0.8"/><stop offset="1" stop-color="#DDF6A8" stop-opacity="0"/></radialGradient>
+<radialGradient id="co_sombra" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(26 27) rotate(-135) scale(14 9)"><stop stop-color="#2E6118" stop-opacity="0.55"/><stop offset="1" stop-color="#2E6118" stop-opacity="0"/></radialGradient>
+<linearGradient id="co_corte" x1="16" y1="7.8" x2="16" y2="15" gradientUnits="userSpaceOnUse"><stop stop-color="#E3F2B6"/><stop offset="1" stop-color="#9FCB5A"/></linearGradient>
+<linearGradient id="co_pulpa" x1="16" y1="9" x2="16" y2="14.2" gradientUnits="userSpaceOnUse"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#F1EEE2"/></linearGradient>
+<radialGradient id="co_agua" cx="0.45" cy="0.4" r="0.7"><stop stop-color="#F6FDFF"/><stop offset="1" stop-color="#D2EBF3"/></radialGradient>
+</defs>
+</svg>

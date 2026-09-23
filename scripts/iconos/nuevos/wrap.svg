@@ -1,0 +1,19 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g transform="translate(16 16) scale(1.22) translate(-16 -16) rotate(-30 16 16)">
+<rect x="4.4" y="10.4" width="23.2" height="11.2" rx="5.6" fill="url(#wr_tortilla)"/>
+<rect x="4.4" y="10.4" width="23.2" height="11.2" rx="5.6" fill="url(#wr_sombra)"/>
+<path d="M11 10.6C10 13.8 10 18.2 11 21.4" stroke="#DCA864" stroke-opacity="0.7" stroke-width="0.8" stroke-linecap="round"/>
+<path d="M17.4 10.4C17.4 13.4 17.4 18.6 17.4 21.6" stroke="#DCA864" stroke-opacity="0.5" stroke-width="0.8" stroke-linecap="round"/>
+<ellipse cx="26.2" cy="16" rx="2.8" ry="5.2" fill="url(#wr_corte)"/>
+<ellipse cx="26.2" cy="16" rx="2.1" ry="4.3" fill="url(#wr_relleno)"/>
+<ellipse cx="26" cy="13.6" rx="1.4" ry="1.3" fill="#E8302A"/>
+<ellipse cx="26.6" cy="16.4" rx="1.4" ry="1.3" fill="#FFF1D6"/>
+<ellipse cx="25.8" cy="18.8" rx="1.3" ry="1.2" fill="#E8A860"/>
+</g>
+<defs>
+<linearGradient id="wr_tortilla" x1="16" y1="10.4" x2="16" y2="21.6" gradientUnits="userSpaceOnUse"><stop stop-color="#FFF0CE"/><stop offset="1" stop-color="#E8C07A"/></linearGradient>
+<radialGradient id="wr_sombra" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(16 22) rotate(0) scale(12 4)"><stop stop-color="#B8842A" stop-opacity="0.45"/><stop offset="1" stop-color="#B8842A" stop-opacity="0"/></radialGradient>
+<radialGradient id="wr_corte" cx="0.5" cy="0.5" r="0.6"><stop stop-color="#F8DCA0"/><stop offset="1" stop-color="#E4B874"/></radialGradient>
+<radialGradient id="wr_relleno" cx="0.5" cy="0.5" r="0.6"><stop stop-color="#7FCB5A"/><stop offset="1" stop-color="#3E8E2E"/></radialGradient>
+</defs>
+</svg>

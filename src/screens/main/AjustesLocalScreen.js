@@ -27,6 +27,7 @@ import {
 } from '../../utils/printer';
 import { resumenParaMigrar } from '../../offline/migrar';
 import ModalMigrar from './ajustes/ModalMigrar';
+import AvisoLicencias from '../../components/AvisoLicencias';
 
 export default function AjustesLocalScreen() {
   const { settings, guardarAjustesLocal, salirModoLocal, crearCuentaYMigrar } = useAuth();
@@ -289,6 +290,10 @@ export default function AjustesLocalScreen() {
             </View>
             <Icono nombre="derecha" size={16} color={zc.flecha} />
           </TouchableOpacity>
+
+          <View style={styles.tarjeta}>
+            <AvisoLicencias />
+          </View>
 
           <TouchableOpacity style={styles.btnPeligro} onPress={borrarTodo}>
             <Text style={styles.btnPeligroText}>Borrar el negocio de este teléfono</Text>

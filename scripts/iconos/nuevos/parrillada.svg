@@ -1,0 +1,24 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M6.4 24.2L4.6 30M25.6 24.2L27.4 30" stroke="#5E5A6C" stroke-width="1.6" stroke-linecap="round"/>
+<path d="M1.8 16.4C1.8 15.4 2.6 14.6 3.6 14.6H28.4C29.4 14.6 30.2 15.4 30.2 16.4C30.2 21.6 23.8 25.4 16 25.4C8.2 25.4 1.8 21.6 1.8 16.4Z" fill="url(#pr_asador)"/>
+<path d="M1.8 16.4C1.8 15.4 2.6 14.6 3.6 14.6H28.4C29.4 14.6 30.2 15.4 30.2 16.4C30.2 21.6 23.8 25.4 16 25.4C8.2 25.4 1.8 21.6 1.8 16.4Z" fill="url(#pr_asador_sombra)"/>
+<ellipse cx="16" cy="15" rx="14.2" ry="3.8" fill="url(#pr_brasas)"/>
+<path d="M3.6 14.4H28.4M5 12.6H27M7.4 16.6H24.6" stroke="#9C98AA" stroke-width="0.7"/>
+<path d="M4.6 12.8C4.6 10.8 6.6 9.8 8.8 10C11 10.2 12.8 11.2 12.6 12.8C12.4 14.2 10.4 14.8 8.4 14.6C6.2 14.4 4.6 14 4.6 12.8Z" fill="url(#pr_carne)"/>
+<path d="M6.4 11.2L8 14M8.8 10.6L10.4 13.8" stroke="#4E1A0A" stroke-opacity="0.7" stroke-width="0.9" stroke-linecap="round"/>
+<rect x="13.4" y="9.8" width="6.4" height="3" rx="1.5" transform="rotate(-10 16.6 11.3)" fill="url(#pr_chorizo)"/>
+<rect x="14.4" y="12.6" width="6.4" height="3" rx="1.5" transform="rotate(8 17.6 14.1)" fill="url(#pr_chorizo)"/>
+<path d="M15 10.8L15.6 12.4M17.4 10.4L17.8 12M16.4 13.4L16.2 15.2" stroke="#6E1A0A" stroke-opacity="0.6" stroke-width="0.6" stroke-linecap="round"/>
+<ellipse cx="24.2" cy="12.4" rx="3.8" ry="2.6" fill="url(#pr_cebolla)"/>
+<ellipse cx="24.2" cy="12.4" rx="2.4" ry="1.6" stroke="#E8D6F0" stroke-width="0.6"/>
+<path d="M22.2 11.4L23.4 13.6M24.6 10.8L25.6 13.2" stroke="#6E4A2A" stroke-opacity="0.55" stroke-width="0.7" stroke-linecap="round"/>
+<path d="M9.4 7.6C8.8 6 10.2 5 9.6 3.4M16.4 7.2C15.8 5.6 17.2 4.6 16.6 3M23.2 7.6C22.6 6 24 5 23.4 3.4" stroke="#BFC6D4" stroke-opacity="0.8" stroke-width="1" stroke-linecap="round"/>
+<defs>
+<linearGradient id="pr_asador" x1="16" y1="14.6" x2="16" y2="25.4" gradientUnits="userSpaceOnUse"><stop stop-color="#5E5A6C"/><stop offset="1" stop-color="#2E2A38"/></linearGradient>
+<radialGradient id="pr_asador_sombra" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(9 17) rotate(40) scale(8 3)"><stop stop-color="#9C98AA" stop-opacity="0.7"/><stop offset="1" stop-color="#9C98AA" stop-opacity="0"/></radialGradient>
+<radialGradient id="pr_brasas" cx="0.5" cy="0.5" r="0.6"><stop stop-color="#FF8A3A"/><stop offset="1" stop-color="#8E2A12"/></radialGradient>
+<linearGradient id="pr_carne" x1="8.6" y1="10" x2="8.6" y2="14.8" gradientUnits="userSpaceOnUse"><stop stop-color="#C85A3A"/><stop offset="1" stop-color="#7A2A14"/></linearGradient>
+<linearGradient id="pr_chorizo" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#E0603A"/><stop offset="1" stop-color="#9E2A16"/></linearGradient>
+<radialGradient id="pr_cebolla" cx="0.4" cy="0.35" r="0.8"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#D8C0CC"/></radialGradient>
+</defs>
+</svg>

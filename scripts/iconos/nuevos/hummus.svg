@@ -1,0 +1,25 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M2.4 15.6H29.6C29.6 22.8 23.5 28.4 16 28.4C8.5 28.4 2.4 22.8 2.4 15.6Z" fill="url(#hm_taza)"/>
+<path d="M2.4 15.6H29.6C29.6 22.8 23.5 28.4 16 28.4C8.5 28.4 2.4 22.8 2.4 15.6Z" fill="url(#hm_taza_sombra)"/>
+<ellipse cx="16" cy="15.6" rx="13.6" ry="4.4" fill="url(#hm_borde)"/>
+<ellipse cx="16" cy="15.6" rx="12" ry="3.6" fill="url(#hm_hummus)"/>
+<path d="M8 15.6C10.4 13.4 21.6 13.4 24 15.6C21.6 17.8 10.4 17.8 8 15.6Z" stroke="#E4C890" stroke-width="0.8"/>
+<ellipse cx="16" cy="15.6" rx="4.4" ry="1.4" fill="url(#hm_aceite)"/>
+<circle cx="14.4" cy="15.2" r="0.6" fill="#E8C46A"/>
+<circle cx="16.8" cy="15.8" r="0.6" fill="#E8C46A"/>
+<circle cx="15.8" cy="14.8" r="0.55" fill="#E8C46A"/>
+<circle cx="11" cy="15.2" r="0.35" fill="#D0402A"/>
+<circle cx="21.6" cy="16.2" r="0.35" fill="#D0402A"/>
+<circle cx="19.4" cy="14.4" r="0.3" fill="#D0402A"/>
+<path d="M19.6 6.6L25.4 13.4L22.6 14.6L18.2 8Z" fill="url(#hm_pita)"/>
+<path d="M24.8 5.4L28.6 13.2L26 13.8L22.8 6.8Z" fill="url(#hm_pita)"/>
+<path d="M21.2 12.8C21.2 12.8 20 13.2 21.6 13.6" stroke="#FFF1D6" stroke-width="0.5"/>
+<defs>
+<linearGradient id="hm_taza" x1="16" y1="15.6" x2="16" y2="28.4" gradientUnits="userSpaceOnUse"><stop stop-color="#4AA8C8"/><stop offset="1" stop-color="#1E6A8E"/></linearGradient>
+<radialGradient id="hm_taza_sombra" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(26 25) rotate(-135) scale(12 8)"><stop stop-color="#0E3A52" stop-opacity="0.55"/><stop offset="1" stop-color="#0E3A52" stop-opacity="0"/></radialGradient>
+<linearGradient id="hm_borde" x1="16" y1="11.2" x2="16" y2="20" gradientUnits="userSpaceOnUse"><stop stop-color="#9ADAF0"/><stop offset="1" stop-color="#3A96BC"/></linearGradient>
+<radialGradient id="hm_hummus" cx="0.45" cy="0.4" r="0.75"><stop stop-color="#FFF4DA"/><stop offset="1" stop-color="#EACD92"/></radialGradient>
+<radialGradient id="hm_aceite" cx="0.5" cy="0.5" r="0.6"><stop stop-color="#E8D05A"/><stop offset="1" stop-color="#C8A83A" stop-opacity="0.7"/></radialGradient>
+<linearGradient id="hm_pita" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#FFE2B8"/><stop offset="1" stop-color="#DCA064"/></linearGradient>
+</defs>
+</svg>

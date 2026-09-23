@@ -1,0 +1,28 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect x="17.4" y="1.4" width="1.6" height="15" rx="0.8" transform="rotate(28 18.2 8.9)" fill="url(#rm_palillo)"/>
+<rect x="20.4" y="2" width="1.6" height="15" rx="0.8" transform="rotate(36 21.2 9.5)" fill="url(#rm_palillo)"/>
+<path d="M2.2 15.4H29.8C29.8 23 23.6 29 16 29C8.4 29 2.2 23 2.2 15.4Z" fill="url(#rm_taza)"/>
+<path d="M2.2 15.4H29.8C29.8 23 23.6 29 16 29C8.4 29 2.2 23 2.2 15.4Z" fill="url(#rm_taza_sombra)"/>
+<path d="M5.4 20.6H26.6" stroke="#FFFFFF" stroke-opacity="0.8" stroke-width="1" stroke-dasharray="1.6 1.2"/>
+<path d="M11.4 28.6H20.6L21.2 29.8C21.4 30.2 21.1 30.6 20.7 30.6H11.3C10.9 30.6 10.6 30.2 10.8 29.8L11.4 28.6Z" fill="#8E2A1E"/>
+<ellipse cx="16" cy="15.4" rx="13.8" ry="4.2" fill="url(#rm_borde)"/>
+<ellipse cx="16" cy="15.5" rx="12.4" ry="3.4" fill="url(#rm_caldo)"/>
+<path d="M6.6 15.6C8 14.4 9.4 16.2 10.8 15C12.2 13.8 13.6 15.8 15 14.6C16.4 13.4 17.8 15.4 19.2 14.2" stroke="#FFE38A" stroke-width="1" stroke-linecap="round"/>
+<path d="M7.6 16.8C9 15.8 10.4 17.4 11.8 16.4C13.2 15.4 14.6 17 16 16" stroke="#FFD86A" stroke-width="1" stroke-linecap="round"/>
+<ellipse cx="21.8" cy="15.6" rx="2.4" ry="1.7" fill="url(#rm_huevo)"/>
+<ellipse cx="21.9" cy="15.6" rx="1.2" ry="0.9" fill="#F7A62A"/>
+<rect x="9.6" y="12.6" width="3" height="4" rx="0.5" transform="rotate(-10 11.1 14.6)" fill="#2E3A2A"/>
+<circle cx="25.4" cy="14.4" r="1.2" fill="url(#rm_naruto)"/>
+<path d="M25 14.1C25.5 13.9 25.9 14.4 25.4 14.7" stroke="#F06A8A" stroke-width="0.4" stroke-linecap="round"/>
+<circle cx="15" cy="16.8" r="0.5" fill="#6FC04A"/>
+<circle cx="18.6" cy="17" r="0.45" fill="#6FC04A"/>
+<defs>
+<linearGradient id="rm_palillo" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#F2D09A"/><stop offset="1" stop-color="#C89A5A"/></linearGradient>
+<linearGradient id="rm_taza" x1="16" y1="15.4" x2="16" y2="29" gradientUnits="userSpaceOnUse"><stop stop-color="#F0584A"/><stop offset="1" stop-color="#B02A20"/></linearGradient>
+<radialGradient id="rm_taza_sombra" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(26 25) rotate(-135) scale(12 8)"><stop stop-color="#6E1410" stop-opacity="0.55"/><stop offset="1" stop-color="#6E1410" stop-opacity="0"/></radialGradient>
+<linearGradient id="rm_borde" x1="16" y1="11.2" x2="16" y2="19.6" gradientUnits="userSpaceOnUse"><stop stop-color="#FF9A8A"/><stop offset="1" stop-color="#D8403A"/></linearGradient>
+<radialGradient id="rm_caldo" cx="0.45" cy="0.4" r="0.75"><stop stop-color="#F6C88A"/><stop offset="1" stop-color="#D89A4E"/></radialGradient>
+<radialGradient id="rm_huevo" cx="0.4" cy="0.35" r="0.8"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#EFEAE0"/></radialGradient>
+<radialGradient id="rm_naruto" cx="0.4" cy="0.35" r="0.8"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#F0E8EE"/></radialGradient>
+</defs>
+</svg>

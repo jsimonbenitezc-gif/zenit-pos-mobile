@@ -1,0 +1,26 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<ellipse cx="16" cy="18.4" rx="15" ry="10.4" fill="url(#cm_plato)"/>
+<ellipse cx="16" cy="18.4" rx="15" ry="10.4" fill="url(#cm_plato_sombra)"/>
+<ellipse cx="16" cy="17.8" rx="12.6" ry="8.4" fill="url(#cm_centro)"/>
+<path d="M16 9.6V17.8M16 17.8L6.2 22.2M16 17.8L25.8 22.2" stroke="#D6DEEA" stroke-width="1.6" stroke-linecap="round"/>
+<path d="M4.4 16C5 12.6 9.4 10 14.8 9.6V17L5.6 21C4.6 19.6 4.2 17.8 4.4 16Z" fill="url(#cm_arroz)"/>
+<circle cx="8" cy="15" r="0.5" fill="#F4A24A"/>
+<circle cx="11.2" cy="13" r="0.5" fill="#6FC04A"/>
+<circle cx="10.4" cy="16.2" r="0.5" fill="#F4A24A"/>
+<circle cx="12.6" cy="14.8" r="0.45" fill="#6FC04A"/>
+<path d="M17.2 9.6C22.6 10 27 12.6 27.6 16C27.8 17.8 27.4 19.6 26.4 21L17.2 17V9.6Z" fill="url(#cm_frijol)"/>
+<path d="M7.2 22.6L16 18.8L24.8 22.6C22.8 24.8 19.6 26.2 16 26.2C12.4 26.2 9.2 24.8 7.2 22.6Z" fill="url(#cm_guisado)"/>
+<ellipse cx="13.4" cy="22.6" rx="1.8" ry="1.2" fill="url(#cm_carne)"/>
+<ellipse cx="17.8" cy="23.4" rx="1.8" ry="1.2" fill="url(#cm_carne)"/>
+<ellipse cx="15.6" cy="21" rx="1.4" ry="0.9" fill="url(#cm_carne)"/>
+<path d="M20.4 12.8C21.4 12.2 22.6 12.4 23 13.2" stroke="#FFFBF0" stroke-width="1" stroke-linecap="round"/>
+<defs>
+<radialGradient id="cm_plato" cx="0.45" cy="0.35" r="0.75"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#D2DDEA"/></radialGradient>
+<radialGradient id="cm_plato_sombra" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(28 26) rotate(-150) scale(14 7)"><stop stop-color="#8FA3BF" stop-opacity="0.5"/><stop offset="1" stop-color="#8FA3BF" stop-opacity="0"/></radialGradient>
+<radialGradient id="cm_centro" cx="0.5" cy="0.4" r="0.7"><stop stop-color="#EEF2F8"/><stop offset="1" stop-color="#FFFFFF"/></radialGradient>
+<radialGradient id="cm_arroz" cx="0.5" cy="0.4" r="0.8"><stop stop-color="#FFE0B0"/><stop offset="1" stop-color="#F2BE78"/></radialGradient>
+<radialGradient id="cm_frijol" cx="0.45" cy="0.35" r="0.75"><stop stop-color="#7E3F32"/><stop offset="1" stop-color="#4E2322"/></radialGradient>
+<radialGradient id="cm_guisado" cx="0.5" cy="0.35" r="0.8"><stop stop-color="#7FCB5A"/><stop offset="1" stop-color="#3E8E2E"/></radialGradient>
+<radialGradient id="cm_carne" cx="0.4" cy="0.35" r="0.8"><stop stop-color="#E4A07A"/><stop offset="1" stop-color="#A45A38"/></radialGradient>
+</defs>
+</svg>

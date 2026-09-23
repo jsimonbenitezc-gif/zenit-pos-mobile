@@ -9,7 +9,7 @@
     "web": "expo start --web",
     "revisar": "node scripts/revisar.js",
     "smoke:credenciales": "node scripts/smoke-credenciales.js",
-    "verificar": "node scripts/revisar.js && npm run revisar:estilo && node scripts/smoke-credenciales.js && node scripts/smoke-modo-local.js && node scripts/smoke-migracion.js && npm run smoke:sinsesion && npm run smoke:sse && npm run smoke:promos-gemelas && npm run smoke:promos && npm run smoke:aviso-stock",
+    "verificar": "node scripts/revisar.js && npm run revisar:estilo && node scripts/smoke-credenciales.js && node scripts/smoke-modo-local.js && node scripts/smoke-migracion.js && npm run smoke:sinsesion && npm run smoke:sse && npm run smoke:promos-gemelas && npm run smoke:promos && npm run smoke:aviso-stock && npm run smoke:iconos",
     "smoke:local": "node scripts/smoke-modo-local.js",
     "smoke:migracion": "node scripts/smoke-migracion.js",
     "smoke:sinsesion": "node scripts/smoke-modo-local-sin-sesion.js",
@@ -18,6 +18,8 @@
     "smoke:promos-gemelas": "node scripts/smoke-promos-gemelas.js",
     "smoke:promos": "node scripts/smoke-promos.js",
     "smoke:aviso-stock": "node scripts/smoke-aviso-stock.js",
+    "smoke:iconos": "node scripts/smoke-iconos.js",
+    "iconos:generar": "node scripts/iconos/generar-catalogo.js",
     "revisar:estilo": "node scripts/revisar-solo-estilo.js && node scripts/smoke-solo-estilo.js"
   },
   "dependencies": {

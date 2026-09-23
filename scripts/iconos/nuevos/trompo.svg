@@ -1,0 +1,31 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect x="15.2" y="3" width="1.6" height="27.4" rx="0.8" fill="url(#tr_varilla)"/>
+<ellipse cx="16" cy="28.8" rx="6.4" ry="1.7" fill="url(#tr_base)"/>
+<path d="M11.55 23.70C11.55 21.80 19.75 21.80 19.75 23.70V25.30C19.75 27.20 11.55 27.20 11.55 25.30Z" fill="url(#tr_carne)"/>
+<path d="M12.15 25.50C13.95 26.60 18.05 26.60 19.15 25.50" stroke="#7A200E" stroke-opacity="0.55" stroke-width="0.7" stroke-linecap="round"/>
+<path d="M11.40 21.35C11.40 19.45 21.30 19.45 21.30 21.35V22.95C21.30 24.85 11.40 24.85 11.40 22.95Z" fill="url(#tr_carne)"/>
+<path d="M12.00 23.15C13.53 24.25 18.48 24.25 20.70 23.15" stroke="#7A200E" stroke-opacity="0.55" stroke-width="0.7" stroke-linecap="round"/>
+<path d="M9.85 19.00C9.85 17.10 21.45 17.10 21.45 19.00V20.60C21.45 22.50 9.85 22.50 9.85 20.60Z" fill="url(#tr_carne)"/>
+<path d="M10.45 20.80C13.10 21.90 18.90 21.90 20.85 20.80" stroke="#7A200E" stroke-opacity="0.55" stroke-width="0.7" stroke-linecap="round"/>
+<path d="M9.70 16.65C9.70 14.75 23.00 14.75 23.00 16.65V18.25C23.00 20.15 9.70 20.15 9.70 18.25Z" fill="url(#tr_carne)"/>
+<path d="M10.30 18.45C12.68 19.55 19.32 19.55 22.40 18.45" stroke="#7A200E" stroke-opacity="0.55" stroke-width="0.7" stroke-linecap="round"/>
+<path d="M8.15 14.30C8.15 12.40 23.15 12.40 23.15 14.30V15.90C23.15 17.80 8.15 17.80 8.15 15.90Z" fill="url(#tr_carne)"/>
+<path d="M8.75 16.10C12.25 17.20 19.75 17.20 22.55 16.10" stroke="#7A200E" stroke-opacity="0.55" stroke-width="0.7" stroke-linecap="round"/>
+<path d="M8.00 11.95C8.00 10.05 24.70 10.05 24.70 11.95V13.55C24.70 15.45 8.00 15.45 8.00 13.55Z" fill="url(#tr_carne)"/>
+<path d="M8.60 13.75C11.82 14.85 20.18 14.85 24.10 13.75" stroke="#7A200E" stroke-opacity="0.55" stroke-width="0.7" stroke-linecap="round"/>
+<path d="M6.45 9.60C6.45 7.70 24.85 7.70 24.85 9.60V11.20C24.85 13.10 6.45 13.10 6.45 11.20Z" fill="url(#tr_carne)"/>
+<path d="M7.05 11.40C11.40 12.50 20.60 12.50 24.25 11.40" stroke="#7A200E" stroke-opacity="0.55" stroke-width="0.7" stroke-linecap="round"/>
+<path d="M8.6 10.6C9 13.6 10.4 19.6 11.6 24.2" stroke="#FFB08A" stroke-opacity="0.6" stroke-width="1.1" stroke-linecap="round"/>
+<path d="M11 7.4C11 5 13.2 3.6 16 3.6C18.8 3.6 21 5 21 7.4C21 8.6 18.8 9.4 16 9.4C13.2 9.4 11 8.6 11 7.4Z" fill="url(#tr_pina)"/>
+<path d="M13 5.6L14.4 8.2M16 4.6V8.6M19 5.6L17.6 8.2" stroke="#C98A12" stroke-opacity="0.6" stroke-width="0.6" stroke-linecap="round"/>
+<path d="M13.6 4.2C13.4 2.6 14.2 1.2 15.2 0.8C15.4 2 15.8 3 16 3.8C16.2 3 16.6 2 16.8 0.8C17.8 1.2 18.6 2.6 18.4 4.2C17.6 4.6 14.4 4.6 13.6 4.2Z" fill="url(#tr_hojas)"/>
+<defs>
+<linearGradient id="tr_varilla" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#E4E2EC"/><stop offset="1" stop-color="#9C98AA"/></linearGradient>
+<radialGradient id="tr_base" cx="0.45" cy="0.35" r="0.75"><stop stop-color="#DCD9E4"/><stop offset="1" stop-color="#8E8A9C"/></radialGradient>
+<linearGradient id="tr_carne" x1="7" y1="15" x2="25" y2="15" gradientUnits="userSpaceOnUse"><stop stop-color="#F0784A"/><stop offset="0.5" stop-color="#D24A2A"/><stop offset="1" stop-color="#A23018"/></linearGradient>
+<radialGradient id="tr_luz" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(10.5 13) rotate(78) scale(9 3)"><stop stop-color="#FFB08A" stop-opacity="0.6"/><stop offset="1" stop-color="#FFB08A" stop-opacity="0"/></radialGradient>
+<radialGradient id="tr_sombra" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(23 22) rotate(-115) scale(12 6)"><stop stop-color="#6E1A0C" stop-opacity="0.5"/><stop offset="1" stop-color="#6E1A0C" stop-opacity="0"/></radialGradient>
+<radialGradient id="tr_pina" cx="0.4" cy="0.35" r="0.8"><stop stop-color="#FFF08A"/><stop offset="1" stop-color="#F2B82A"/></radialGradient>
+<linearGradient id="tr_hojas" x1="16" y1="0.8" x2="16" y2="4.6" gradientUnits="userSpaceOnUse"><stop stop-color="#94E560"/><stop offset="1" stop-color="#3FA535"/></linearGradient>
+</defs>
+</svg>

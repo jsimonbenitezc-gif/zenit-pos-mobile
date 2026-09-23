@@ -1,0 +1,28 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M2.2 14.4H29.8C29.8 22.4 23.6 28.8 16 28.8C8.4 28.8 2.2 22.4 2.2 14.4Z" fill="url(#bw_taza)"/>
+<path d="M2.2 14.4H29.8C29.8 22.4 23.6 28.8 16 28.8C8.4 28.8 2.2 22.4 2.2 14.4Z" fill="url(#bw_taza_sombra)"/>
+<path d="M11.4 28.4H20.6L21.2 29.8C21.4 30.2 21.1 30.6 20.7 30.6H11.3C10.9 30.6 10.6 30.2 10.8 29.8L11.4 28.4Z" fill="#8E9ABF"/>
+<ellipse cx="16" cy="14.4" rx="13.8" ry="4.4" fill="url(#bw_borde)"/>
+<path d="M3.6 14.4C4 11.4 7.6 9.4 12 9.4L16 14.8L3.6 15.2V14.4Z" fill="url(#bw_arroz)"/>
+<path d="M12 9.4C13.4 9.1 14.7 9 16 9C17.3 9 18.6 9.1 19.8 9.4L16 14.8L12 9.4Z" fill="url(#bw_verde)"/>
+<path d="M19.8 9.4C24.4 9.6 28 11.6 28.4 14.4V15.2L16 14.8L19.8 9.4Z" fill="url(#bw_jitomate)"/>
+<path d="M3.6 15.2L16 14.8L10.4 18.6C6.8 18.2 4 17 3.6 15.2Z" fill="url(#bw_elote)"/>
+<path d="M16 14.8L28.4 15.2C28 17 25.2 18.2 21.6 18.6L16 14.8Z" fill="url(#bw_frijol)"/>
+<path d="M10.4 18.6L16 14.8L21.6 18.6C19.8 18.9 17.9 19 16 19C14.1 19 12.2 18.9 10.4 18.6Z" fill="url(#bw_aguacate)"/>
+<circle cx="16" cy="14.4" r="2.2" fill="url(#bw_huevo)"/>
+<circle cx="16" cy="14.3" r="1" fill="#FFB820"/>
+<circle cx="21.8" cy="12" r="0.5" fill="#FFFFFF" fill-opacity="0.7"/>
+<circle cx="8" cy="16.2" r="0.4" fill="#FFF6C8"/>
+<defs>
+<linearGradient id="bw_taza" x1="16" y1="14.4" x2="16" y2="28.8" gradientUnits="userSpaceOnUse"><stop stop-color="#8FA8F0"/><stop offset="1" stop-color="#5A74CC"/></linearGradient>
+<radialGradient id="bw_taza_sombra" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(26 25) rotate(-135) scale(12 8)"><stop stop-color="#34449A" stop-opacity="0.55"/><stop offset="1" stop-color="#34449A" stop-opacity="0"/></radialGradient>
+<linearGradient id="bw_borde" x1="16" y1="10" x2="16" y2="18.8" gradientUnits="userSpaceOnUse"><stop stop-color="#C8D4FA"/><stop offset="1" stop-color="#8FA3E4"/></linearGradient>
+<radialGradient id="bw_arroz" cx="0.5" cy="0.5" r="0.7"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#EDEAE0"/></radialGradient>
+<linearGradient id="bw_verde" x1="16" y1="9" x2="16" y2="14.8" gradientUnits="userSpaceOnUse"><stop stop-color="#A6EC6B"/><stop offset="1" stop-color="#4DB23B"/></linearGradient>
+<radialGradient id="bw_jitomate" cx="0.5" cy="0.5" r="0.7"><stop stop-color="#FF7A6B"/><stop offset="1" stop-color="#D5301F"/></radialGradient>
+<radialGradient id="bw_elote" cx="0.5" cy="0.5" r="0.7"><stop stop-color="#FFE56A"/><stop offset="1" stop-color="#EAAA10"/></radialGradient>
+<radialGradient id="bw_frijol" cx="0.5" cy="0.5" r="0.7"><stop stop-color="#7E3F32"/><stop offset="1" stop-color="#4E2322"/></radialGradient>
+<radialGradient id="bw_aguacate" cx="0.5" cy="0.4" r="0.7"><stop stop-color="#D8EC86"/><stop offset="1" stop-color="#7DAE34"/></radialGradient>
+<radialGradient id="bw_huevo" cx="0.4" cy="0.35" r="0.8"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#EFEAE0"/></radialGradient>
+</defs>
+</svg>

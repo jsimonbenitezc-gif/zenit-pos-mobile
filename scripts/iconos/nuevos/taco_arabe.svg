@@ -1,0 +1,27 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<ellipse cx="16" cy="25.4" rx="14.6" ry="4.4" fill="url(#ta_plato)"/>
+<g transform="rotate(-12 16 17)">
+<rect x="2.6" y="11.4" width="26.8" height="11.4" rx="5.7" fill="url(#ta_pan)"/>
+<rect x="2.6" y="11.4" width="26.8" height="11.4" rx="5.7" fill="url(#ta_luz)"/>
+<rect x="2.6" y="11.4" width="26.8" height="11.4" rx="5.7" fill="url(#ta_sombra)"/>
+<ellipse cx="3.8" cy="17.1" rx="2.2" ry="4.4" fill="url(#ta_boca)"/>
+<path d="M2.8 14.8C3.8 14.2 4.8 15.2 4.4 16.2C5 17 4.4 18.2 4.8 19C4.2 19.8 3.4 19.6 2.8 19.2" stroke="#8E3A18" stroke-width="1.6" stroke-linecap="round"/>
+<ellipse cx="11" cy="14" rx="1.4" ry="0.8" fill="#C87A3A" fill-opacity="0.55"/>
+<ellipse cx="18.6" cy="13.6" rx="1.6" ry="0.8" fill="#C87A3A" fill-opacity="0.55"/>
+<ellipse cx="24.6" cy="15.8" rx="1.2" ry="0.7" fill="#C87A3A" fill-opacity="0.55"/>
+<ellipse cx="14.4" cy="20.2" rx="1.2" ry="0.7" fill="#C87A3A" fill-opacity="0.45"/>
+</g>
+<path d="M23.4 7C24.2 4.4 27.6 3.8 29.2 6L25.6 9.4C24.2 9 23.2 8 23.4 7Z" fill="url(#ta_limon)"/>
+<ellipse cx="7.4" cy="7.6" rx="3" ry="2" fill="url(#ta_salsa_taza)"/>
+<ellipse cx="7.4" cy="7.2" rx="2.2" ry="1.2" fill="url(#ta_salsa)"/>
+<defs>
+<radialGradient id="ta_plato" cx="0.45" cy="0.35" r="0.75"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#CFD6E6"/></radialGradient>
+<linearGradient id="ta_pan" x1="16" y1="11.4" x2="16" y2="22.8" gradientUnits="userSpaceOnUse"><stop stop-color="#FFEAC6"/><stop offset="1" stop-color="#EDB878"/></linearGradient>
+<radialGradient id="ta_luz" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(12 13.4) rotate(0) scale(10 2.6)"><stop stop-color="#FFFFFF" stop-opacity="0.75"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+<radialGradient id="ta_sombra" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(26 22) rotate(-160) scale(14 6)"><stop stop-color="#B8742A" stop-opacity="0.5"/><stop offset="1" stop-color="#B8742A" stop-opacity="0"/></radialGradient>
+<radialGradient id="ta_boca" cx="0.6" cy="0.5" r="0.6"><stop stop-color="#C8703A"/><stop offset="1" stop-color="#8E3A18"/></radialGradient>
+<linearGradient id="ta_limon" x1="26.2" y1="3.8" x2="26.2" y2="9.4" gradientUnits="userSpaceOnUse"><stop stop-color="#C9EC5B"/><stop offset="1" stop-color="#6FAF22"/></linearGradient>
+<radialGradient id="ta_salsa_taza" cx="0.45" cy="0.35" r="0.75"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#C9D0E0"/></radialGradient>
+<radialGradient id="ta_salsa" cx="0.45" cy="0.4" r="0.7"><stop stop-color="#B8503A"/><stop offset="1" stop-color="#7A2A1A"/></radialGradient>
+</defs>
+</svg>

@@ -1,0 +1,25 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<ellipse cx="16" cy="22" rx="15" ry="7.4" fill="url(#pg_plato)"/>
+<ellipse cx="16" cy="22" rx="15" ry="7.4" fill="url(#pg_plato_sombra)"/>
+<ellipse cx="16" cy="20.6" rx="12" ry="5.4" fill="url(#pg_salsa_base)"/>
+<circle cx="10" cy="18.6" r="3" fill="url(#pg_pieza)"/>
+<circle cx="16.2" cy="16.6" r="3.2" fill="url(#pg_pieza)"/>
+<circle cx="22.2" cy="18.8" r="3" fill="url(#pg_pieza)"/>
+<circle cx="13.2" cy="22.2" r="2.8" fill="url(#pg_pieza)"/>
+<circle cx="19.4" cy="22.6" r="2.8" fill="url(#pg_pieza)"/>
+<rect x="6.6" y="21" width="2.8" height="1.8" rx="0.5" transform="rotate(-18 8 21.9)" fill="#E8302A"/>
+<rect x="24" y="20.6" width="2.8" height="1.8" rx="0.5" transform="rotate(14 25.4 21.5)" fill="#6FC04A"/>
+<rect x="15.4" y="19.6" width="2.4" height="2" rx="0.4" fill="#FFD84A"/>
+<ellipse cx="9.2" cy="17.6" rx="1.1" ry="0.6" fill="#FFFFFF" fill-opacity="0.6"/>
+<ellipse cx="15.4" cy="15.4" rx="1.2" ry="0.6" fill="#FFFFFF" fill-opacity="0.6"/>
+<ellipse cx="21.4" cy="17.8" rx="1.1" ry="0.6" fill="#FFFFFF" fill-opacity="0.6"/>
+<circle cx="12.4" cy="15.4" r="0.35" fill="#FFF6E0"/>
+<circle cx="19.6" cy="14.8" r="0.35" fill="#FFF6E0"/>
+<circle cx="17.4" cy="24.2" r="0.35" fill="#FFF6E0"/>
+<defs>
+<radialGradient id="pg_plato" cx="0.45" cy="0.35" r="0.75"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#D2DDEA"/></radialGradient>
+<radialGradient id="pg_plato_sombra" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(28 27) rotate(-155) scale(14 6)"><stop stop-color="#8FA3BF" stop-opacity="0.5"/><stop offset="1" stop-color="#8FA3BF" stop-opacity="0"/></radialGradient>
+<radialGradient id="pg_salsa_base" cx="0.5" cy="0.4" r="0.7"><stop stop-color="#FF8A4A"/><stop offset="1" stop-color="#E0501E"/></radialGradient>
+<radialGradient id="pg_pieza" cx="0.38" cy="0.3" r="0.8"><stop stop-color="#FF9A4A"/><stop offset="0.6" stop-color="#E8601E"/><stop offset="1" stop-color="#B83A12"/></radialGradient>
+</defs>
+</svg>

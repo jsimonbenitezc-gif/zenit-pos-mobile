@@ -1,0 +1,22 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<ellipse cx="16" cy="20.6" rx="15" ry="8.4" fill="url(#hr_plato)"/>
+<ellipse cx="16" cy="20.6" rx="15" ry="8.4" fill="url(#hr_plato_sombra)"/>
+<ellipse cx="16" cy="19.4" rx="12" ry="6.4" fill="url(#hr_tortilla)"/>
+<path d="M5.6 19C6.8 15.4 11 13.4 16 13.4C21 13.4 25.2 15.4 26.4 19C25.4 22 21.2 23.8 16 23.8C10.8 23.8 6.6 22 5.6 19Z" fill="url(#hr_salsa)"/>
+<path d="M7.4 18.6C7.4 16.4 9.6 15 12.2 15C14.8 15 16.8 16.4 16.8 18.6C16.8 20.6 14.8 22 12.2 22C9.6 22 7.4 20.6 7.4 18.6Z" fill="url(#hr_clara)"/>
+<path d="M15.6 17.8C15.6 15.8 17.8 14.4 20.2 14.4C22.8 14.4 24.8 15.8 24.8 17.8C24.8 19.8 22.8 21.2 20.2 21.2C17.8 21.2 15.6 19.8 15.6 17.8Z" fill="url(#hr_clara)"/>
+<circle cx="12.2" cy="18.4" r="2.1" fill="url(#hr_yema)"/>
+<circle cx="20.2" cy="17.6" r="2.1" fill="url(#hr_yema)"/>
+<circle cx="11.5" cy="17.7" r="0.6" fill="#FFF6C8"/>
+<circle cx="19.5" cy="16.9" r="0.6" fill="#FFF6C8"/>
+<path d="M7 21.6C8 22.2 9 22.2 9.8 21.8M22.4 21.4C23.4 21.6 24.4 21.2 25 20.6" stroke="#6FC04A" stroke-width="1.2" stroke-linecap="round"/>
+<circle cx="16.4" cy="21.8" r="0.7" fill="#6FC04A"/>
+<defs>
+<radialGradient id="hr_plato" cx="0.45" cy="0.35" r="0.75"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#D2DDEA"/></radialGradient>
+<radialGradient id="hr_plato_sombra" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(28 26) rotate(-155) scale(14 6)"><stop stop-color="#8FA3BF" stop-opacity="0.5"/><stop offset="1" stop-color="#8FA3BF" stop-opacity="0"/></radialGradient>
+<radialGradient id="hr_tortilla" cx="0.45" cy="0.35" r="0.75"><stop stop-color="#FFF0C6"/><stop offset="1" stop-color="#F0C878"/></radialGradient>
+<radialGradient id="hr_salsa" cx="0.45" cy="0.35" r="0.8"><stop stop-color="#FF6B4A"/><stop offset="1" stop-color="#C8301E"/></radialGradient>
+<radialGradient id="hr_clara" cx="0.4" cy="0.35" r="0.8"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#F0EAE0"/></radialGradient>
+<radialGradient id="hr_yema" cx="0.38" cy="0.32" r="0.8"><stop stop-color="#FFD84A"/><stop offset="1" stop-color="#F29A0A"/></radialGradient>
+</defs>
+</svg>

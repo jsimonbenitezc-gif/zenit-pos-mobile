@@ -1,0 +1,19 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect x="13.3" y="1.4" width="5.4" height="2.4" rx="0.8" fill="url(#c_tapa)"/>
+<path d="M13.8 3.6H18.2V7.4C18.2 9.2 23.2 11 23.2 15.4V28.4C23.2 29.6 22.2 30.6 21 30.6H11C9.8 30.6 8.8 29.6 8.8 28.4V15.4C8.8 11 13.8 9.2 13.8 7.4V3.6Z" fill="url(#c_vidrio)"/>
+<path d="M13.8 3.6H18.2V7.4C18.2 9.2 23.2 11 23.2 15.4V28.4C23.2 29.6 22.2 30.6 21 30.6H11C9.8 30.6 8.8 29.6 8.8 28.4V15.4C8.8 11 13.8 9.2 13.8 7.4V3.6Z" fill="url(#c_sombra)"/>
+<path d="M11.2 14.6C11.6 12.8 13.4 11.6 14.8 10.6" stroke="#FFD9A8" stroke-opacity="0.75" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M10.6 16.6V27.6" stroke="#FFD9A8" stroke-opacity="0.55" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M8.8 18H23.2V25.6H8.8V18Z" fill="url(#c_etiqueta)"/>
+<path d="M8.8 18H23.2V19.1H8.8V18Z" fill="#C8921E"/>
+<path d="M8.8 24.5H23.2V25.6H8.8V24.5Z" fill="#C8921E"/>
+<ellipse cx="16" cy="21.8" rx="3.6" ry="2" fill="#C62F2A"/>
+<ellipse cx="16" cy="21.8" rx="2.2" ry="1" fill="#FFE9A8"/>
+<path d="M13.8 5.4H18.2V6.8H13.8V5.4Z" fill="#E8B64A"/>
+<defs>
+<linearGradient id="c_tapa" x1="16" y1="1.4" x2="16" y2="3.8" gradientUnits="userSpaceOnUse"><stop stop-color="#FFE17A"/><stop offset="1" stop-color="#D19A1C"/></linearGradient>
+<linearGradient id="c_vidrio" x1="9" y1="16" x2="23" y2="16" gradientUnits="userSpaceOnUse"><stop stop-color="#B8651F"/><stop offset="0.4" stop-color="#9A4A12"/><stop offset="1" stop-color="#6B2E0A"/></linearGradient>
+<radialGradient id="c_sombra" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(22 29) rotate(-110) scale(12 6)"><stop stop-color="#3D1604" stop-opacity="0.6"/><stop offset="1" stop-color="#3D1604" stop-opacity="0"/></radialGradient>
+<linearGradient id="c_etiqueta" x1="9" y1="21.8" x2="23.2" y2="21.8" gradientUnits="userSpaceOnUse"><stop stop-color="#FFF4C8"/><stop offset="0.5" stop-color="#FFE38A"/><stop offset="1" stop-color="#E9B94A"/></linearGradient>
+</defs>
+</svg>

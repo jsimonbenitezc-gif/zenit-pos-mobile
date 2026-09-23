@@ -1,0 +1,26 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M21.4 2.2L18.6 11.6" stroke="url(#ra_pala)" stroke-width="1.6" stroke-linecap="round"/>
+<ellipse cx="21.6" cy="2.6" rx="1.8" ry="1.1" transform="rotate(-20 21.6 2.6)" fill="#F4EEFF"/>
+<path d="M6.8 14.2C6.8 8.6 10.8 5.4 16 5.4C21.2 5.4 25.2 8.6 25.2 14.2H6.8Z" fill="url(#ra_hielo)"/>
+<path d="M6.8 14.2C6.8 10.4 8.8 7.6 12.2 6.2C13.8 8.8 15 11.6 15 14.2H6.8Z" fill="url(#ra_rojo)"/>
+<path d="M15 14.2C15 10.8 16 7.6 18.2 5.8C21.2 7.4 22.4 10.6 21.6 14.2H15Z" fill="url(#ra_mango)"/>
+<path d="M21.6 14.2C21.8 11.6 22.4 9.8 23.4 8.8C24.8 10.2 25.2 12.2 25.2 14.2H21.6Z" fill="url(#ra_verde)"/>
+<ellipse cx="13.4" cy="7.6" rx="2.2" ry="0.9" fill="#FFFFFF" fill-opacity="0.75"/>
+<circle cx="11" cy="11.4" r="0.35" fill="#FFFFFF"/>
+<circle cx="17" cy="10.4" r="0.35" fill="#FFFFFF"/>
+<circle cx="22.4" cy="12" r="0.3" fill="#FFFFFF"/>
+<path d="M6 14H26L23.8 28.4C23.6 29.4 22.8 30.2 21.8 30.2H10.2C9.2 30.2 8.4 29.4 8.2 28.4L6 14Z" fill="url(#ra_vaso)"/>
+<path d="M6 14H26L23.8 28.4C23.6 29.4 22.8 30.2 21.8 30.2H10.2C9.2 30.2 8.4 29.4 8.2 28.4L6 14Z" fill="url(#ra_vaso_sombra)"/>
+<path d="M7.4 17.6C8.4 19.6 9 22.4 9.2 25M12 16.4C12.2 19.4 12.4 22.2 12.2 25.4M20.4 16.4C20.6 18.6 20.4 21.4 19.8 24" stroke="#FF5D7E" stroke-opacity="0.55" stroke-width="1.6" stroke-linecap="round"/>
+<rect x="5.2" y="13" width="21.6" height="2.2" rx="1.1" fill="url(#ra_borde)"/>
+<defs>
+<linearGradient id="ra_rojo" x1="11" y1="6.2" x2="11" y2="14.2" gradientUnits="userSpaceOnUse"><stop stop-color="#FF7D9A"/><stop offset="1" stop-color="#E8234E"/></linearGradient>
+<linearGradient id="ra_mango" x1="18.4" y1="5.8" x2="18.4" y2="14.2" gradientUnits="userSpaceOnUse"><stop stop-color="#FFD166"/><stop offset="1" stop-color="#F59A1C"/></linearGradient>
+<linearGradient id="ra_verde" x1="23.4" y1="8.8" x2="23.4" y2="14.2" gradientUnits="userSpaceOnUse"><stop stop-color="#9EE06A"/><stop offset="1" stop-color="#4AAE3A"/></linearGradient>
+<linearGradient id="ra_pala" x1="21.4" y1="2" x2="18.6" y2="11.6" gradientUnits="userSpaceOnUse"><stop stop-color="#F4EEFF"/><stop offset="1" stop-color="#BDB6CC"/></linearGradient>
+<radialGradient id="ra_hielo" cx="0.42" cy="0.3" r="0.8"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#DDF2FB"/></radialGradient>
+<linearGradient id="ra_vaso" x1="16" y1="14" x2="16" y2="30.2" gradientUnits="userSpaceOnUse"><stop stop-color="#F1FCFF"/><stop offset="1" stop-color="#C6E6F4"/></linearGradient>
+<radialGradient id="ra_vaso_sombra" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(25 29) rotate(-130) scale(11 7)"><stop stop-color="#8FB4CE" stop-opacity="0.55"/><stop offset="1" stop-color="#8FB4CE" stop-opacity="0"/></radialGradient>
+<linearGradient id="ra_borde" x1="16" y1="13" x2="16" y2="15.2" gradientUnits="userSpaceOnUse"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#CDEFFB"/></linearGradient>
+</defs>
+</svg>

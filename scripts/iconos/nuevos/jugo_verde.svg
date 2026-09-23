@@ -1,0 +1,22 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M18.6 1.8L16.8 12.2" stroke="url(#jv_popote)" stroke-width="2" stroke-linecap="round"/>
+<path d="M8.2 8.4H23.8L21.8 28.4C21.7 29.4 20.8 30.2 19.8 30.2H12.2C11.2 30.2 10.3 29.4 10.2 28.4L8.2 8.4Z" fill="url(#jv_vaso)"/>
+<path d="M8.8 10.4H23.2L21.3 27.8C21.2 28.5 20.6 29 19.9 29H12.1C11.4 29 10.8 28.5 10.7 27.8L8.8 10.4Z" fill="url(#jv_jugo)"/>
+<path d="M8.8 10.4H23.2L21.3 27.8C21.2 28.5 20.6 29 19.9 29H12.1C11.4 29 10.8 28.5 10.7 27.8L8.8 10.4Z" fill="url(#jv_sombra)"/>
+<ellipse cx="16" cy="10.5" rx="7.2" ry="0.9" fill="#B9E77A"/>
+<circle cx="13.4" cy="16" r="0.5" fill="#E9FFD0" fill-opacity="0.8"/>
+<circle cx="18" cy="20.4" r="0.45" fill="#E9FFD0" fill-opacity="0.8"/>
+<circle cx="14.8" cy="24" r="0.4" fill="#E9FFD0" fill-opacity="0.7"/>
+<path d="M9.8 12.4L11.4 27.4" stroke="#FFFFFF" stroke-opacity="0.55" stroke-width="1.1" stroke-linecap="round"/>
+<path d="M7.8 7.8C7.8 7.2 8.3 6.8 8.9 6.8H23.1C23.7 6.8 24.2 7.2 24.2 7.8V8.2C24.2 8.7 23.8 9 23.3 9H8.7C8.2 9 7.8 8.7 7.8 8.2V7.8Z" fill="url(#jv_borde)"/>
+<path d="M22.4 6.2C21.6 3.6 23.4 1.6 26.4 2C26.8 4.8 25.4 6.8 22.4 6.2Z" fill="url(#jv_hoja)"/>
+<path d="M23 5.6L25.4 3" stroke="#D8F5B0" stroke-width="0.6" stroke-linecap="round"/>
+<defs>
+<linearGradient id="jv_popote" x1="18.6" y1="1.8" x2="16.8" y2="12.2" gradientUnits="userSpaceOnUse"><stop stop-color="#FFE06A"/><stop offset="1" stop-color="#F0B02A"/></linearGradient>
+<linearGradient id="jv_vaso" x1="16" y1="8.4" x2="16" y2="30.2" gradientUnits="userSpaceOnUse"><stop stop-color="#EDFCFF"/><stop offset="1" stop-color="#C3E6F4"/></linearGradient>
+<linearGradient id="jv_jugo" x1="16" y1="10.4" x2="16" y2="29" gradientUnits="userSpaceOnUse"><stop stop-color="#A8E061"/><stop offset="1" stop-color="#4E9E2A"/></linearGradient>
+<radialGradient id="jv_sombra" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(21 28) rotate(-115) scale(12 6)"><stop stop-color="#2E6A18" stop-opacity="0.5"/><stop offset="1" stop-color="#2E6A18" stop-opacity="0"/></radialGradient>
+<linearGradient id="jv_borde" x1="16" y1="6.8" x2="16" y2="9" gradientUnits="userSpaceOnUse"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#CDEFFB"/></linearGradient>
+<linearGradient id="jv_hoja" x1="24" y1="2" x2="24" y2="6.4" gradientUnits="userSpaceOnUse"><stop stop-color="#94E560"/><stop offset="1" stop-color="#3FA535"/></linearGradient>
+</defs>
+</svg>

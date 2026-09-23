@@ -1,0 +1,24 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M3.6 15.4H28.4C28.4 22.6 22.8 28.4 16 28.4C9.2 28.4 3.6 22.6 3.6 15.4Z" fill="url(#fc_copa)"/>
+<path d="M3.6 15.4H28.4C28.4 22.6 22.8 28.4 16 28.4C9.2 28.4 3.6 22.6 3.6 15.4Z" fill="url(#fc_copa_sombra)"/>
+<path d="M12.4 28H19.6L20.2 29.6C20.4 30.1 20 30.6 19.5 30.6H12.5C12 30.6 11.6 30.1 11.8 29.6L12.4 28Z" fill="#D6DCEB"/>
+<path d="M4.4 15.6C4.4 11.8 9.6 9.4 16 9.4C22.4 9.4 27.6 11.8 27.6 15.6C27.6 16.4 26.8 17 25.6 17H6.4C5.2 17 4.4 16.4 4.4 15.6Z" fill="url(#fc_crema)"/>
+<path d="M8 12.6C8 10.2 9.6 8.8 11.4 8.8C13.2 8.8 14 10.4 13.4 12.4C12.8 14.2 11.2 15.4 10 15.2C8.8 15 8 14 8 12.6Z" fill="url(#fc_fresa)"/>
+<path d="M9.4 9.2L11.4 7.6L13 9.2" stroke="#3FA535" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M17 11.6C17 9 18.8 7.4 20.8 7.4C22.8 7.4 23.8 9.2 23.2 11.4C22.6 13.4 20.8 14.8 19.4 14.6C18 14.4 17 13.2 17 11.6Z" fill="url(#fc_fresa)"/>
+<path d="M18.6 7.8L20.8 6.2L22.6 7.8" stroke="#3FA535" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M13.4 13.6C13.4 11.8 14.6 10.8 16 10.8C17.4 10.8 18 12 17.6 13.4C17.2 14.6 16 15.4 15.2 15.3C14.2 15.2 13.4 14.6 13.4 13.6Z" fill="url(#fc_fresa)"/>
+<path d="M14.4 11.1L16 10L17.2 11.1" stroke="#3FA535" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="10.2" cy="11.4" r="0.3" fill="#FFE68A"/>
+<circle cx="11.8" cy="13" r="0.3" fill="#FFE68A"/>
+<circle cx="19.6" cy="10.2" r="0.3" fill="#FFE68A"/>
+<circle cx="21.2" cy="12" r="0.3" fill="#FFE68A"/>
+<circle cx="15.6" cy="13.2" r="0.25" fill="#FFE68A"/>
+<path d="M6.4 16.2C9 15.2 11 16.8 13.6 16C16.2 15.2 18.4 16.8 21 16C23 15.4 24.6 15.8 25.8 16.4" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round"/>
+<defs>
+<linearGradient id="fc_copa" x1="16" y1="15.4" x2="16" y2="28.4" gradientUnits="userSpaceOnUse"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#E4E8F4"/></linearGradient>
+<radialGradient id="fc_copa_sombra" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(25 25) rotate(-130) scale(12 8)"><stop stop-color="#A2A9C4" stop-opacity="0.55"/><stop offset="1" stop-color="#A2A9C4" stop-opacity="0"/></radialGradient>
+<radialGradient id="fc_crema" cx="0.45" cy="0.3" r="0.8"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#FFE8EE"/></radialGradient>
+<radialGradient id="fc_fresa" cx="0.38" cy="0.3" r="0.8"><stop stop-color="#FF8A8A"/><stop offset="0.6" stop-color="#F0314B"/><stop offset="1" stop-color="#C2183A"/></radialGradient>
+</defs>
+</svg>

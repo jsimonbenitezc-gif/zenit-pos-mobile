@@ -1,0 +1,28 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g transform="rotate(-18 12 16)">
+<rect x="7.4" y="2.6" width="4" height="22" rx="2" fill="url(#ch_masa)"/>
+<path d="M8.4 3.6V23.6M10.4 3.6V23.6" stroke="#B8672C" stroke-opacity="0.55" stroke-width="0.6"/>
+<rect x="7.4" y="2.6" width="4" height="22" rx="2" fill="url(#ch_azucar)"/>
+</g>
+<g transform="rotate(12 18 16)">
+<rect x="13" y="1.6" width="4" height="23" rx="2" fill="url(#ch_masa)"/>
+<path d="M14 2.6V23.6M16 2.6V23.6" stroke="#B8672C" stroke-opacity="0.55" stroke-width="0.6"/>
+<rect x="13" y="1.6" width="4" height="23" rx="2" fill="url(#ch_azucar)"/>
+</g>
+<g transform="rotate(-2 22 16)">
+<rect x="18.6" y="3.4" width="4" height="21" rx="2" fill="url(#ch_masa)"/>
+<path d="M19.6 4.4V23.4M21.6 4.4V23.4" stroke="#B8672C" stroke-opacity="0.55" stroke-width="0.6"/>
+<rect x="18.6" y="3.4" width="4" height="21" rx="2" fill="url(#ch_azucar)"/>
+</g>
+<path d="M6.2 16.4H25.8L24.2 28.6C24.1 29.4 23.4 30 22.6 30H9.4C8.6 30 7.9 29.4 7.8 28.6L6.2 16.4Z" fill="url(#ch_papel)"/>
+<path d="M6.2 16.4H25.8L24.2 28.6C24.1 29.4 23.4 30 22.6 30H9.4C8.6 30 7.9 29.4 7.8 28.6L6.2 16.4Z" fill="url(#ch_papel_sombra)"/>
+<path d="M10.2 16.4L11 30M14.6 16.4L14.9 30M19 16.4L18.8 30M23.2 16.4L22.4 30" stroke="#F06E7E" stroke-width="1.4"/>
+<rect x="5.6" y="15.4" width="20.8" height="2.2" rx="1.1" fill="url(#ch_borde)"/>
+<defs>
+<linearGradient id="ch_masa" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#F5B061"/><stop offset="0.5" stop-color="#E3913E"/><stop offset="1" stop-color="#B8672C"/></linearGradient>
+<radialGradient id="ch_azucar" cx="0.3" cy="0.3" r="0.9"><stop stop-color="#FFF4DD" stop-opacity="0.7"/><stop offset="0.5" stop-color="#FFE6BA" stop-opacity="0.2"/><stop offset="1" stop-color="#FFE6BA" stop-opacity="0"/></radialGradient>
+<linearGradient id="ch_papel" x1="16" y1="16.4" x2="16" y2="30" gradientUnits="userSpaceOnUse"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#E9E3EE"/></linearGradient>
+<radialGradient id="ch_papel_sombra" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(25 29) rotate(-130) scale(11 7)"><stop stop-color="#A69BBF" stop-opacity="0.5"/><stop offset="1" stop-color="#A69BBF" stop-opacity="0"/></radialGradient>
+<linearGradient id="ch_borde" x1="16" y1="15.4" x2="16" y2="17.6" gradientUnits="userSpaceOnUse"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#E2DCEF"/></linearGradient>
+</defs>
+</svg>

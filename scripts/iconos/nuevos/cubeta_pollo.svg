@@ -1,0 +1,19 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g transform="rotate(-18 10.6 11)"><path d="M7.199999999999999 11.4C6.8 7.4 9 4.6 10.6 4.6C12.2 4.6 14.399999999999999 7.4 14 11.4Z" fill="url(#cp_pieza)"/><rect x="9.7" y="1" width="1.8" height="4.4" rx="0.9" fill="url(#cp_hueso)"/><circle cx="9.7" cy="1.2" r="1.1" fill="url(#cp_hueso)"/><circle cx="11.5" cy="1.2" r="1.1" fill="url(#cp_hueso)"/><ellipse cx="9.4" cy="7.6" rx="0.8" ry="1.6" fill="#FFE0B0" fill-opacity="0.55"/></g>
+<g transform="rotate(18 21.4 11)"><path d="M18 11.4C17.599999999999998 7.4 19.799999999999997 4.6 21.4 4.6C23 4.6 25.2 7.4 24.799999999999997 11.4Z" fill="url(#cp_pieza)"/><rect x="20.5" y="1" width="1.8" height="4.4" rx="0.9" fill="url(#cp_hueso)"/><circle cx="20.5" cy="1.2" r="1.1" fill="url(#cp_hueso)"/><circle cx="22.299999999999997" cy="1.2" r="1.1" fill="url(#cp_hueso)"/><ellipse cx="20.2" cy="7.6" rx="0.8" ry="1.6" fill="#FFE0B0" fill-opacity="0.55"/></g>
+<g transform="rotate(0 16 11)"><path d="M12.6 11.4C12.2 7.4 14.4 4.6 16 4.6C17.6 4.6 19.8 7.4 19.4 11.4Z" fill="url(#cp_pieza)"/><rect x="15.1" y="1" width="1.8" height="4.4" rx="0.9" fill="url(#cp_hueso)"/><circle cx="15.1" cy="1.2" r="1.1" fill="url(#cp_hueso)"/><circle cx="16.9" cy="1.2" r="1.1" fill="url(#cp_hueso)"/><ellipse cx="14.8" cy="7.6" rx="0.8" ry="1.6" fill="#FFE0B0" fill-opacity="0.55"/></g>
+<path d="M5.4 11.6H26.6L24.4 28.2C24.2 29.4 23.2 30.2 22 30.2H10C8.8 30.2 7.8 29.4 7.6 28.2L5.4 11.6Z" fill="url(#cp_cubeta)"/>
+<clipPath id="cp_clip"><path d="M5.4 11.6H26.6L24.4 28.2C24.2 29.4 23.2 30.2 22 30.2H10C8.8 30.2 7.8 29.4 7.6 28.2L5.4 11.6Z"/></clipPath>
+<g clip-path="url(#cp_clip)">
+<path d="M8.4 11.6L10 30.2M13.6 11.6L14.2 30.2M18.4 11.6L17.8 30.2M23.6 11.6L22 30.2" stroke="#E23A3A" stroke-width="2.4"/>
+</g>
+<path d="M5.4 11.6H26.6L24.4 28.2C24.2 29.4 23.2 30.2 22 30.2H10C8.8 30.2 7.8 29.4 7.6 28.2L5.4 11.6Z" fill="url(#cp_cubeta_sombra)"/>
+<rect x="4.6" y="10.6" width="22.8" height="2.4" rx="1.2" fill="url(#cp_borde)"/>
+<defs>
+<linearGradient id="cp_pieza" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#FFC06A"/><stop offset="1" stop-color="#D07A2A"/></linearGradient>
+<radialGradient id="cp_hueso" cx="0.4" cy="0.35" r="0.8"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#E8E0D4"/></radialGradient>
+<linearGradient id="cp_cubeta" x1="16" y1="11.6" x2="16" y2="30.2" gradientUnits="userSpaceOnUse"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#E8E4EE"/></linearGradient>
+<radialGradient id="cp_cubeta_sombra" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(25 29) rotate(-125) scale(13 7)"><stop stop-color="#6E1A1A" stop-opacity="0.4"/><stop offset="1" stop-color="#6E1A1A" stop-opacity="0"/></radialGradient>
+<linearGradient id="cp_borde" x1="16" y1="10.6" x2="16" y2="13" gradientUnits="userSpaceOnUse"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#DCD6E6"/></linearGradient>
+</defs>
+</svg>

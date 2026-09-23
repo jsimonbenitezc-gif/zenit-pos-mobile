@@ -1,0 +1,25 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<ellipse cx="16" cy="22.4" rx="15" ry="7.4" fill="url(#al_plato)"/>
+<ellipse cx="16" cy="22.4" rx="15" ry="7.4" fill="url(#al_plato_sombra)"/>
+<g transform="rotate(-24 10 18)">
+<path d="M3.6 17.4C3.6 14.8 6.2 13.2 9 13.6C10.6 13.8 11.6 14.8 12.8 14.8C14 14.8 15 13.6 16.6 14C18.4 14.4 18.8 16.8 17.4 18.2C16.2 19.4 14.4 19.2 12.8 19.8C11 20.4 9.8 21.8 7.6 21.6C5.2 21.4 3.6 19.8 3.6 17.4Z" fill="url(#al_ala)"/>
+<ellipse cx="7.4" cy="16" rx="2" ry="1" transform="rotate(-10 7.4 16)" fill="#FFB08A" fill-opacity="0.6"/>
+</g>
+<g transform="rotate(18 21 16)">
+<path d="M13.6 15.4C13.6 12.8 16.2 11.2 19 11.6C20.6 11.8 21.6 12.8 22.8 12.8C24 12.8 25 11.6 26.6 12C28.4 12.4 28.8 14.8 27.4 16.2C26.2 17.4 24.4 17.2 22.8 17.8C21 18.4 19.8 19.8 17.6 19.6C15.2 19.4 13.6 17.8 13.6 15.4Z" fill="url(#al_ala)"/>
+<ellipse cx="17.4" cy="14" rx="2" ry="1" transform="rotate(-10 17.4 14)" fill="#FFB08A" fill-opacity="0.6"/>
+</g>
+<path d="M11 22.6C11 20.4 13.2 19 15.6 19.4C17 19.6 17.8 20.4 18.8 20.4C19.8 20.4 20.6 19.4 22 19.8C23.6 20.2 23.8 22.2 22.6 23.4C21.6 24.4 20 24.2 18.8 24.8C17.2 25.4 16.2 26.4 14.4 26.2C12.4 26 11 24.6 11 22.6Z" fill="url(#al_ala)"/>
+<ellipse cx="14.4" cy="21.4" rx="1.8" ry="0.9" fill="#FFB08A" fill-opacity="0.6"/>
+<circle cx="9.6" cy="17.4" r="0.35" fill="#FFFFFF" fill-opacity="0.8"/>
+<circle cx="20.8" cy="14.2" r="0.35" fill="#FFFFFF" fill-opacity="0.8"/>
+<circle cx="17.6" cy="23.2" r="0.35" fill="#FFFFFF" fill-opacity="0.8"/>
+<rect x="24.6" y="20.4" width="1.4" height="6" rx="0.7" transform="rotate(35 25.3 23.4)" fill="url(#al_apio)"/>
+<rect x="26.6" y="19.2" width="1.4" height="6" rx="0.7" transform="rotate(20 27.3 22.2)" fill="url(#al_apio)"/>
+<defs>
+<radialGradient id="al_plato" cx="0.45" cy="0.35" r="0.75"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#D2DDEA"/></radialGradient>
+<radialGradient id="al_plato_sombra" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(28 27) rotate(-155) scale(14 6)"><stop stop-color="#8FA3BF" stop-opacity="0.5"/><stop offset="1" stop-color="#8FA3BF" stop-opacity="0"/></radialGradient>
+<radialGradient id="al_ala" cx="0.4" cy="0.3" r="0.85"><stop stop-color="#F0784A"/><stop offset="0.6" stop-color="#D04A22"/><stop offset="1" stop-color="#9A2E12"/></radialGradient>
+<linearGradient id="al_apio" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#B8E890"/><stop offset="1" stop-color="#6CB04A"/></linearGradient>
+</defs>
+</svg>
