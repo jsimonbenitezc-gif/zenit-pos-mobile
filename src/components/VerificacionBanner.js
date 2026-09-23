@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { IconoEnCuadro } from './ui';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import { colors, spacing, radius, font } from '../theme';
+import { colors, spacing, radius, font, zc, radios, sombra } from '../theme';
 
 /**
  * Aviso NO bloqueante de "confirma tu correo".
@@ -37,7 +37,7 @@ export default function VerificacionBanner() {
 
   return (
     <View style={styles.banner}>
-      <Ionicons name="mail-unread-outline" size={20} color={colors.warning} style={{ marginTop: 1 }} />
+      <IconoEnCuadro nombre="mail-unread-outline" tono="ambar" />
       <View style={{ flex: 1 }}>
         <Text style={styles.titulo}>Confirma tu correo</Text>
         <Text style={styles.texto}>
@@ -47,7 +47,7 @@ export default function VerificacionBanner() {
         <View style={styles.acciones}>
           <TouchableOpacity onPress={reenviar} disabled={enviando} style={styles.btn}>
             {enviando
-              ? <ActivityIndicator size="small" color={colors.primary} />
+              ? <ActivityIndicator size="small" color="#fff" />
               : <Text style={styles.btnTexto}>Reenviar correo</Text>}
           </TouchableOpacity>
           <TouchableOpacity onPress={() => refreshUser()} style={styles.btnGhost}>
@@ -62,26 +62,23 @@ export default function VerificacionBanner() {
 const styles = StyleSheet.create({
   banner: {
     flexDirection: 'row',
-    gap: spacing.sm,
-    backgroundColor: '#fffbeb',
-    borderWidth: 1,
-    borderColor: '#fde68a',
-    borderRadius: radius.md,
-    padding: spacing.md,
+    gap: 12,
+    backgroundColor: zc.tarjeta,
+    borderRadius: radios.tarjeta,
+    padding: 14,
     marginBottom: spacing.md,
+    ...sombra,
   },
-  titulo: { fontSize: font.md, fontWeight: '700', color: '#92400e', marginBottom: 2 },
-  texto: { fontSize: font.sm, color: '#92400e', lineHeight: 18 },
-  acciones: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
+  titulo: { fontSize: 15, fontWeight: '500', color: zc.tinta, marginBottom: 2 },
+  texto: { fontSize: 13.5, color: zc.gris, lineHeight: 19 },
+  acciones: { flexDirection: 'row', gap: spacing.sm, marginTop: 10 },
   btn: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderRadius: radius.sm,
-    paddingVertical: spacing.xs + 2,
-    paddingHorizontal: spacing.md,
+    backgroundColor: zc.azul,
+    borderRadius: radios.chip,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
   },
-  btnTexto: { color: colors.primary, fontWeight: '600', fontSize: font.sm },
-  btnGhost: { paddingVertical: spacing.xs + 2, paddingHorizontal: spacing.sm, justifyContent: 'center' },
-  btnGhostTexto: { color: '#92400e', fontSize: font.sm, textDecorationLine: 'underline' },
+  btnTexto: { color: '#fff', fontWeight: '500', fontSize: 13.5 },
+  btnGhost: { paddingVertical: 7, paddingHorizontal: 12, justifyContent: 'center', backgroundColor: zc.fondo, borderRadius: radios.chip },
+  btnGhostTexto: { color: zc.gris, fontSize: 13.5 },
 });

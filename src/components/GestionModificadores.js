@@ -16,9 +16,9 @@ import {
   View, Text, Modal, ScrollView, TouchableOpacity, TextInput,
   StyleSheet, Alert, ActivityIndicator, SafeAreaView,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Icono } from './ui';
 import { api } from '../api/client';
-import { colors, spacing, radius, font } from '../theme';
+import { colors, spacing, radius, font, zc, radios, sombra } from '../theme';
 import { friendlyError } from '../utils/errors';
 
 // ─── Qué grupos usa un producto ─────────────────────────────────────────────
@@ -75,10 +75,10 @@ export function SelectorGruposProducto({ productId, onCambio }) {
         const marcado = activos.includes(g.id);
         return (
           <TouchableOpacity key={g.id} style={styles.fila} onPress={() => alternar(g.id)} activeOpacity={0.7}>
-            <Ionicons
-              name={marcado ? 'checkbox' : 'square-outline'}
+            <Icono
+              nombre={marcado ? 'checkbox' : 'square-outline'}
               size={20}
-              color={marcado ? colors.primary : colors.textMuted}
+              color={marcado ? zc.azul : zc.grisSuave}
             />
             <Text style={styles.filaNombre}>{g.name}</Text>
             <Text style={styles.filaPista}>{(g.options || []).length} opciones</Text>
@@ -180,7 +180,7 @@ export function ModalBibliotecaModificadores({ visible, onClose }) {
         <View style={styles.cabecera}>
           <Text style={styles.tituloPantalla}>Modificadores</Text>
           <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="close" size={26} color={colors.textSecondary} />
+            <Icono nombre="close" size={24} color={zc.gris} />
           </TouchableOpacity>
         </View>
 
@@ -212,7 +212,7 @@ export function ModalBibliotecaModificadores({ visible, onClose }) {
             ))}
 
             <TouchableOpacity style={styles.btnNuevo} onPress={crearGrupo}>
-              <Ionicons name="add" size={18} color="#fff" />
+              <Icono nombre="add" size={18} color="#fff" />
               <Text style={styles.btnNuevoTexto}>Nuevo grupo</Text>
             </TouchableOpacity>
           </ScrollView>
@@ -246,10 +246,10 @@ function GrupoEditable({ grupo, borrador, onBorrador, onGuardar, onBorrar, onCre
             min_select: obligatorio ? 1 : 0,
           })}
         >
-          <Ionicons name="checkmark" size={18} color={colors.primary} />
+          <Icono nombre="checkmark" size={18} color={colors.primary} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.btnIcono} onPress={onBorrar}>
-          <Ionicons name="trash-outline" size={18} color={colors.danger} />
+          <Icono nombre="trash-outline" size={18} color={zc.rojo} />
         </TouchableOpacity>
       </View>
 
@@ -268,10 +268,10 @@ function GrupoEditable({ grupo, borrador, onBorrador, onGuardar, onBorrar, onCre
           onPress={() => setObligatorio((v) => !v)}
           activeOpacity={0.7}
         >
-          <Ionicons
-            name={obligatorio ? 'checkbox' : 'square-outline'}
+          <Icono
+            nombre={obligatorio ? 'checkbox' : 'square-outline'}
             size={18}
-            color={obligatorio ? colors.primary : colors.textMuted}
+            color={obligatorio ? zc.azul : zc.grisSuave}
           />
           <Text style={styles.etiqueta}>Obligatorio</Text>
         </TouchableOpacity>
@@ -287,7 +287,7 @@ function GrupoEditable({ grupo, borrador, onBorrador, onGuardar, onBorrar, onCre
                 : `${parseFloat(o.price_delta) > 0 ? '+' : '−'}$${Math.abs(parseFloat(o.price_delta)).toFixed(2)}`}
             </Text>
             <TouchableOpacity style={styles.btnIcono} onPress={() => onBorrarOpcion(o)}>
-              <Ionicons name="close" size={16} color={colors.danger} />
+              <Icono nombre="close" size={16} color={zc.rojo} />
             </TouchableOpacity>
           </View>
         ))}
@@ -309,7 +309,7 @@ function GrupoEditable({ grupo, borrador, onBorrador, onGuardar, onBorrar, onCre
             onChangeText={(t) => onBorrador({ ...borrador, delta: t })}
           />
           <TouchableOpacity style={styles.btnIcono} onPress={onCrearOpcion}>
-            <Ionicons name="add" size={18} color={colors.primary} />
+            <Icono nombre="add" size={18} color={colors.primary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -317,42 +317,43 @@ function GrupoEditable({ grupo, borrador, onBorrador, onGuardar, onBorrar, onCre
   );
 }
 
+const campo = { backgroundColor: zc.tarjeta, borderRadius: radios.boton, borderWidth: 1, borderColor: zc.linea };
+
 const styles = StyleSheet.create({
-  pantalla: { flex: 1, backgroundColor: colors.background },
+  pantalla: { flex: 1, backgroundColor: zc.fondo },
   cabecera: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: spacing.lg, backgroundColor: colors.surface,
-    borderBottomWidth: 1, borderBottomColor: colors.border,
+    paddingHorizontal: 18, paddingVertical: 14,
+    borderBottomWidth: 1, borderBottomColor: zc.linea,
   },
-  tituloPantalla: { fontSize: font.xl, fontWeight: '700', color: colors.textPrimary },
-  ayuda: { color: colors.textSecondary, fontSize: font.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.md },
-  vacio: { color: colors.textMuted, fontSize: font.sm, paddingVertical: spacing.md },
+  tituloPantalla: { fontSize: 19, fontWeight: '500', color: zc.tinta },
+  ayuda: { color: zc.gris, fontSize: 13.5, paddingHorizontal: 18, paddingTop: 14, lineHeight: 19 },
+  vacio: { color: zc.grisSuave, fontSize: 13.5, paddingVertical: spacing.md },
   tarjeta: {
-    backgroundColor: colors.surface, borderRadius: radius.md,
-    padding: spacing.md, marginBottom: spacing.md,
-    borderWidth: 1, borderColor: colors.border,
+    backgroundColor: zc.tarjeta, borderRadius: radios.tarjeta,
+    padding: 14, marginBottom: 12, ...sombra,
   },
-  tarjetaFila: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  tarjetaFila: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   input: {
-    borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm,
-    paddingHorizontal: spacing.sm, paddingVertical: spacing.sm,
-    fontSize: font.md, color: colors.textPrimary, backgroundColor: colors.surface,
+    ...campo, backgroundColor: zc.fondo, borderColor: zc.fondo,
+    paddingHorizontal: 10, paddingVertical: 9,
+    fontSize: 15, color: zc.tinta,
   },
-  etiqueta: { fontSize: font.sm, color: colors.textSecondary },
+  etiqueta: { fontSize: 13.5, color: zc.gris },
   check: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: spacing.md },
   btnIcono: { padding: spacing.sm },
-  opcionFila: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: spacing.xs },
-  opcionNombre: { flex: 1, fontSize: font.md, color: colors.textPrimary },
-  opcionDelta: { fontSize: font.sm, fontWeight: '700', color: colors.success },
+  opcionFila: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
+  opcionNombre: { flex: 1, fontSize: 15, color: zc.tinta },
+  opcionDelta: { fontSize: 13.5, fontWeight: '700', color: zc.verde },
   btnNuevo: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    backgroundColor: colors.primary, borderRadius: radius.md, paddingVertical: spacing.md,
+    backgroundColor: zc.azul, borderRadius: radios.boton, paddingVertical: 13,
   },
-  btnNuevoTexto: { color: '#fff', fontSize: font.md, fontWeight: '700' },
+  btnNuevoTexto: { color: '#fff', fontSize: 15, fontWeight: '500' },
   fila: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    paddingVertical: spacing.sm,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingVertical: 10,
   },
-  filaNombre: { flex: 1, fontSize: font.md, color: colors.textPrimary },
-  filaPista: { fontSize: font.sm, color: colors.textMuted },
+  filaNombre: { flex: 1, fontSize: 15, color: zc.tinta },
+  filaPista: { fontSize: 13, color: zc.grisSuave },
 });

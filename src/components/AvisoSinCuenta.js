@@ -20,9 +20,9 @@
 // ============================================================================
 import { useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Icono, IconoEnCuadro } from './ui';
 import * as SecureStore from 'expo-secure-store';
-import { colors, spacing, radius, font } from '../theme';
+import { colors, spacing, radius, font, zc, radios, sombra } from '../theme';
 import { formatMoney } from '../utils/money';
 import { exportarRespaldo } from '../offline/respaldo';
 
@@ -66,7 +66,7 @@ export default function AvisoSinCuenta({ visible, onClose, onCrearCuenta, resume
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.fondo}>
         <View style={styles.caja}>
-          <Ionicons name="shield-outline" size={40} color={colors.primary} />
+          <IconoEnCuadro nombre="shield-outline" tono="azul" size={64} />
 
           {ventas > 0 ? (
             <Text style={styles.titulo}>
@@ -110,25 +110,25 @@ export default function AvisoSinCuenta({ visible, onClose, onCrearCuenta, resume
 function Punto({ texto }) {
   return (
     <View style={styles.punto}>
-      <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+      <Icono nombre="checkmark-circle" size={17} color={zc.verde} />
       <Text style={styles.puntoTexto}>{texto}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  fondo:             { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', padding: spacing.lg },
-  caja:              { backgroundColor: colors.background, borderRadius: radius.xl, padding: spacing.xl, alignItems: 'center', gap: spacing.sm },
-  titulo:            { fontSize: font.lg, fontWeight: '800', color: colors.textPrimary, textAlign: 'center', marginTop: spacing.sm },
-  cuerpo:            { fontSize: font.md, color: colors.textSecondary, textAlign: 'center', lineHeight: 21 },
-  fuerte:            { fontWeight: '800', color: colors.textPrimary },
-  lista:             { alignSelf: 'stretch', gap: spacing.xs, marginTop: spacing.md },
-  punto:             { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  puntoTexto:        { fontSize: font.sm, color: colors.textSecondary },
-  btnPrincipal:      { alignSelf: 'stretch', backgroundColor: colors.primary, borderRadius: radius.md, padding: spacing.md + 2, alignItems: 'center', marginTop: spacing.lg },
-  btnPrincipalText:  { color: '#fff', fontSize: font.lg, fontWeight: '700' },
-  btnSecundario:     { alignSelf: 'stretch', borderWidth: 1.5, borderColor: colors.primary, borderRadius: radius.md, padding: spacing.md, alignItems: 'center' },
-  btnSecundarioText: { color: colors.primary, fontSize: font.md, fontWeight: '700' },
+  fondo:             { flex: 1, backgroundColor: 'rgba(17,24,39,0.55)', justifyContent: 'center', padding: spacing.lg },
+  caja:              { backgroundColor: zc.tarjeta, borderRadius: 22, padding: 24, alignItems: 'center', gap: 10, ...sombra, elevation: 8 },
+  titulo:            { fontSize: 19, fontWeight: '500', color: zc.tinta, textAlign: 'center', marginTop: 6 },
+  cuerpo:            { fontSize: 14.5, color: zc.gris, textAlign: 'center', lineHeight: 21 },
+  fuerte:            { fontWeight: '500', color: zc.tinta },
+  lista:             { alignSelf: 'stretch', gap: 8, marginTop: 10, backgroundColor: zc.fondo, borderRadius: radios.tarjeta, padding: 14 },
+  punto:             { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  puntoTexto:        { fontSize: 14, color: zc.tinta },
+  btnPrincipal:      { alignSelf: 'stretch', backgroundColor: zc.azul, borderRadius: radios.boton, padding: 15, alignItems: 'center', marginTop: 14 },
+  btnPrincipalText:  { color: '#fff', fontSize: 16, fontWeight: '500' },
+  btnSecundario:     { alignSelf: 'stretch', backgroundColor: zc.azulSuave, borderRadius: radios.boton, padding: 14, alignItems: 'center' },
+  btnSecundarioText: { color: zc.azul, fontSize: 15, fontWeight: '500' },
   btnCerrar:         { padding: spacing.sm },
-  btnCerrarText:     { color: colors.textMuted, fontSize: font.sm },
+  btnCerrarText:     { color: zc.gris, fontSize: 14 },
 });
