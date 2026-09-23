@@ -13,10 +13,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  ActivityIndicator, RefreshControl, StatusBar, Modal,
+  ActivityIndicator, RefreshControl, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { zc, radios, sombra } from '../../theme';
+import { Cabecera, Icono, IconoEnCuadro } from '../../components/ui';
 import QRCode from 'react-native-qrcode-svg';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
@@ -27,20 +28,23 @@ const CLAVE_OCULTAS = 'kds_ocultas';
 
 const KDS_WEB_BASE = 'https://zenit-pos-backend.onrender.com/kds';
 
-// ─── Colores del KDS (tema oscuro) ───────────────────────────────────────────
+// ─── Colores del KDS (diseño A: la misma piel que el resto de la app) ────────
 
 const KDS = {
-  bg:        '#111827',
-  card:      '#1f2937',
-  border:    '#374151',
-  text:      '#f9fafb',
-  textSub:   '#9ca3af',
-  indigo:    '#818cf8',
-  amber:     '#f59e0b',
-  red:       '#ef4444',
-  green:     '#10b981',
-  greenDark: '#065f46',
+  bg:        zc.fondo,
+  card:      zc.tarjeta,
+  border:    zc.linea,
+  text:      zc.tinta,
+  textSub:   zc.gris,
+  indigo:    zc.azul,
+  amber:     zc.ambar,
+  red:       zc.rojo,
+  green:     zc.verde,
+  greenDark: zc.verdeSuave,
 };
+
+// El fondo suave de la pastilla del tiempo, según su color.
+const FONDO_TIEMPO = { [zc.azul]: zc.azulSuave, [zc.ambar]: zc.ambarSuave, [zc.rojo]: zc.rojoSuave };
 
 const TIPO_LABEL = {
   comer:     'Comer aquí',
@@ -78,25 +82,25 @@ function OrderCard({ order, onComplete }) {
   const badgeIcon = tableName ? 'grid-outline' : 'storefront-outline';
 
   return (
-    <View style={[styles.card, { borderLeftColor: color }]}>
+    <View style={styles.card}>
       {/* Header de la tarjeta */}
       <View style={styles.cardHeader}>
         <Text style={styles.cardOrderId}>#{order.id}</Text>
         <View style={styles.cardHeaderRight}>
-          <Text style={[styles.cardTime, { color }]}>{formatMinutos(min)}</Text>
+          <Text style={[styles.cardTime, { color, backgroundColor: FONDO_TIEMPO[color] }]}>{formatMinutos(min)}</Text>
         </View>
       </View>
 
       {/* Badge de mesa / tipo */}
-      <View style={[styles.badge, { borderColor: color }]}>
-        <Ionicons name={badgeIcon} size={11} color={color} />
-        <Text style={[styles.badgeText, { color }]}> {badge}</Text>
+      <View style={styles.badge}>
+        <Icono nombre={badgeIcon} size={13} color={zc.gris} />
+        <Text style={styles.badgeText}> {badge}</Text>
       </View>
 
       {/* Cajero */}
       {order.cashier ? (
         <View style={styles.cashierRow}>
-          <Ionicons name="person-outline" size={12} color={KDS.textSub} />
+          <Icono nombre="person-outline" size={12} color={KDS.textSub} />
           <Text style={styles.cardCashier}> {order.cashier}</Text>
         </View>
       ) : null}
@@ -114,7 +118,7 @@ function OrderCard({ order, onComplete }) {
       {/* Notas */}
       {order.notes ? (
         <View style={styles.notesBox}>
-          <Ionicons name="create-outline" size={13} color={KDS.amber} />
+          <Icono nombre="create-outline" size={13} color={KDS.amber} />
           <Text style={styles.notesText}> {order.notes}</Text>
         </View>
       ) : null}
@@ -241,33 +245,25 @@ export default function KDSScreen({ navigation }) {
     : '--:--';
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={KDS.bg} />
-
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Ionicons name="restaurant-outline" size={18} color={KDS.text} />
-            <Text style={styles.headerTitle}>Pantalla de Cocina</Text>
+    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+      {/* Cabecera azul noche (diseño A) */}
+      <Cabecera
+        titulo="Pantalla de cocina"
+        subtitulo={`${visibles.length > 0
+          ? `${visibles.length} pedido${visibles.length !== 1 ? 's' : ''} pendiente${visibles.length !== 1 ? 's' : ''}`
+          : 'Sin pedidos pendientes'} · ${hora}`}
+        derecha={
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity style={styles.btnQR} onPress={abrirQR}>
+              <Icono nombre="qr-code-outline" size={16} color={zc.enNoche} />
+              <Text style={styles.btnQRText}>QR</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.btnClose} onPress={() => navigation.goBack()}>
+              <Icono nombre="close" size={18} color={zc.enNoche} />
+            </TouchableOpacity>
           </View>
-          <Text style={styles.headerSub}>
-            {visibles.length > 0
-              ? `${visibles.length} pedido${visibles.length !== 1 ? 's' : ''} pendiente${visibles.length !== 1 ? 's' : ''}`
-              : 'Sin pedidos pendientes'
-            }
-            {' · '}{hora}
-          </Text>
-        </View>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          <TouchableOpacity style={styles.btnQR} onPress={abrirQR}>
-            <Text style={styles.btnQRText}>⊞ QR</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.btnClose} onPress={() => navigation.goBack()}>
-            <Text style={styles.btnCloseText}>✕</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+        }
+      />
 
       {/* Modal QR */}
       <Modal visible={showQR} transparent animationType="fade" onRequestClose={() => setShowQR(false)}>
@@ -324,7 +320,7 @@ export default function KDSScreen({ navigation }) {
         </View>
       ) : visibles.length === 0 ? (
         <View style={styles.center}>
-          <Ionicons name="checkmark-circle-outline" size={56} color={KDS.green} />
+          <IconoEnCuadro nombre="checkmark-circle-outline" tono="verde" size={64} />
           <Text style={styles.emptyTitle}>Todo listo</Text>
           <Text style={styles.emptySubtitle}>No hay pedidos pendientes</Text>
           <TouchableOpacity style={styles.btnRefresh} onPress={() => loadOrders(true)}>
@@ -356,122 +352,70 @@ export default function KDSScreen({ navigation }) {
   );
 }
 
-// ─── Estilos (tema oscuro) ────────────────────────────────────────────────────
+
+const caja = { backgroundColor: zc.tarjeta, borderRadius: radios.tarjeta, ...sombra };
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: KDS.bg },
+  safe: { flex: 1, backgroundColor: zc.fondo },
 
-  // Header
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: KDS.border,
-  },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: KDS.text },
-  headerSub:   { fontSize: 12, color: KDS.textSub, marginTop: 2 },
-  btnClose:    { padding: 8 },
-  btnCloseText:{ fontSize: 18, color: KDS.textSub, fontWeight: '700' },
-  btnQR:       { paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: KDS.indigo, borderRadius: 8 },
-  btnQRText:   { fontSize: 13, color: KDS.indigo, fontWeight: '700' },
+  // Botones sobre la cabecera oscura
+  btnClose:    { width: 36, height: 36, borderRadius: 18, backgroundColor: zc.vidrio, alignItems: 'center', justifyContent: 'center' },
+  btnQR:       { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, height: 36, borderRadius: 18, backgroundColor: zc.vidrio },
+  btnQRText:   { fontSize: 13.5, color: zc.enNoche },
+  headerSub:   { fontSize: 13, color: zc.grisSuave },
 
   // Modal QR
-  qrOverlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center' },
-  qrBox:       { backgroundColor: '#1f2937', borderRadius: 16, padding: 24, alignItems: 'center', width: 300, borderWidth: 1, borderColor: KDS.border },
-  qrTitle:     { fontSize: 16, fontWeight: '800', color: KDS.text, textAlign: 'center', marginBottom: 6 },
-  qrSub:       { fontSize: 12, color: KDS.textSub, textAlign: 'center', marginBottom: 20, lineHeight: 18 },
-  qrImage:     { width: 220, height: 220, borderRadius: 10, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
-  qrError:     { color: KDS.red, textAlign: 'center', marginVertical: 40, paddingHorizontal: 12, lineHeight: 20 },
-  qrCodigo:    { color: KDS.indigo, fontSize: 22, fontWeight: '800', letterSpacing: 4, marginTop: 14 },
-  qrCaduca:    { color: KDS.textSub, fontSize: 11, marginTop: 4 },
-  qrCloseBtn:  { marginTop: 20, borderWidth: 1, borderColor: KDS.border, borderRadius: 8, paddingHorizontal: 32, paddingVertical: 10 },
-  qrCloseBtnText: { color: KDS.textSub, fontWeight: '700' },
+  qrOverlay:   { flex: 1, backgroundColor: 'rgba(17,24,39,0.6)', justifyContent: 'center', alignItems: 'center' },
+  qrBox:       { ...caja, padding: 24, alignItems: 'center', width: 310 },
+  qrTitle:     { fontSize: 17, fontWeight: '500', color: zc.tinta, textAlign: 'center', marginBottom: 6 },
+  qrSub:       { fontSize: 13, color: zc.gris, textAlign: 'center', marginBottom: 20, lineHeight: 19 },
+  qrImage:     { width: 220, height: 220, borderRadius: 12, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: zc.linea },
+  qrError:     { color: zc.rojo, textAlign: 'center', marginVertical: 40, paddingHorizontal: 12, lineHeight: 20 },
+  qrCodigo:    { color: zc.tinta, fontSize: 24, fontWeight: '700', letterSpacing: 4, marginTop: 14 },
+  qrCaduca:    { color: zc.grisSuave, fontSize: 12, marginTop: 4 },
+  qrCloseBtn:  { marginTop: 20, backgroundColor: zc.fondo, borderRadius: radios.boton, paddingHorizontal: 32, paddingVertical: 11 },
+  qrCloseBtnText: { color: zc.gris, fontWeight: '500' },
 
   // Leyenda
-  legend: {
-    flexDirection: 'row',
-    gap: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: KDS.border,
-  },
+  legend: { flexDirection: 'row', gap: 16, paddingHorizontal: 18, paddingTop: 14, paddingBottom: 4 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot:  { width: 8, height: 8, borderRadius: 4 },
-  legendText: { fontSize: 11, color: KDS.textSub },
+  legendText: { fontSize: 12.5, color: zc.gris },
 
   // Grid de tarjetas
-  grid: { padding: 12, gap: 12 },
+  grid: { padding: 14, gap: 12 },
 
-  // Tarjeta
-  card: {
-    backgroundColor: KDS.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: KDS.border,
-    borderLeftWidth: 4,
-    padding: 14,
-    gap: 8,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  cardOrderId:   { fontSize: 22, fontWeight: '800', color: KDS.text },
+  // Tarjeta: blanca que flota; el tiempo lo dice su pastilla de color
+  card: { ...caja, padding: 16, gap: 8 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardOrderId:   { fontSize: 22, fontWeight: '700', color: zc.tinta },
   cardHeaderRight:{ alignItems: 'flex-end' },
-  cardTime:      { fontSize: 13, fontWeight: '700' },
+  cardTime:      { fontSize: 13, fontWeight: '500', paddingHorizontal: 9, paddingVertical: 3, borderRadius: radios.chip, overflow: 'hidden' },
   cashierRow:    { flexDirection: 'row', alignItems: 'center' },
-  cardCashier:   { fontSize: 12, color: KDS.textSub },
+  cardCashier:   { fontSize: 12.5, color: zc.gris },
 
   // Badge mesa/tipo
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderRadius: 20,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  badgeText: { fontSize: 12, fontWeight: '700' },
+  badge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', backgroundColor: zc.fondo, borderRadius: radios.chip, paddingHorizontal: 9, paddingVertical: 4 },
+  badgeText: { fontSize: 12.5, color: zc.tinta },
 
   // Productos
-  itemsList: { gap: 4 },
-  itemRow:   { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
-  itemQty:   { fontSize: 14, fontWeight: '800', color: KDS.indigo, minWidth: 24 },
-  itemName:  { fontSize: 14, color: KDS.text, flex: 1 },
+  itemsList: { gap: 5, paddingTop: 4, borderTopWidth: 1, borderTopColor: zc.linea },
+  itemRow:   { flexDirection: 'row', alignItems: 'baseline', gap: 6, paddingTop: 4 },
+  itemQty:   { fontSize: 15, fontWeight: '700', color: zc.azul, minWidth: 26 },
+  itemName:  { fontSize: 15, color: zc.tinta, flex: 1 },
 
   // Notas
-  notesBox:  { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#2d2009', borderRadius: 6, padding: 8 },
-  notesText: { fontSize: 12, color: KDS.amber, flex: 1 },
+  notesBox:  { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: zc.ambarSuave, borderRadius: radios.boton, padding: 10 },
+  notesText: { fontSize: 13, color: zc.ambarTexto, flex: 1 },
 
   // Botón completar
-  btnComplete: {
-    backgroundColor: KDS.greenDark,
-    borderRadius: 8,
-    paddingVertical: 10,
-    alignItems: 'center',
-    marginTop: 4,
-    borderWidth: 1,
-    borderColor: KDS.green,
-  },
-  btnCompleteText: { color: KDS.green, fontSize: 14, fontWeight: '800' },
+  btnComplete: { backgroundColor: zc.verdeSuave, borderRadius: radios.boton, paddingVertical: 12, alignItems: 'center', marginTop: 4 },
+  btnCompleteText: { color: zc.verde, fontSize: 15, fontWeight: '500' },
 
   // Estados vacío / carga
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 8 },
-  emptyTitle:    { fontSize: 20, fontWeight: '800', color: KDS.text },
-  emptySubtitle: { fontSize: 14, color: KDS.textSub },
-  btnRefresh: {
-    marginTop: 16,
-    borderWidth: 1,
-    borderColor: KDS.indigo,
-    borderRadius: 8,
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-  },
-  btnRefreshText: { color: KDS.indigo, fontWeight: '700' },
+  emptyTitle:    { fontSize: 19, fontWeight: '500', color: zc.tinta, marginTop: 6 },
+  emptySubtitle: { fontSize: 14, color: zc.grisSuave },
+  btnRefresh: { marginTop: 16, backgroundColor: zc.azulSuave, borderRadius: radios.boton, paddingHorizontal: 24, paddingVertical: 11 },
+  btnRefreshText: { color: zc.azul, fontWeight: '500' },
 });
