@@ -40,6 +40,7 @@ import { SeccionPropinas } from './ajustes/SeccionPropinas';
 import { SeccionHorario } from './ajustes/SeccionHorario';
 import { SeccionPantallasKDS } from './ajustes/SeccionPantallasKDS';
 import AvisoLicencias from '../../components/AvisoLicencias';
+import { VERSION_APP } from '../../utils/version';
 
 
 const TIPOS_NEGOCIO = [
@@ -709,7 +710,7 @@ export default function AjustesScreen({ navigation }) {
             />
           </SectionCard>
 
-          <Text style={styles.footer}>Zenit POS · Versión 1.0.0</Text>
+          <Text style={styles.footer}>Zenit POS · Versión {VERSION_APP}</Text>
           </View>
         </ScrollView>
 
@@ -1325,7 +1326,7 @@ export default function AjustesScreen({ navigation }) {
                   </View>
                   <MenuItem
                     label="Verificar actualizaciones"
-                    sub={`Versión actual: 1.0.0`}
+                    sub={`Versión actual: ${VERSION_APP}`}
                     onPress={checkForUpdates}
                     last
                   />
@@ -1373,7 +1374,7 @@ export default function AjustesScreen({ navigation }) {
             </SectionCard>
           </View>
         )}
-        pie={<Text style={styles.footer}>Zenit POS · Versión 1.0.0</Text>}
+        pie={<Text style={styles.footer}>Zenit POS · Versión {VERSION_APP}</Text>}
       />
 
       {/* ════════════════════════════════════════════════════════════════
