@@ -6,7 +6,6 @@ import {
   Modal, ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import IconoProducto from '../../components/IconoProducto';
 import ListaComprasSection from './ListaComprasSection';
 import { api } from '../../api/client';
@@ -15,8 +14,8 @@ import {
   registrarFalloPin, resetFallosPin,
 } from '../../offline/credenciales';
 import { useAuth } from '../../context/AuthContext';
-import { colors, spacing, radius, font } from '../../theme';
-import LogoTitle from '../../components/LogoTitle';
+import { colors, spacing, radius, font, zc, tonos, radios, sombra } from '../../theme';
+import { Cabecera, Icono, IconoEnCuadro } from '../../components/ui';
 import SelectorSucursal from '../../components/SelectorSucursal';
 import { createSSE } from '../../utils/sse';
 import { friendlyError } from '../../utils/errors';
@@ -66,18 +65,18 @@ function IngredientRow({ item, onEdit }) {
         <Text style={styles.rowUnit}>{item.unit || '—'}</Text>
       </View>
       <View style={styles.stockWrap}>
-        <Text style={[styles.stock, stockBajo && { color: colors.danger }]}>
+        <Text style={[styles.stock, stockBajo && { color: zc.rojo }]}>
           {fmt(item.stock)}
         </Text>
         {stockBajo && (
           <View style={styles.alertBadge}>
-            <Ionicons name="warning-outline" size={12} color={colors.danger} />
+            <Icono nombre="warning-outline" size={11} color={zc.rojo} />
             <Text style={styles.alertText}>Stock bajo</Text>
           </View>
         )}
       </View>
       <TouchableOpacity onPress={() => onEdit(item)} style={{ padding: 4, marginLeft: spacing.sm }}>
-        <Ionicons name="pencil-outline" size={16} color={colors.textMuted} />
+        <Icono nombre="pencil-outline" size={16} color={zc.gris} />
       </TouchableOpacity>
     </View>
   );
@@ -100,10 +99,10 @@ function PrepRow({ item, onEdit }) {
           </Text>
         </View>
         <TouchableOpacity onPress={() => onEdit(item)} style={{ padding: 4, marginLeft: spacing.sm }}>
-          <Ionicons name="pencil-outline" size={16} color={colors.textMuted} />
+          <Icono nombre="pencil-outline" size={16} color={zc.gris} />
         </TouchableOpacity>
-        <Ionicons
-          name={expanded ? 'chevron-up-outline' : 'chevron-down-outline'}
+        <Icono
+          nombre={expanded ? 'chevron-up-outline' : 'chevron-down-outline'}
           size={16} color={colors.textMuted} style={{ marginLeft: spacing.sm }}
         />
       </TouchableOpacity>
@@ -111,7 +110,7 @@ function PrepRow({ item, onEdit }) {
         <View style={styles.expandedBox}>
           {item.items?.length > 0 ? item.items.map(ri => (
             <View key={ri.id} style={styles.recipeItem}>
-              <Ionicons name="flask-outline" size={13} color={colors.textMuted} />
+              <Icono nombre="flask-outline" size={13} color={colors.textMuted} />
               <Text style={styles.recipeItemText}>{ri.ingredient?.name ?? `ID ${ri.ingredient_id}`}</Text>
               <Text style={styles.recipeItemQty}>{fmt(ri.quantity)} {ri.unit_recipe || ri.ingredient?.unit || ''}</Text>
             </View>
@@ -162,19 +161,19 @@ function RecetaRow({ product, items, ingredients, preparations, onDelete, onEdit
           <Text style={styles.rowUnit}>{items.length} {items.length === 1 ? 'componente' : 'componentes'}</Text>
         </View>
         <TouchableOpacity onPress={() => onEdit(product, items)} style={{ padding: 4, marginRight: spacing.xs }}>
-          <Ionicons name="pencil-outline" size={16} color={colors.textMuted} />
+          <Icono nombre="pencil-outline" size={16} color={zc.gris} />
         </TouchableOpacity>
         <TouchableOpacity onPress={confirmarBorrar} style={{ padding: 4, marginRight: spacing.xs }}>
-          <Ionicons name="trash-outline" size={16} color={colors.danger} />
+          <Icono nombre="trash-outline" size={16} color={zc.rojo} />
         </TouchableOpacity>
-        <Ionicons name={expanded ? 'chevron-up-outline' : 'chevron-down-outline'} size={16} color={colors.textMuted} />
+        <Icono nombre={expanded ? 'chevron-up-outline' : 'chevron-down-outline'} size={16} color={colors.textMuted} />
       </TouchableOpacity>
       {expanded && (
         <View style={styles.expandedBox}>
           {items.map(r => (
             <View key={r.id} style={styles.recipeItem}>
-              <Ionicons
-                name={r.item_type === 'ingredient' ? 'flask-outline' : 'beaker-outline'}
+              <Icono
+                nombre={r.item_type === 'ingredient' ? 'flask-outline' : 'beaker-outline'}
                 size={13} color={colors.textMuted}
               />
               <Text style={styles.recipeItemText}>{nombre(r.item_id, r.item_type)}</Text>
@@ -195,10 +194,10 @@ function MovRow({ item }) {
     : '—';
   return (
     <View style={styles.row}>
-      <View style={[styles.movIcon, { backgroundColor: esEntrada ? '#dcfce7' : '#fee2e2' }]}>
-        <Ionicons
-          name={esEntrada ? 'add-circle-outline' : 'remove-circle-outline'}
-          size={20} color={esEntrada ? '#16a34a' : '#dc2626'}
+      <View style={[styles.movIcon, { backgroundColor: esEntrada ? zc.verdeSuave : zc.rojoSuave }]}>
+        <Icono
+          nombre={esEntrada ? 'add-circle-outline' : 'remove-circle-outline'}
+          size={20} color={esEntrada ? zc.verde : zc.rojo}
         />
       </View>
       <View style={{ flex: 1, marginLeft: spacing.sm }}>
@@ -206,7 +205,7 @@ function MovRow({ item }) {
         <Text style={styles.rowUnit}>{item.reason || item.notes || (esEntrada ? 'Entrada' : 'Salida')}</Text>
         <Text style={[styles.rowUnit, { marginTop: 2 }]}>{fecha}</Text>
       </View>
-      <Text style={[styles.stock, { color: esEntrada ? '#16a34a' : '#dc2626', fontSize: font.md }]}>
+      <Text style={[styles.stock, { color: esEntrada ? zc.verde : zc.rojo, fontSize: 15 }]}>
         {esEntrada ? '+' : '−'}{fmt(item.quantity)} {item.ingredient?.unit ?? ''}
       </Text>
     </View>
@@ -218,7 +217,7 @@ function PremiumGate() {
   const navigation = useNavigation();
   return (
     <View style={styles.premiumWrap}>
-      <Ionicons name="layers-outline" size={52} color={colors.textMuted} />
+      <IconoEnCuadro nombre="layers-outline" tono="verde" size={64} />
       <Text style={styles.premiumTitle}>Función Premium</Text>
       <Text style={styles.premiumSubtitle}>
         El control de inventario está disponible en el plan Premium.
@@ -256,7 +255,7 @@ function IngSelector({ ingredients, preparations, selected, onSelect, includePre
           <Text style={styles.ingSelecStock}>{selected._sub}</Text>
         </View>
         <TouchableOpacity onPress={() => onSelect(null)}>
-          <Ionicons name="close-circle" size={22} color={colors.textMuted} />
+          <Icono nombre="close-circle" size={22} color={colors.textMuted} />
         </TouchableOpacity>
       </View>
     );
@@ -630,8 +629,8 @@ export default function InventarioScreen() {
   };
 
   if (!isPremium) return (
-    <SafeAreaView style={styles.safe}>
-      <LogoTitle title="Inventario" titleStyle={styles.pageTitle} />
+    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+      <Cabecera titulo="Inventario" />
       <PremiumGate />
     </SafeAreaView>
   );
@@ -666,47 +665,48 @@ export default function InventarioScreen() {
   ];
 
   return (
-    <SafeAreaView style={styles.safe}>
-      {/* Header */}
-      <View style={styles.header}>
-        <LogoTitle title="Inventario" titleStyle={styles.pageTitle} />
+    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+      {/* Cabecera azul noche (diseño A): acciones y sucursal dentro */}
+      <Cabecera titulo="Inventario">
         <View style={styles.headerActions}>
           {tab === 'insumos' && <>
             <TouchableOpacity style={styles.btnAdd} onPress={abrirNuevoInsumo}>
-              <Ionicons name="add" size={16} color={colors.primary} />
+              <Icono nombre="add" size={15} color="#fff" />
               <Text style={styles.btnAddText}>Nuevo</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.btnEntrada} onPress={() => { setTipoMov('entrada'); setIngSelec(null); setCantidad(''); setNotasMov(''); setMotivo('merma'); setModalMov(true); }}>
-              <Ionicons name="add-circle-outline" size={15} color="#16a34a" />
+              <Icono nombre="add-circle-outline" size={15} color="#34d399" />
               <Text style={styles.btnEntradaText}>Entrada</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.btnSalida} onPress={() => { setTipoMov('salida'); setIngSelec(null); setCantidad(''); setNotasMov(''); setMotivo('merma'); setModalMov(true); }}>
-              <Ionicons name="remove-circle-outline" size={15} color="#dc2626" />
+              <Icono nombre="remove-circle-outline" size={15} color="#fca5a5" />
               <Text style={styles.btnSalidaText}>Salida</Text>
             </TouchableOpacity>
           </>}
           {tab === 'preparaciones' && (
             <TouchableOpacity style={styles.btnAdd} onPress={abrirNuevaPreparacion}>
-              <Ionicons name="add" size={16} color={colors.primary} />
+              <Icono nombre="add" size={15} color="#fff" />
               <Text style={styles.btnAddText}>Nueva</Text>
             </TouchableOpacity>
           )}
           {tab === 'recetas' && (
             <TouchableOpacity style={styles.btnAdd} onPress={() => { setRecetaProd(null); setRecetaItems([]); setModalReceta(true); }}>
-              <Ionicons name="add" size={16} color={colors.primary} />
+              <Icono nombre="add" size={15} color="#fff" />
               <Text style={styles.btnAddText}>Nueva</Text>
             </TouchableOpacity>
           )}
         </View>
-      </View>
 
-      {/* Ver el inventario de otra sucursal (solo lectura) */}
-      <SelectorSucursal value={sucursalVista} onChange={setSucursalVista} />
+        {/* Ver el inventario de otra sucursal (solo lectura) */}
+        <View style={styles.sucursalEnCabecera}>
+          <SelectorSucursal value={sucursalVista} onChange={setSucursalVista} enNoche />
+        </View>
+      </Cabecera>
 
       {/* Stock bajo */}
       {stockBajo.length > 0 && tab === 'insumos' && (
         <View style={styles.alertBanner}>
-          <Ionicons name="warning-outline" size={18} color={colors.danger} />
+          <Icono nombre="warning-outline" size={18} color={zc.ambar} />
           <Text style={styles.alertBannerText}>{stockBajo.length} {stockBajo.length === 1 ? 'insumo' : 'insumos'} con stock bajo</Text>
         </View>
       )}
@@ -719,7 +719,7 @@ export default function InventarioScreen() {
             style={[styles.tabItem, tab === t.key && styles.tabItemActive]}
             onPress={() => { setTab(t.key); setBusqueda(''); }}
           >
-            <Ionicons name={t.icon} size={14} color={tab === t.key ? colors.primary : colors.textMuted} />
+            <Icono nombre={t.icon} size={16} color={tab === t.key ? '#fff' : zc.gris} />
             <Text style={[styles.tabText, tab === t.key && styles.tabTextActive]}>{t.label}</Text>
           </TouchableOpacity>
         ))}
@@ -728,7 +728,7 @@ export default function InventarioScreen() {
       {/* Búsqueda (la pestaña de compras tiene sus propios controles) */}
       {tab !== 'compras' && (
         <View style={styles.searchWrap}>
-          <Ionicons name="search-outline" size={18} color={colors.textMuted} />
+          <Icono nombre="search-outline" size={18} color={colors.textMuted} />
           <TextInput
             style={styles.searchInput}
             value={busqueda}
@@ -793,7 +793,7 @@ export default function InventarioScreen() {
                   </TouchableOpacity>
                 </View>
                 <TouchableOpacity onPress={() => setModalMov(false)} style={styles.closeBtn}>
-                  <Ionicons name="close" size={22} color={colors.textMuted} />
+                  <Icono nombre="close" size={22} color={zc.gris} />
                 </TouchableOpacity>
               </View>
               <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
@@ -831,7 +831,7 @@ export default function InventarioScreen() {
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>{ingEditando ? 'Editar Insumo' : 'Nuevo Insumo'}</Text>
                 <TouchableOpacity onPress={() => setModalIng(false)} style={styles.closeBtn}>
-                  <Ionicons name="close" size={22} color={colors.textMuted} />
+                  <Icono nombre="close" size={22} color={zc.gris} />
                 </TouchableOpacity>
               </View>
               <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
@@ -904,7 +904,7 @@ export default function InventarioScreen() {
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>{prepEditandoId ? 'Editar Preparación' : 'Nueva Preparación'}</Text>
                 <TouchableOpacity onPress={() => setModalPrep(false)} style={styles.closeBtn}>
-                  <Ionicons name="close" size={22} color={colors.textMuted} />
+                  <Icono nombre="close" size={22} color={zc.gris} />
                 </TouchableOpacity>
               </View>
               <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
@@ -953,12 +953,12 @@ export default function InventarioScreen() {
                       </View>
                     ) : null}
                     <TouchableOpacity onPress={() => setPrepItems(prepItems.filter((_, i) => i !== idx))} style={{ padding: spacing.xs }}>
-                      <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                      <Icono nombre="trash-outline" size={18} color={zc.rojo} />
                     </TouchableOpacity>
                   </View>
                 ))}
                 <TouchableOpacity style={styles.btnAddLinea} onPress={() => setPrepItems([...prepItems, { ing: null, qty: 0, qtyStr: '', unit: null }])}>
-                  <Ionicons name="add" size={16} color={colors.primary} />
+                  <Icono nombre="add" size={16} color={colors.primary} />
                   <Text style={styles.btnAddLineaText}>Agregar ingrediente</Text>
                 </TouchableOpacity>
 
@@ -980,7 +980,7 @@ export default function InventarioScreen() {
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>{recetaProd && recetaItems.length > 0 ? 'Editar Receta' : 'Nueva Receta'}</Text>
                 <TouchableOpacity onPress={() => setModalReceta(false)} style={styles.closeBtn}>
-                  <Ionicons name="close" size={22} color={colors.textMuted} />
+                  <Icono nombre="close" size={22} color={zc.gris} />
                 </TouchableOpacity>
               </View>
               <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
@@ -990,7 +990,7 @@ export default function InventarioScreen() {
                     <View style={{ marginRight: spacing.xs }}><IconoProducto valor={recetaProd.emoji || 'svg:package'} size={20} color={colors.textPrimary} /></View>
                     <Text style={[styles.ingSelecNombre, { flex: 1 }]}>{recetaProd.name}</Text>
                     <TouchableOpacity onPress={() => setRecetaProd(null)}>
-                      <Ionicons name="close-circle" size={22} color={colors.textMuted} />
+                      <Icono nombre="close-circle" size={22} color={colors.textMuted} />
                     </TouchableOpacity>
                   </View>
                 ) : (
@@ -1032,12 +1032,12 @@ export default function InventarioScreen() {
                       </View>
                     )}
                     <TouchableOpacity onPress={() => setRecetaItems(recetaItems.filter((_, i) => i !== idx))} style={{ padding: spacing.xs }}>
-                      <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                      <Icono nombre="trash-outline" size={18} color={zc.rojo} />
                     </TouchableOpacity>
                   </View>
                 ))}
                 <TouchableOpacity style={styles.btnAddLinea} onPress={() => setRecetaItems([...recetaItems, { ing: null, qty: 0, qtyStr: '', unit: null }])}>
-                  <Ionicons name="add" size={16} color={colors.primary} />
+                  <Icono nombre="add" size={16} color={colors.primary} />
                   <Text style={styles.btnAddLineaText}>Agregar componente</Text>
                 </TouchableOpacity>
 
@@ -1130,96 +1130,99 @@ function ProductSelector({ products, onSelect }) {
   );
 }
 
+const campo = { backgroundColor: zc.tarjeta, borderRadius: radios.boton, borderWidth: 1, borderColor: zc.linea };
+const caja  = { backgroundColor: zc.tarjeta, borderRadius: radios.tarjeta, ...sombra };
+
 const styles = StyleSheet.create({
-  safe:                { flex: 1, backgroundColor: colors.background },
+  safe:                { flex: 1, backgroundColor: zc.fondo },
   centered:            { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header:              { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.sm, gap: spacing.sm },
-  pageTitle:           { fontSize: font.xl, fontWeight: '800', color: colors.textPrimary },
-  headerActions:       { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
-  btnEntrada:          { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#dcfce7', borderWidth: 1, borderColor: '#86efac', borderRadius: radius.lg, paddingHorizontal: spacing.sm + 2, paddingVertical: 6 },
-  btnEntradaText:      { fontSize: font.sm - 1, fontWeight: '700', color: '#16a34a' },
-  btnSalida:           { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#fee2e2', borderWidth: 1, borderColor: '#fca5a5', borderRadius: radius.lg, paddingHorizontal: spacing.sm + 2, paddingVertical: 6 },
-  btnSalidaText:       { fontSize: font.sm - 1, fontWeight: '700', color: '#dc2626' },
-  btnAdd:              { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.primary + '15', borderWidth: 1, borderColor: colors.primary + '40', borderRadius: radius.lg, paddingHorizontal: spacing.sm + 2, paddingVertical: 6 },
-  btnAddText:          { fontSize: font.sm - 1, fontWeight: '700', color: colors.primary },
-  alertBanner:         { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.danger + '15', borderRadius: radius.md, marginHorizontal: spacing.lg, marginBottom: spacing.sm, padding: spacing.sm + 2, gap: spacing.sm },
-  alertBannerText:     { color: colors.danger, fontSize: font.sm, fontWeight: '700' },
-  tabBar:              { flexDirection: 'row', marginHorizontal: spacing.lg, marginBottom: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: 3, gap: 2 },
-  tabItem:             { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: spacing.sm - 1, borderRadius: radius.md },
-  tabItemActive:       { backgroundColor: colors.primary },
-  tabText:             { fontSize: font.sm - 3, fontWeight: '600', color: colors.textMuted },
+  headerActions:       { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginTop: 12 },
+  sucursalEnCabecera:  { marginTop: 10, marginHorizontal: -18 },
+  // Sobre la cabecera oscura: Nuevo en azul, Entrada y Salida en "vidrio"
+  btnEntrada:          { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: zc.vidrio, borderRadius: radios.chip, paddingHorizontal: 13, paddingVertical: 8 },
+  btnEntradaText:      { fontSize: 13.5, color: zc.enNoche },
+  btnSalida:           { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: zc.vidrio, borderRadius: radios.chip, paddingHorizontal: 13, paddingVertical: 8 },
+  btnSalidaText:       { fontSize: 13.5, color: zc.enNoche },
+  btnAdd:              { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: zc.azul, borderRadius: radios.chip, paddingHorizontal: 13, paddingVertical: 8 },
+  btnAddText:          { fontSize: 13.5, fontWeight: '500', color: '#fff' },
+  alertBanner:         { flexDirection: 'row', alignItems: 'center', backgroundColor: zc.ambarSuave, borderRadius: radios.tarjeta, marginHorizontal: 14, marginTop: 12, padding: 12, gap: 10 },
+  alertBannerText:     { color: zc.ambarTexto, fontSize: 14 },
+  tabBar:              { flexDirection: 'row', marginHorizontal: 14, marginTop: 12, marginBottom: 10, ...caja, borderRadius: radios.boton + 2, padding: 4, gap: 2 },
+  tabItem:             { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2, paddingVertical: 7, borderRadius: radios.boton },
+  tabItemActive:       { backgroundColor: zc.noche },
+  tabText:             { fontSize: 11.5, color: zc.gris },
   tabTextActive:       { color: '#fff' },
-  searchWrap:          { flexDirection: 'row', alignItems: 'center', marginHorizontal: spacing.lg, marginBottom: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, paddingHorizontal: spacing.md, gap: spacing.xs },
-  searchInput:         { flex: 1, paddingVertical: spacing.md, fontSize: font.md, color: colors.textPrimary },
-  listContent:         { padding: spacing.lg, paddingTop: 0 },
-  row:                 { backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center' },
-  rowName:             { fontSize: font.sm, fontWeight: '700', color: colors.textPrimary },
-  rowUnit:             { fontSize: font.sm - 2, color: colors.textMuted },
+  searchWrap:          { flexDirection: 'row', alignItems: 'center', marginHorizontal: 14, marginBottom: 10, ...campo, paddingHorizontal: 12, gap: 8 },
+  searchInput:         { flex: 1, paddingVertical: 10, fontSize: 14.5, color: zc.tinta },
+  listContent:         { padding: 14, paddingTop: 2 },
+  row:                 { ...caja, padding: 14, marginBottom: 10, flexDirection: 'row', alignItems: 'center' },
+  rowName:             { fontSize: 14.5, fontWeight: '500', color: zc.tinta },
+  rowUnit:             { fontSize: 12.5, color: zc.grisSuave, marginTop: 1 },
   stockWrap:           { alignItems: 'flex-end' },
-  stock:               { fontSize: font.lg, fontWeight: '800', color: colors.textPrimary },
-  alertBadge:          { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 2 },
-  alertText:           { fontSize: font.sm - 2, color: colors.danger, fontWeight: '600' },
-  expandedBox:         { marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderColor: colors.border },
+  stock:               { fontSize: 18, fontWeight: '700', color: zc.tinta, fontVariant: ['tabular-nums'] },
+  alertBadge:          { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 3, backgroundColor: zc.rojoSuave, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 },
+  alertText:           { fontSize: 11.5, color: zc.rojo },
+  expandedBox:         { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderColor: zc.linea },
   recipeItem:          { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 3 },
-  recipeItemText:      { flex: 1, fontSize: font.sm - 1, color: colors.textSecondary },
-  recipeItemQty:       { fontSize: font.sm - 1, fontWeight: '700', color: colors.textPrimary },
-  sinDatos:            { fontSize: font.sm - 1, color: colors.textMuted, fontStyle: 'italic' },
-  movIcon:             { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-  empty:               { color: colors.textMuted, fontSize: font.md, textAlign: 'center', marginTop: spacing.xxl },
+  recipeItemText:      { flex: 1, fontSize: 13.5, color: zc.gris },
+  recipeItemQty:       { fontSize: 13.5, fontWeight: '500', color: zc.tinta },
+  sinDatos:            { fontSize: 13, color: zc.grisSuave },
+  movIcon:             { width: 38, height: 38, borderRadius: radios.cuadrito, alignItems: 'center', justifyContent: 'center' },
+  empty:               { color: zc.grisSuave, fontSize: 14.5, textAlign: 'center', marginTop: spacing.xxl },
   premiumWrap:         { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xxl, gap: spacing.md },
-  premiumTitle:        { fontSize: font.xl, fontWeight: '800', color: colors.textPrimary },
-  premiumSubtitle:     { fontSize: font.md, color: colors.textMuted, textAlign: 'center', lineHeight: 22 },
-  premiumBtn:          { backgroundColor: colors.primary, paddingVertical: 12, paddingHorizontal: 28, borderRadius: radius.md, marginTop: spacing.sm },
-  premiumBtnText:      { color: '#fff', fontSize: font.md, fontWeight: '700' },
-  overlay:             { flex: 1, backgroundColor: '#0006', justifyContent: 'flex-end' },
-  modalBox:            { backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '92%' },
-  modalHeader:         { flexDirection: 'row', alignItems: 'center', padding: spacing.lg, borderBottomWidth: 1, borderColor: colors.border },
-  modalTitle:          { flex: 1, fontSize: font.lg, fontWeight: '800', color: colors.textPrimary },
-  modalTabs:           { flex: 1, flexDirection: 'row', gap: spacing.sm },
-  modalTab:            { paddingHorizontal: spacing.md, paddingVertical: spacing.sm - 2, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border },
-  modalTabEntrada:     { backgroundColor: '#dcfce7', borderColor: '#86efac' },
-  modalTabSalida:      { backgroundColor: '#fee2e2', borderColor: '#fca5a5' },
-  modalTabText:        { fontSize: font.sm, fontWeight: '600', color: colors.textMuted },
-  modalTabTextEntrada: { color: '#16a34a' },
-  modalTabTextSalida:  { color: '#dc2626' },
+  premiumTitle:        { fontSize: 19, fontWeight: '500', color: zc.tinta },
+  premiumSubtitle:     { fontSize: 14.5, color: zc.gris, textAlign: 'center', lineHeight: 22 },
+  premiumBtn:          { backgroundColor: zc.azul, paddingVertical: 12, paddingHorizontal: 28, borderRadius: radios.boton, marginTop: spacing.sm },
+  premiumBtnText:      { color: '#fff', fontSize: 15, fontWeight: '500' },
+  overlay:             { flex: 1, backgroundColor: 'rgba(17,24,39,0.55)', justifyContent: 'flex-end' },
+  modalBox:            { backgroundColor: zc.fondo, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '92%' },
+  modalHeader:         { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 14, borderBottomWidth: 1, borderColor: zc.linea },
+  modalTitle:          { flex: 1, fontSize: 18, fontWeight: '500', color: zc.tinta },
+  modalTabs:           { flex: 1, flexDirection: 'row', gap: 6 },
+  modalTab:            { paddingHorizontal: 14, paddingVertical: 7, borderRadius: radios.chip, backgroundColor: zc.tarjeta },
+  modalTabEntrada:     { backgroundColor: zc.verdeSuave },
+  modalTabSalida:      { backgroundColor: zc.rojoSuave },
+  modalTabText:        { fontSize: 14, color: zc.gris },
+  modalTabTextEntrada: { color: zc.verde, fontWeight: '500' },
+  modalTabTextSalida:  { color: zc.rojo, fontWeight: '500' },
   closeBtn:            { padding: spacing.xs },
-  modalBody:           { padding: spacing.lg },
-  label:               { fontSize: font.sm, fontWeight: '700', color: colors.textSecondary, marginBottom: spacing.xs },
-  input:               { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 2, fontSize: font.md, color: colors.textPrimary },
-  ingSelecRow:         { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary + '12', borderWidth: 1, borderColor: colors.primary + '40', borderRadius: radius.md, padding: spacing.md, gap: spacing.sm },
-  ingSelecNombre:      { fontSize: font.md, fontWeight: '700', color: colors.textPrimary },
-  ingSelecStock:       { fontSize: font.sm - 1, color: colors.textSecondary, marginTop: 2 },
-  sugerenciasBox:      { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, marginTop: spacing.xs, overflow: 'hidden' },
-  sugerenciaItem:      { padding: spacing.md, borderBottomWidth: 1, borderColor: colors.border },
-  sugNombre:           { fontSize: font.md, fontWeight: '600', color: colors.textPrimary },
-  sugStock:            { fontSize: font.sm - 1, color: colors.textMuted, marginTop: 2 },
+  modalBody:           { padding: 18 },
+  label:               { fontSize: 13, color: zc.gris, marginBottom: 6 },
+  input:               { ...campo, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15, color: zc.tinta },
+  ingSelecRow:         { flexDirection: 'row', alignItems: 'center', backgroundColor: zc.azulSuave, borderRadius: radios.boton, padding: 12, gap: spacing.sm },
+  ingSelecNombre:      { fontSize: 15, fontWeight: '500', color: zc.tinta },
+  ingSelecStock:       { fontSize: 12.5, color: zc.gris, marginTop: 2 },
+  sugerenciasBox:      { ...caja, borderRadius: radios.boton, marginTop: 6, overflow: 'hidden' },
+  sugerenciaItem:      { padding: 12, borderBottomWidth: 1, borderColor: zc.linea },
+  sugNombre:           { fontSize: 14.5, fontWeight: '500', color: zc.tinta },
+  sugStock:            { fontSize: 12.5, color: zc.grisSuave, marginTop: 2 },
   motivosRow:          { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  motivoChip:          { paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background },
-  motivoChipActivo:    { backgroundColor: '#fee2e2', borderColor: '#fca5a5' },
-  motivoText:          { fontSize: font.sm - 1, color: colors.textSecondary, fontWeight: '600' },
-  motivoTextActivo:    { color: '#dc2626' },
-  btnGuardar:          { backgroundColor: colors.success, borderRadius: radius.md, padding: spacing.md, alignItems: 'center' },
-  btnGuardarSalida:    { backgroundColor: colors.danger },
-  btnGuardarText:      { color: '#fff', fontWeight: '800', fontSize: font.md },
-  recetaLineaRow:      { flexDirection: 'row', alignItems: 'flex-start', marginBottom: spacing.sm, gap: spacing.xs },
-  btnAddLinea:         { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, padding: spacing.sm, borderRadius: radius.md, borderWidth: 1, borderColor: colors.primary + '40', backgroundColor: colors.primary + '08', marginTop: spacing.xs },
-  btnAddLineaText:     { fontSize: font.sm, color: colors.primary, fontWeight: '600' },
-  unitChip:            { paddingHorizontal: 6, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background, marginBottom: 4, alignItems: 'center' },
-  unitChipActive:      { backgroundColor: colors.primary, borderColor: colors.primary },
-  unitChipText:        { fontSize: font.sm - 2, color: colors.textSecondary, fontWeight: '700' },
+  motivoChip:          { paddingHorizontal: 13, paddingVertical: 7, borderRadius: radios.chip, backgroundColor: zc.tarjeta },
+  motivoChipActivo:    { backgroundColor: zc.noche },
+  motivoText:          { fontSize: 13.5, color: zc.gris },
+  motivoTextActivo:    { color: '#fff' },
+  btnGuardar:          { backgroundColor: zc.azul, borderRadius: radios.boton, padding: 14, alignItems: 'center' },
+  btnGuardarSalida:    { backgroundColor: zc.rojo },
+  btnGuardarText:      { color: '#fff', fontWeight: '500', fontSize: 15.5 },
+  recetaLineaRow:      { flexDirection: 'row', alignItems: 'flex-start', marginBottom: spacing.sm, gap: 6 },
+  btnAddLinea:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 10, borderRadius: radios.boton, backgroundColor: zc.azulSuave, marginTop: 6 },
+  btnAddLineaText:     { fontSize: 14, color: zc.azul, fontWeight: '500' },
+  unitChip:            { paddingHorizontal: 7, paddingVertical: 4, borderRadius: 8, backgroundColor: zc.tarjeta, marginBottom: 4, alignItems: 'center' },
+  unitChipActive:      { backgroundColor: zc.noche },
+  unitChipText:        { fontSize: 12, color: zc.gris },
   unitChipTextActive:  { color: '#fff' },
 
   // Modal PIN
-  pinOverlay:          { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: spacing.xl },
-  pinBox:              { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.xl, width: '100%', maxWidth: 340 },
-  pinTitle:            { fontSize: font.lg, fontWeight: '800', color: colors.textPrimary, marginBottom: spacing.xs },
-  pinMsg:              { fontSize: font.sm, color: colors.textSecondary, marginBottom: spacing.lg, lineHeight: 20 },
-  pinInput:            { borderWidth: 1.5, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: font.md, color: colors.textPrimary, backgroundColor: colors.background, textAlign: 'center', letterSpacing: 6, marginBottom: spacing.xs },
-  pinErrorText:        { fontSize: font.sm, color: colors.danger, marginBottom: spacing.sm },
+  pinOverlay:          { flex: 1, backgroundColor: 'rgba(17,24,39,0.55)', justifyContent: 'center', alignItems: 'center', padding: spacing.xl },
+  pinBox:              { ...caja, padding: 22, width: '100%', maxWidth: 340 },
+  pinTitle:            { fontSize: 18, fontWeight: '500', color: zc.tinta, marginBottom: spacing.xs },
+  pinMsg:              { fontSize: 13.5, color: zc.gris, marginBottom: spacing.lg, lineHeight: 20 },
+  pinInput:            { borderWidth: 1.5, borderColor: zc.linea, borderRadius: radios.boton, padding: 12, fontSize: 18, color: zc.tinta, backgroundColor: zc.fondo, textAlign: 'center', letterSpacing: 6, marginBottom: spacing.xs },
+  pinErrorText:        { fontSize: 13, color: zc.rojo, marginBottom: spacing.sm },
   pinActions:          { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
-  pinBtn:              { flex: 1, borderRadius: radius.md, padding: spacing.md, alignItems: 'center' },
-  pinBtnCancel:        { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  pinBtnCancelText:    { color: colors.textSecondary, fontWeight: '600' },
-  pinBtnConfirm:       { backgroundColor: colors.primary },
-  pinBtnConfirmText:   { color: '#fff', fontWeight: '700' },
+  pinBtn:              { flex: 1, borderRadius: radios.boton, padding: 13, alignItems: 'center' },
+  pinBtnCancel:        { backgroundColor: zc.fondo },
+  pinBtnCancelText:    { color: zc.gris, fontWeight: '500' },
+  pinBtnConfirm:       { backgroundColor: zc.azul },
+  pinBtnConfirmText:   { color: '#fff', fontWeight: '500' },
 });
