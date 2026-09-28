@@ -593,6 +593,26 @@ class ApiClient {
     });
   }
 
+  // Cobrar UNA PARTE de una mesa (PLAN_CUENTAS_V1, §70). Los productos elegidos
+  // salen de la mesa a una venta nueva que nace cobrada; la mesa sigue abierta con
+  // lo que queda. `items` = [{ item_id, quantity }]. `client_uuid` es de la
+  // INTENCIÓN: un reintento por mala señal devuelve la misma parte, no cobra dos.
+  // Responde { mesa, parte, partes }.
+  separarCuenta(orderId, { items, payment_method, tip_amount = 0, tip_method = null, payments = null, employee_name = '', client_uuid }) {
+    return this.request(`/orders/${orderId}/separar`, {
+      method: 'POST',
+      body: {
+        items,
+        payment_method: payment_method || 'efectivo',
+        tip_amount: tip_amount || 0,
+        tip_method: tip_method || null,
+        ...(payments ? { payments } : {}),
+        ...(employee_name ? { employee_name } : {}),
+        client_uuid: client_uuid || null,
+      },
+    });
+  }
+
   // ─── Ajustes ─────────────────────────────────────────────────────────────
   getSettings() {
     return this.request('/settings');

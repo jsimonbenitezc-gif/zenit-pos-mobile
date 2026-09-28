@@ -31,6 +31,9 @@ import {
   promoDeCatalogo, promosActivasAhora, armarRenglonPromo, claveCarritoMesa, renglonParaMesa,
   totalCarritoMesa, unidadesDeCuenta, agruparRenglones, textoHuecos, textoCobro,
 } from '../../utils/promos';
+import {
+  calcularParte, unidadesDeMesa, piezasDeRenglon, claveDeGrupo, tocarEnSeleccion, quitarUnoDeSeleccion,
+} from '../../utils/partesMesa';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -148,6 +151,13 @@ export default function MesasScreen() {
   const [pagosMesa, setPagosMesa]            = useState([]);
   const [asignacion, setAsignacion]          = useState({});        // { itemId: indiceDePago }
   const [cobrando, setCobrando]              = useState(false);
+  // COBRAR UNA PARTE (PLAN_CUENTAS_V1, §70). El mesero va comensal por comensal:
+  // elige lo que paga esta persona y lo cobra; la mesa sigue abierta con lo que
+  // queda. `parteEnCobro` = { items, total, queda, uuid } mientras se cobra.
+  const [modalParteVisible, setModalParte]   = useState(false);
+  const [seleccionParte, setSeleccionParte]  = useState({});
+  const [parteEnCobro, setParteEnCobro]      = useState(null);
+  const [verPartes, setVerPartes]            = useState(false);
 
   // Fidelidad en cobro de mesa
   const [busqCliente, setBusqCliente]        = useState('');
@@ -167,14 +177,23 @@ export default function MesasScreen() {
     } catch { setSugerencias([]); }
   }
 
-  function abrirCobrar() {
+  function abrirCobrar(parte = null) {
+    // ⚠️ Solo una parte de verdad (con sus items): un botón que llama
+    // `onPress={abrirCobrar}` pasa el EVENTO del toque, y el cobro de la mesa
+    // entera se abría como una "parte" de $0. Lo encontró el emulador.
+    setParteEnCobro(parte && Array.isArray(parte.items) ? parte : null);
     setBusqCliente('');
     setSugerencias([]);
     setClienteSelec(null);
-    // La división no se hereda de la mesa anterior: un reparto viejo cobraría
-    // mal la cuenta nueva.
+    // La propina y la división no se heredan de la mesa anterior: un reparto
+    // viejo cobraría mal la cuenta nueva.
+    setPropina(0);
+    setPropinaTexto('');
+    setPropinaMetodo(null);
     setDividirCuenta(false);
-    setModoDivision('items');
+    // PLAN_CUENTAS_V1: "cada quien lo suyo" es "Cobrar una parte"; la división
+    // que queda es PARTES IGUALES (lo que falta entre N).
+    setModoDivision('partes');
     setPagosMesa([]);
     setAsignacion({});
     setModalCobrar(true);
@@ -182,7 +201,8 @@ export default function MesasScreen() {
 
   // ── Dividir la cuenta (BLOQUE 10) ────────────────────────────────────────
   const itemsCuenta = (ordenActiva && ordenActiva.items) || [];
-  const totalCuenta = parseFloat((ordenActiva && ordenActiva.total) || 0);
+  // Cobrando UNA PARTE, la cuenta es la parte; si no, la mesa.
+  const totalCuenta = parteEnCobro ? parteEnCobro.total : parseFloat((ordenActiva && ordenActiva.total) || 0);
 
   /**
    * La cuenta partida en UNIDADES asignables, no en renglones.
@@ -207,6 +227,11 @@ export default function MesasScreen() {
       setDividirCuenta(false);
       setPagosMesa([]);
       setAsignacion({});
+      return;
+    }
+    if (modoDivision === 'partes') {
+      dividirMesaEnPartes(2);
+      setDividirCuenta(true);
       return;
     }
     // Se arranca con dos pagos y todos los items en el primero: el cajero solo
@@ -624,6 +649,7 @@ export default function MesasScreen() {
 
   async function confirmarCobrar() {
     if (!ordenActiva) return;
+    if (parteEnCobro) return confirmarCobroParte();
 
     // Con la cuenta dividida se valida ANTES de cobrar, para que el cajero vea
     // el problema en la pantalla y no como un 400 del backend.
@@ -704,6 +730,109 @@ export default function MesasScreen() {
     }
   }
 
+  // ── Cobrar una parte (PLAN_CUENTAS_V1, §70) ─────────────────────────────────
+  //
+  // Cada parte es una VENTA APARTE en el servidor (POST /orders/:id/separar): los
+  // productos salen de la mesa a un pedido que nace cobrado. La caja, el corte y
+  // los reportes no cambian. ⚠️ El inventario no se toca: se descontó al agregar.
+
+  function abrirParte() {
+    if (sucursalVista !== sucursalId) {
+      Alert.alert('Solo lectura', 'Estás viendo las mesas de otra sucursal.');
+      return;
+    }
+    setSeleccionParte({});
+    setModalParte(true);
+  }
+
+  function continuarParte() {
+    const c = calcularParte(ordenActiva, seleccionParte);
+    if (c.vacia) return;
+    setModalParte(false);
+    // Si esta persona se lleva TODO lo que queda, no se separa nada: es el
+    // cobro normal de la mesa (así no quedan pedidos vacíos).
+    if (c.todo) { abrirCobrar(); return; }
+    // El uuid nace con la INTENCIÓN: si la respuesta se pierde, reintentar
+    // devuelve la misma parte en vez de cobrar dos veces.
+    abrirCobrar({ items: c.items, total: c.total, queda: c.queda, uuid: generarUuid() });
+  }
+
+  async function confirmarCobroParte() {
+    const parte = parteEnCobro;
+    let pagosPayload = null;
+    if (dividirCuenta) {
+      const v = validarPagos(pagosMesa, parte.total);
+      if (!v.ok) { Alert.alert('La división no cuadra', v.error); return; }
+      pagosPayload = pagosMesa.map(pago => ({
+        method: pago.method, amount: pago.amount, tip_amount: pago.tip_amount || 0,
+      }));
+    }
+    const metodoFinal = dividirCuenta ? metodoResumenPagos(pagosMesa) : metodoPago;
+    const propinaFinal = hayPropinas(propCfg) && !dividirCuenta ? propina : 0;
+    setCobrando(true);
+    try {
+      const r = await api.separarCuenta(ordenActiva.id, {
+        items: parte.items,
+        payment_method: metodoFinal,
+        tip_amount: propinaFinal,
+        tip_method: propinaFinal > 0 ? normalizarMetodoPropina(propinaMetodo, metodoFinal) : null,
+        payments: pagosPayload,
+        employee_name: nombreActivo || '',
+        client_uuid: parte.uuid,
+      });
+      const partes = Array.isArray(r.partes) ? r.partes : [];
+      const numero = partes.findIndex(x => x.id === r.parte.id) + 1 || partes.length;
+
+      // El ticket de ESTA parte, con "Mesa 4 · parte 2". No lanza (§26).
+      imprimirTicketPedido(r.parte, settings, {
+        cashier: nombreActivo,
+        tableName: `${mesaSel?.name || 'Mesa'} · parte ${numero}`,
+      });
+
+      // Puntos: los gana quien paga, sobre lo que pagó.
+      if (clienteSelec) {
+        try {
+          const ajustes = await api.getSettings();
+          const activo = ajustes?.puntos_activos === true || ajustes?.puntos_activos === 'true';
+          if (activo) {
+            const rate  = parseFloat(ajustes?.puntos_por_peso ?? 0.1);
+            const bonus = parseInt(ajustes?.puntos_bono_pedido ?? 0);
+            const pts   = Math.floor(parseFloat(r.parte.total || 0) * rate) + bonus;
+            if (pts > 0) await api.updateCustomerLoyalty(clienteSelec.id, { points_delta: pts });
+          }
+        } catch { /* los puntos no son críticos */ }
+      }
+
+      // La mesa SIGUE abierta: el detalle se queda, con lo que falta y "Ya pagaron".
+      setOrdenActiva({ ...r.mesa, partes });
+      setParteEnCobro(null);
+      setPropina(0);
+      setPropinaTexto('');
+      setPropinaMetodo(null);
+      setModalCobrar(false);
+      showToast(`✓ Parte cobrada · queda ${formatMoney(parseFloat(r.mesa.total || 0), currency)}`);
+      load();
+    } catch (e) {
+      // El servidor explica lo que pasó (la mesa cambió, ya se cobró, no cuadra).
+      // El uuid se conserva: si la parte SÍ se cobró, reintentar la devuelve.
+      Alert.alert('No se cobró', friendlyError(e));
+    } finally {
+      setCobrando(false);
+    }
+  }
+
+  async function reimprimirParte(parte, numero) {
+    try {
+      const pedido = await api.getOrder(parte.id);
+      imprimirTicketPedido(pedido, settings, {
+        cashier: nombreActivo,
+        tableName: `${mesaSel?.name || 'Mesa'} · parte ${numero}`,
+      });
+    } catch (e) {
+      Alert.alert('No se imprimió', friendlyError(e));
+    }
+  }
+
   // ── Crear mesa ───────────────────────────────────────────────────────────────
 
   async function crearMesa() {
@@ -730,6 +859,11 @@ export default function MesasScreen() {
   // ── Derived ──────────────────────────────────────────────────────────────────
 
   const totalOrden = parseFloat(ordenActiva?.total || 0);
+  // "Ya pagaron" y "Cobrar una parte" (PLAN_CUENTAS_V1).
+  const partesMesa = (ordenActiva && ordenActiva.partes) || [];
+  const sumaPartes = partesMesa.reduce((a, p) => a + Math.round((parseFloat(p.total) || 0) * 100), 0) / 100;
+  const puedeCobrarParte = unidadesDeMesa((ordenActiva && ordenActiva.items) || []) >= 2;
+  const parteElegida = calcularParte(ordenActiva, seleccionParte);
 
   const productosFiltrados = productos.filter(p =>
     !busquedaP || p.name.toLowerCase().includes(busquedaP.toLowerCase())
@@ -843,6 +977,30 @@ export default function MesasScreen() {
           </View>
 
           <ScrollView contentContainerStyle={{ padding: 14 }}>
+            {/* "Ya pagaron" (PLAN_CUENTAS_V1): las partes ya cobradas de esta mesa.
+                Tocarlo muestra cada una y deja reimprimir su ticket. */}
+            {partesMesa.length > 0 && (
+              <View style={styles.partesCaja}>
+                <TouchableOpacity style={styles.partesResumen} onPress={() => setVerPartes(!verPartes)}>
+                  <Icono nombre="checkmark-circle-outline" size={18} color={zc.verde} />
+                  <Text style={styles.partesResumenText}>
+                    Ya pagaron: {partesMesa.length} {partesMesa.length === 1 ? 'parte' : 'partes'} · {formatMoney(sumaPartes, currency)}
+                  </Text>
+                  <Icono nombre={verPartes ? 'chevron-up' : 'chevron-down'} size={16} color={zc.verde} />
+                </TouchableOpacity>
+                {verPartes && partesMesa.map((p, i) => (
+                  <View key={p.id} style={styles.parteFila}>
+                    <Text style={styles.parteFilaText}>
+                      Parte {i + 1} · {p.payment_method === 'multiple' ? 'varios métodos' : p.payment_method}
+                    </Text>
+                    <Text style={styles.parteFilaMonto}>{formatMoney(parseFloat(p.total || 0), currency)}</Text>
+                    <TouchableOpacity style={styles.parteTicket} onPress={() => reimprimirParte(p, i + 1)}>
+                      <Icono nombre="print-outline" size={16} color={zc.azul} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
             <View style={styles.cuentaCaja}>
             {agruparRenglones(ordenActiva?.items || []).map((g, i) => g.promo ? (
               // PROMO (PLAN_OFERTAS_V1): la cuenta la enseña JUNTA, como se pidió.
@@ -904,6 +1062,13 @@ export default function MesasScreen() {
               <Text style={styles.totalLabel}>Total</Text>
               <Text style={styles.totalValue}>{formatMoney(totalOrden, currency)}</Text>
             </View>
+            {/* COBRAR UNA PARTE: alguien paga lo suyo y el resto de la mesa se queda. */}
+            {puedeCobrarParte && (
+              <TouchableOpacity style={styles.btnParte} onPress={abrirParte}>
+                <Icono nombre="person-outline" size={18} color={zc.azul} />
+                <Text style={styles.btnParteText}>Cobrar una parte</Text>
+              </TouchableOpacity>
+            )}
           </ScrollView>
 
           <View style={styles.detalleFooter}>
@@ -911,7 +1076,7 @@ export default function MesasScreen() {
               <Icono nombre="add-circle-outline" size={18} color={colors.primary} />
               <Text style={styles.btnSecText}>Agregar</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.btnCobrar} onPress={abrirCobrar}>
+            <TouchableOpacity style={styles.btnCobrar} onPress={() => abrirCobrar()}>
               <Icono nombre="cash-outline" size={18} color="#fff" />
               <Text style={styles.btnCobrarText}>Cobrar {formatMoney(totalOrden, currency)}</Text>
             </TouchableOpacity>
@@ -1054,19 +1219,92 @@ export default function MesasScreen() {
         </SafeAreaView>
       </Modal>
 
+      {/* ── Modal: ¿Qué paga esta persona? (PLAN_CUENTAS_V1) ── */}
+      <Modal visible={modalParteVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModalParte(false)}>
+        <SafeAreaView style={styles.modalSafe}>
+          <View style={styles.dragHandleWrap}><View style={styles.dragHandle} /></View>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>¿Qué paga esta persona?</Text>
+            <TouchableOpacity onPress={() => setModalParte(false)}>
+              <Icono nombre="close" size={24} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 14 }}>
+            <Text style={styles.divisionAyuda}>Toca cada producto para pasarlo a esta cuenta.</Text>
+            {agruparRenglones((ordenActiva && ordenActiva.items) || []).map((g) => {
+              const clave = claveDeGrupo(g);
+              const max = g.promo ? 1 : piezasDeRenglon(g.item);
+              const n = Math.min(seleccionParte[clave] || 0, max);
+              const nombre = g.promo ? g.promo.nombre : (g.item.product?.name || 'Producto');
+              const detalle = g.promo
+                ? g.items.map(it => it.product?.name || 'Producto').join(', ') + ' · ' + formatMoney(g.promo.total, currency)
+                : (max > 1
+                    ? `${max} × ${formatMoney(parseFloat(g.item.subtotal || 0) / max, currency)}`
+                    : formatMoney(parseFloat(g.item.subtotal || 0), currency));
+              return (
+                <TouchableOpacity
+                  key={clave}
+                  style={[styles.parteOpcion, n > 0 && styles.parteOpcionElegida]}
+                  onPress={() => setSeleccionParte(tocarEnSeleccion(seleccionParte, g))}
+                  activeOpacity={0.75}
+                >
+                  {g.promo
+                    ? <Icono nombre="gift-outline" size={22} color={tonos.lila.icono} />
+                    : <IconoProducto valor={g.item.product?.emoji || 'svg:shopping-bag'} size={28} color={zc.gris} />}
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.itemName}>{nombre}</Text>
+                    <Text style={styles.itemNota}>{detalle}</Text>
+                  </View>
+                  {n > 0 && (
+                    <Text style={styles.parteCuenta}>{max > 1 ? `${n} de ${max}` : '✓'}</Text>
+                  )}
+                  {n > 0 && max > 1 && (
+                    <TouchableOpacity style={styles.parteMenos} onPress={() => setSeleccionParte(quitarUnoDeSeleccion(seleccionParte, clave))}>
+                      <Icono nombre="remove" size={16} color={zc.azul} />
+                    </TouchableOpacity>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+          <View style={styles.parteResumen}>
+            <View style={styles.parteResumenFila}>
+              <Text style={styles.parteResumenLabel}>Esta parte</Text>
+              <Text style={styles.parteResumenTotal}>{formatMoney(parteElegida.vacia ? 0 : parteElegida.total, currency)}</Text>
+            </View>
+            <View style={styles.parteResumenFila}>
+              <Text style={styles.itemNota}>Queda en la mesa</Text>
+              <Text style={styles.itemNota}>{formatMoney(parteElegida.vacia ? totalOrden : parteElegida.queda, currency)}</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.btnPrimary, { marginTop: spacing.md }, parteElegida.vacia && styles.btnDisabled]}
+              onPress={continuarParte}
+              disabled={parteElegida.vacia}
+            >
+              <Text style={styles.btnPrimaryText}>
+                {parteElegida.todo ? 'Es toda la cuenta: cobrar' : 'Cobrar esta parte'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
+
       {/* ── Modal: Cobrar ── */}
       <Modal visible={modalCobrarVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModalCobrar(false)}>
         <SafeAreaView style={styles.modalSafe}>
           <View style={styles.dragHandleWrap}><View style={styles.dragHandle} /></View>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Cobrar</Text>
+            <Text style={styles.modalTitle}>{parteEnCobro ? 'Cobrar una parte' : 'Cobrar'}</Text>
             <TouchableOpacity onPress={() => setModalCobrar(false)}>
               <Icono nombre="close" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={{ padding: spacing.xl }} keyboardShouldPersistTaps="handled">
             <Text style={styles.cobrarMesa}>{mesaSel?.name}</Text>
-            <Text style={styles.cobrarTotal}>{formatMoney(totalOrden, currency)}</Text>
+            <Text style={styles.cobrarTotal}>{formatMoney(totalCuenta, currency)}</Text>
+            {parteEnCobro && (
+              <Text style={styles.cobrarQueda}>Queda en la mesa: {formatMoney(parteEnCobro.queda, currency)}</Text>
+            )}
 
             {/* Asignar cliente para puntos (opcional) */}
             <Text style={[styles.fieldLabel, { marginTop: spacing.lg }]}>Cliente para puntos <Text style={{ color: colors.textMuted, fontWeight: '400' }}>(opcional)</Text></Text>
@@ -1149,23 +1387,13 @@ export default function MesasScreen() {
                   </Text>
                 </View>
 
-                {/* Dos formas de dividir. Por items es la principal. */}
-                <View style={styles.divisionTabs}>
-                  {[
-                    { key: 'items',  label: 'Por items' },
-                    { key: 'partes', label: 'Partes iguales' },
-                  ].map(t => (
-                    <TouchableOpacity
-                      key={t.key}
-                      style={[styles.divisionTab, modoDivision === t.key && styles.divisionTabActive]}
-                      onPress={() => cambiarModoDivision(t.key)}
-                    >
-                      <Text style={[styles.divisionTabText, modoDivision === t.key && { color: '#fff' }]}>
-                        {t.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                {/* PLAN_CUENTAS_V1: "cada quien lo suyo" ya no se reparte aquí sino
+                    con "Cobrar una parte"; aquí queda partes iguales. */}
+                {!parteEnCobro && (
+                  <Text style={styles.divisionAviso}>
+                    ¿Cada quien paga lo suyo? Cierra y usa «Cobrar una parte» en la mesa.
+                  </Text>
+                )}
 
                 {modoDivision === 'partes' && (
                   <View style={styles.pagosPartesRow}>
@@ -1284,7 +1512,7 @@ export default function MesasScreen() {
                 </View>
                 <View style={styles.propinaBotones}>
                   {(propCfg.sugerencias || []).map(pct => {
-                    const monto  = propinaPorPorcentaje(totalOrden, pct);
+                    const monto  = propinaPorPorcentaje(totalCuenta, pct);
                     const activo = propina > 0 && Math.abs(propina - monto) < 0.005;
                     return (
                       <TouchableOpacity
@@ -1342,7 +1570,7 @@ export default function MesasScreen() {
                     <View style={styles.propinaEntregaRow}>
                       <Text style={styles.propinaEntregaLabel}>El cliente entrega</Text>
                       <Text style={styles.propinaEntregaValor}>
-                        {formatMoney(totalConPropina(totalOrden, propina), currency)}
+                        {formatMoney(totalConPropina(totalCuenta, propina), currency)}
                       </Text>
                     </View>
                   </>
@@ -1579,6 +1807,27 @@ const styles = StyleSheet.create({
   btnPrimary:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: zc.azul, borderRadius: radios.boton, padding: 14 },
   btnPrimaryText:   { color: '#fff', fontWeight: '500', fontSize: 16 },
   btnDisabled:      { opacity: 0.6 },
+
+  // ── Cobrar una parte (PLAN_CUENTAS_V1) ────────────────────────────────────
+  btnParte:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: spacing.sm, paddingVertical: 13, borderRadius: radios.boton, backgroundColor: zc.azulSuave },
+  btnParteText:      { color: zc.azul, fontWeight: '500', fontSize: 14.5 },
+  partesCaja:        { ...caja, paddingHorizontal: 14, paddingVertical: 4, marginBottom: 10 },
+  partesResumen:     { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10 },
+  partesResumenText: { flex: 1, fontSize: 14, fontWeight: '500', color: zc.verde },
+  parteFila:         { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderTopWidth: 1, borderTopColor: zc.linea },
+  parteFilaText:     { flex: 1, fontSize: 13.5, color: zc.gris },
+  parteFilaMonto:    { fontSize: 14, fontWeight: '500', color: zc.tinta, fontVariant: ['tabular-nums'] },
+  parteTicket:       { padding: 6, borderRadius: radios.chip, backgroundColor: zc.azulSuave },
+  parteOpcion:       { ...caja, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, marginBottom: 8, borderWidth: 2, borderColor: 'transparent' },
+  parteOpcionElegida:{ borderColor: zc.azul, backgroundColor: zc.azulSuave },
+  parteCuenta:       { fontSize: 14, fontWeight: '700', color: zc.azul },
+  parteMenos:        { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: zc.tarjeta },
+  parteResumen:      { padding: 16, backgroundColor: zc.tarjeta, borderTopLeftRadius: 18, borderTopRightRadius: 18, ...sombra, elevation: 10 },
+  parteResumenFila:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 },
+  parteResumenLabel: { fontSize: 15, color: zc.tinta },
+  parteResumenTotal: { fontSize: 22, fontWeight: '700', color: zc.azul, fontVariant: ['tabular-nums'] },
+  cobrarQueda:       { fontSize: 13.5, color: zc.gris, textAlign: 'center', marginTop: -8, marginBottom: spacing.md },
+  divisionAviso:     { fontSize: 12.5, color: zc.azul, backgroundColor: zc.azulSuave, borderRadius: radios.chip, padding: 10, marginBottom: 10 },
 
   toast: {
     position: 'absolute',
