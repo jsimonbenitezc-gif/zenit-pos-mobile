@@ -113,6 +113,7 @@ export const ICONOS_LINEA = {
   porcentaje: [L(19, 5, 5, 19), C(6.5, 6.5, 2.5), C(17.5, 17.5, 2.5)],
   edificio: [R(4, 2, 16, 20, 2), P('M9 22v-4h6v4'), P('M8 6h.01'), P('M12 6h.01'), P('M16 6h.01'), P('M8 10h.01'), P('M12 10h.01'), P('M16 10h.01'), P('M8 14h.01'), P('M12 14h.01'), P('M16 14h.01')],
   hoy: [R(3, 4, 18, 18, 2), L(16, 2, 16, 6), L(8, 2, 8, 6), L(3, 10, 21, 10), P('M8 14h.01'), P('M12 14h.01')],
+  puntos: [C(12, 12, 1), C(19, 12, 1), C(5, 12, 1)],
 };
 
 // Nombre de Ionicons → icono de línea. Son los 98 nombres que usaba la app el

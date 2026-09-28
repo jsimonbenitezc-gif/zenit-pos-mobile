@@ -51,6 +51,9 @@ export const zc = {
   enNocheGris: '#9ca3af',
   enNocheSuave: '#d1d5db',
   vidrio: 'rgba(255,255,255,0.10)',
+  vidrioBorde: 'rgba(255,255,255,0.18)', // contorno de las pestañas en modo editar
+  azulVidrio: 'rgba(37,99,235,0.45)',    // el lugar donde vas a soltar una pestaña
+  velo: 'rgba(17,24,39,0.35)',           // oscurece la pantalla con "Más" abierto
 
   // Avisos: ámbar (atención) y rojo (peligro). Nada más usa estos colores.
   ambar: '#d97706',

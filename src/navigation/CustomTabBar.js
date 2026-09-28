@@ -1,12 +1,12 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  View, Text, Pressable, TouchableOpacity, StyleSheet, Animated, PanResponder,
+  View, Text, Pressable, StyleSheet, Animated, PanResponder, BackHandler, Easing, LayoutAnimation,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import { useAuth } from '../context/AuthContext';
-import { colors, spacing, radius, font } from '../theme';
+import { zc } from '../theme';
+import { Icono } from '../components/ui';
 import { SCREEN_PERM_MAP } from './screenPerms';
 
 // `local`: la pantalla existe también en el MODO LOCAL, el negocio sin cuenta
@@ -50,45 +50,67 @@ export function pantallasDisponibles({ isOwner, rolActivo, permisosRolesEfectivo
   return lista;
 }
 
+// Los 5 lugares de la barra. La clave y la forma (arreglo de 5 nombres) son las
+// de siempre: el orden que el usuario ya tenía guardado se respeta tal cual.
 const DEFAULT_SLOTS = ['NuevaVenta', 'Pedidos', 'Mesas', 'Clientes', 'Ajustes'];
 const STORE_KEY = 'zenit_tab_slots_v2';
 
-function moveItem(list, from, to) {
-  const next = [...list];
-  const [item] = next.splice(from, 1);
-  next.splice(to, 0, item);
-  return next;
+const ALTO_BARRA = 60;   // la pastilla cerrada
+const HUECO = 8;         // aire entre la pantalla y la pastilla
+
+/**
+ * Intercambia dos pestañas "por choque" (PLAN_PULIDO_V1, sesión C): la que
+ * arrastras cae ENCIMA de otra y cambian de lugar. Si una estaba en "Más", la
+ * otra se va a "Más". Devuelve siempre 5 nombres (lo que se guarda).
+ */
+function intercambiar(visibles, guardados, a, b) {
+  const nuevos = [...visibles];
+  const ia = nuevos.indexOf(a);
+  const ib = nuevos.indexOf(b);
+  if (ia < 0 && ib < 0) return null;
+  if (ia >= 0 && ib >= 0) { nuevos[ia] = b; nuevos[ib] = a; }
+  else if (ia >= 0) nuevos[ia] = b;
+  else nuevos[ib] = a;
+  // Un puesto con menos pantallas ve menos de 5: se completa con lo que ya
+  // estaba guardado para no perder el orden del dueño en el mismo teléfono.
+  for (const n of [...guardados, ...DEFAULT_SLOTS, ...ALL_SCREENS.map(s => s.name)]) {
+    if (nuevos.length >= 5) break;
+    if (!nuevos.includes(n)) nuevos.push(n);
+  }
+  return nuevos.slice(0, 5);
 }
 
 export default function CustomTabBar({ state, navigation }) {
-  const { isOwner, rolActivo, settings, permisosRolesEfectivos, cambiarPerfil, modoLocal } = useAuth();
+  const { isOwner, rolActivo, permisosRolesEfectivos, cambiarPerfil, modoLocal } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [slots, setSlots] = useState(DEFAULT_SLOTS);
-  const [expanded, setExpanded] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState(null);
-  const [tabsWidth, setTabsWidth] = useState(0);
-  const [dragging, setDragging] = useState(false);
-  const [draggedName, setDraggedName] = useState(null);
+  const [abierto, setAbierto] = useState(false);      // "Más" abierto (la barra creció)
+  const [desplegado, setDesplegado] = useState(false); // la capa ocupa toda la pantalla
+  const [editando, setEditando] = useState(false);
+  const [arrastrada, setArrastrada] = useState(null);
+  const [blanco, setBlanco] = useState(null);
+  const [anchoFila, setAnchoFila] = useState(0);
+  const [altoCajon, setAltoCajon] = useState(0);
+
+  const crecer = useRef(new Animated.Value(0)).current;     // 0 cerrada → 1 abierta
+  const indicX = useRef(new Animated.Value(0)).current;
+  const tiembla = useRef(new Animated.Value(0)).current;
+  const fantasma = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
+  const indicListo = useRef(false);
+
+  const refsItems = useRef({});
+  const rects = useRef({});
+  const origenCapa = useRef({ x: 0, y: 0 });
+  const refCapa = useRef(null);
+  const arrastre = useRef({});      // { nombre, activo, concedido }
+  const blancoRef = useRef(null);
+  const acciones = useRef({});
 
   const availableScreens = useMemo(
     () => pantallasDisponibles({ isOwner, rolActivo, permisosRolesEfectivos, modoLocal }),
     [isOwner, rolActivo, permisosRolesEfectivos, modoLocal]
   );
-
-  const BAR_HEIGHT = 64 + (insets.bottom || spacing.sm);
-  const sheetY = useRef(new Animated.Value(360)).current;
-  const sheetYRef = useRef(360);
-  const sheetClosedRef = useRef(360);
-  const dragDx = useRef(new Animated.Value(0)).current;
-
-  const dragMetaRef = useRef({
-    active: false,
-    startIdx: 0,
-    currentIdx: 0,
-    original: [],
-    draggedName: null,
-  });
 
   useEffect(() => {
     SecureStore.getItemAsync(STORE_KEY).then(saved => {
@@ -109,14 +131,12 @@ export default function CustomTabBar({ state, navigation }) {
     if (available.length === 0) return [];
     const result = [];
     const used = new Set();
-    // Paso 1: slots preferidos disponibles
     for (const name of slots) {
       if (available.includes(name) && !used.has(name)) {
         result.push(name);
         used.add(name);
       }
     }
-    // Paso 2: rellenar con disponibles no usados
     for (const name of available) {
       if (result.length >= 5) break;
       if (!used.has(name)) {
@@ -127,559 +147,505 @@ export default function CustomTabBar({ state, navigation }) {
     return result;
   }, [slots, availableScreens]);
 
+  const extras = availableScreens.filter(s => !effectiveSlots.includes(s.name));
+  const hayPerfiles = Object.values(permisosRolesEfectivos || {}).some(p => p?.enabled);
+  const conMas = extras.length > 0 || hayPerfiles;
+  const columnas = effectiveSlots.length + (conMas ? 1 : 0);
+  const celda = columnas > 0 ? anchoFila / columnas : 0;
+
+  const currentRoute = state.routes[state.index]?.name;
+  const idxActiva = effectiveSlots.indexOf(currentRoute);
+  const idxIndicador = idxActiva >= 0 ? idxActiva : (conMas ? columnas - 1 : -1);
+
+  // El indicador se desliza a la pestaña activa (o a "Más" si la pantalla vive ahí).
   useEffect(() => {
-    const id = sheetY.addListener(({ value }) => {
-      sheetYRef.current = value;
+    if (celda <= 0 || idxIndicador < 0) return;
+    const x = idxIndicador * celda;
+    if (!indicListo.current) { indicX.setValue(x); indicListo.current = true; return; }
+    Animated.spring(indicX, { toValue: x, useNativeDriver: true, tension: 170, friction: 18 }).start();
+  }, [idxIndicador, celda, indicX]);
+
+  // Modo editar: todas tiemblan.
+  useEffect(() => {
+    if (!editando) { tiembla.stopAnimation(); tiembla.setValue(0); return undefined; }
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(tiembla, { toValue: 1, duration: 120, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      Animated.timing(tiembla, { toValue: -1, duration: 240, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      Animated.timing(tiembla, { toValue: 0, duration: 120, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [editando, tiembla]);
+
+  // Atrás de Android: primero sale de editar, luego cierra "Más".
+  useEffect(() => {
+    if (!abierto) return undefined;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (editando) setEditando(false);
+      else cerrar();
+      return true;
     });
-    return () => sheetY.removeListener(id);
-  }, [sheetY]);
+    return () => sub.remove();
+  });
 
   function saveSlots(newSlots) {
     setSlots(newSlots);
-    SecureStore.setItemAsync(STORE_KEY, JSON.stringify(newSlots));
+    SecureStore.setItemAsync(STORE_KEY, JSON.stringify(newSlots))
+      .catch(e => console.warn('[barra] no se pudo guardar el orden:', e?.message));
   }
 
-  function animateOpen() {
-    Animated.spring(sheetY, {
-      toValue: 0,
-      useNativeDriver: true,
-      tension: 60,
-      friction: 10,
-    }).start();
+  function medir(nombre) {
+    const r = refsItems.current[nombre];
+    if (!r?.measure) return;
+    r.measure((x, y, w, h, px, py) => { rects.current[nombre] = { x: px, y: py, w, h }; });
   }
 
-  function animateClose(onEnd) {
-    Animated.timing(sheetY, {
-      toValue: sheetClosedRef.current,
-      duration: 250,
-      useNativeDriver: true,
-    }).start(() => onEnd?.());
+  function medirTodo() {
+    Object.keys(refsItems.current).forEach(medir);
+    refCapa.current?.measure((x, y, w, h, px, py) => {
+      origenCapa.current = { x: px, y: py };
+      // La capa acaba de crecer a pantalla completa: si hay una pestaña levantada
+      // y el dedo aún no se mueve, el fantasma se recoloca bajo el dedo.
+      const a = arrastre.current;
+      if (a.activo && !a.concedido) ponerFantasmaEn(a.nombre);
+    });
   }
 
-  function openMore() {
-    setExpanded(true);
-    setSelectedSlot(null);
-    sheetY.setValue(sheetClosedRef.current);
-    requestAnimationFrame(() => animateOpen());
+  function ponerFantasmaEn(nombre) {
+    const r = rects.current[nombre];
+    if (r) fantasma.setValue({ x: r.x + r.w / 2 - origenCapa.current.x, y: r.y + r.h / 2 - origenCapa.current.y });
   }
 
-  function closeMore() {
-    setSelectedSlot(null);
-    animateClose(() => setExpanded(false));
+  function abrir() {
+    setDesplegado(true);
+    setAbierto(true);
+    Animated.timing(crecer, {
+      toValue: 1, duration: 280, easing: Easing.out(Easing.cubic), useNativeDriver: false,
+    }).start(() => medirTodo());
   }
 
-  function navigateTo(screenName) {
-    navigation.navigate(screenName);
-    closeMore();
+  function cerrar() {
+    setAbierto(false);
+    setEditando(false);
+    Animated.timing(crecer, {
+      toValue: 0, duration: 220, easing: Easing.in(Easing.cubic), useNativeDriver: false,
+    }).start(({ finished }) => { if (finished) setDesplegado(false); });
   }
 
-  function assignToSlot(screenName) {
-    if (selectedSlot === null) return;
-    const newSlots = [...slots];
-    newSlots[selectedSlot] = screenName;
-    saveSlots(newSlots);
-    setSelectedSlot(null);
+  function navegar(nombre) {
+    if (editando || arrastre.current.activo) return;
+    navigation.navigate(nombre);
+    if (abierto) cerrar();
   }
 
-  function startDrag(idx) {
-    const original = [...slots];
-    const dragged = original[idx];
-    dragMetaRef.current = {
-      active: true,
-      startIdx: idx,
-      currentIdx: idx,
-      original,
-      draggedName: dragged,
-    };
-    setDragging(true);
-    setDraggedName(dragged);
-    dragDx.setValue(0);
+  function tocarMas() {
+    if (abierto) cerrar();
+    else abrir();
   }
 
-  function endDrag() {
-    const meta = dragMetaRef.current;
-    if (!meta.active) return;
-    const finalSlots = moveItem(meta.original, meta.startIdx, meta.currentIdx);
-    saveSlots(finalSlots);
-    dragMetaRef.current = {
-      active: false,
-      startIdx: 0,
-      currentIdx: 0,
-      original: [],
-      draggedName: null,
-    };
-    setDragging(false);
-    setDraggedName(null);
-    dragDx.setValue(0);
+  function presionLarga(nombre) {
+    if (editando) return;
+    setEditando(true);
+    if (!abierto) abrir();
+    arrastre.current = { nombre, activo: true, concedido: false };
+    empezarArrastre(nombre);
   }
 
-  const currentRoute = state.routes[state.index]?.name;
-  const overlayOpacity = sheetY.interpolate({
-    inputRange: [0, 420],
-    outputRange: [0.5, 0],
-    extrapolate: 'clamp',
-  });
+  function presionInicio(nombre) {
+    if (editando) arrastre.current = { nombre, activo: false, concedido: false };
+  }
 
-  const openPan = useRef(PanResponder.create({
-    onStartShouldSetPanResponder: () => false,
-    onMoveShouldSetPanResponder: (_, g) =>
-      g.dy < -6 && Math.abs(g.dy) > Math.abs(g.dx),
-    onPanResponderGrant: () => {
-      setExpanded(true);
-      setSelectedSlot(null);
-      sheetY.setValue(sheetClosedRef.current);
-    },
-    onPanResponderMove: (_, g) => {
-      const nextY = Math.max(0, Math.min(sheetClosedRef.current, sheetClosedRef.current + g.dy));
-      sheetY.setValue(nextY);
-    },
-    onPanResponderRelease: (_, g) => {
-      const shouldOpen = g.dy < -46 || g.vy < -0.7 || sheetYRef.current < sheetClosedRef.current * 0.6;
-      if (shouldOpen) animateOpen();
-      else animateClose(() => setExpanded(false));
-    },
-    onPanResponderTerminate: () => {
-      if (sheetYRef.current < sheetClosedRef.current * 0.8) animateOpen();
-      else setExpanded(false);
-    },
-  })).current;
+  // Se soltó el dedo sin moverlo: no hubo arrastre (la barra sigue en modo editar).
+  function presionFin() {
+    const a = arrastre.current;
+    if (a.concedido) return;
+    if (a.activo) terminarArrastre(false);
+    arrastre.current = {};
+  }
 
-  const panelPan = useRef(PanResponder.create({
-    onStartShouldSetPanResponder: () => false,
-    onMoveShouldSetPanResponderCapture: (_, g) =>
-      g.dy > 8 && Math.abs(g.dy) > Math.abs(g.dx),
-    onMoveShouldSetPanResponder: (_, g) =>
-      g.dy > 8 && Math.abs(g.dy) > Math.abs(g.dx),
-    onPanResponderGrant: () => {
-      sheetY.stopAnimation((value) => {
-        sheetY.setValue(Math.max(0, Math.min(sheetClosedRef.current, value)));
-      });
-    },
-    onPanResponderMove: (_, g) => {
-      if (g.dy > 0) sheetY.setValue(Math.min(sheetClosedRef.current, g.dy));
-      else sheetY.setValue(Math.max(0, g.dy * 0.12));
-    },
-    onPanResponderRelease: (_, g) => {
-      if (g.dy > 70 || g.vy > 0.9) closeMore();
-      else animateOpen();
-    },
-    onPanResponderTerminate: () => animateOpen(),
-  })).current;
+  function empezarArrastre(nombre) {
+    ponerFantasmaEn(nombre);
+    setArrastrada(nombre);
+    medirTodo();
+  }
 
-  const reorderPan = useRef(PanResponder.create({
-    onStartShouldSetPanResponder: () => dragMetaRef.current.active,
-    onMoveShouldSetPanResponder: () => dragMetaRef.current.active,
-    onPanResponderMove: (_, g) => {
-      const meta = dragMetaRef.current;
-      if (!meta.active || tabsWidth <= 0) return;
+  function moverArrastre(px, py) {
+    const a = arrastre.current;
+    fantasma.setValue({ x: px - origenCapa.current.x, y: py - origenCapa.current.y });
+    let encima = null;
+    for (const [nombre, r] of Object.entries(rects.current)) {
+      if (nombre === a.nombre || !availableScreens.some(s => s.name === nombre)) continue;
+      if (px < r.x || px > r.x + r.w || py < r.y || py > r.y + r.h) continue;
+      // Entre dos de "Más" no hay nada que cambiar: una de las dos va en la barra.
+      if (!effectiveSlots.includes(nombre) && !effectiveSlots.includes(a.nombre)) continue;
+      encima = nombre;
+      break;
+    }
+    if (encima !== blancoRef.current) { blancoRef.current = encima; setBlanco(encima); }
+  }
 
-      const cell = tabsWidth / 5;
-      const target = Math.max(0, Math.min(4, Math.round(meta.startIdx + g.dx / cell)));
-      if (target !== meta.currentIdx) {
-        meta.currentIdx = target;
-        setSlots(moveItem(meta.original, meta.startIdx, target));
+  function terminarArrastre(soltado) {
+    const a = arrastre.current;
+    const destino = blancoRef.current;
+    if (soltado && a.nombre && destino) {
+      const nuevos = intercambiar(effectiveSlots, slots, a.nombre, destino);
+      if (nuevos) {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        saveSlots(nuevos);
       }
+    }
+    arrastre.current = {};
+    blancoRef.current = null;
+    setBlanco(null);
+    setArrastrada(null);
+  }
 
-      const snappedDx = (target - meta.startIdx) * cell;
-      dragDx.setValue(g.dx - snappedDx);
+  acciones.current = { moverArrastre, terminarArrastre, empezarArrastre };
+
+  // Mientras editas, el arrastre le quita el dedo a la pestaña en cuanto se mueve.
+  const pan = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponderCapture: (_, g) => {
+      const a = arrastre.current;
+      if (!a.nombre) return false;
+      if (a.activo || Math.hypot(g.dx, g.dy) > 6) { a.concedido = true; return true; }
+      return false;
     },
-    onPanResponderRelease: () => endDrag(),
-    onPanResponderTerminate: () => endDrag(),
+    onPanResponderGrant: (e) => {
+      const a = arrastre.current;
+      if (!a.activo) { a.activo = true; acciones.current.empezarArrastre(a.nombre); }
+      acciones.current.moverArrastre(e.nativeEvent.pageX, e.nativeEvent.pageY);
+    },
+    onPanResponderMove: (e) => acciones.current.moverArrastre(e.nativeEvent.pageX, e.nativeEvent.pageY),
+    onPanResponderRelease: () => acciones.current.terminarArrastre(true),
+    onPanResponderTerminate: () => acciones.current.terminarArrastre(false),
+    onPanResponderTerminationRequest: () => false,
   })).current;
+
+  const giroA = tiembla.interpolate({ inputRange: [-1, 1], outputRange: ['-2.5deg', '2.5deg'] });
+  const giroB = tiembla.interpolate({ inputRange: [-1, 1], outputRange: ['2.5deg', '-2.5deg'] });
+  const abajo = Math.max(insets.bottom, HUECO);
+  const altoTotal = ALTO_BARRA + abajo + HUECO;
+  const pantallaArrastrada = arrastrada && availableScreens.find(s => s.name === arrastrada);
+
+  function pintarPestana(screen, idx, enCajon) {
+    const activa = currentRoute === screen.name;
+    return (
+      <Pressable
+        key={screen.name}
+        // Sin borrar en null: React llama al ref viejo con null en cada pintado, y
+        // borrar ahí dejaba sin medidas el arrastre. Las que ya no existen las
+        // descarta moverArrastre (solo acepta pantallas disponibles).
+        ref={r => { if (r) refsItems.current[screen.name] = r; }}
+        onLayout={() => medir(screen.name)}
+        style={enCajon ? styles.celdaCajon : styles.pestana}
+        onPress={() => navegar(screen.name)}
+        onLongPress={() => presionLarga(screen.name)}
+        delayLongPress={380}
+        onPressIn={() => presionInicio(screen.name)}
+        onPressOut={presionFin}
+        accessibilityRole="button"
+        accessibilityLabel={screen.label}
+      >
+        <Animated.View
+          style={[
+            styles.pestanaDentro,
+            enCajon && activa && styles.activaCajon,
+            editando && styles.editable,
+            blanco === screen.name && styles.blanco,
+            arrastrada === screen.name && styles.origen,
+            editando && { transform: [{ rotate: idx % 2 ? giroB : giroA }] },
+          ]}
+        >
+          <Icono nombre={screen.icon} size={22} color={activa ? zc.enNoche : (enCajon ? zc.enNocheSuave : zc.enNocheGris)} />
+          <Text
+            style={[styles.etiqueta, enCajon && styles.etiquetaCajon, activa && styles.etiquetaActiva]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.8}
+          >
+            {screen.label}
+          </Text>
+        </Animated.View>
+      </Pressable>
+    );
+  }
+
+  const nombrePuesto = rolActivo && rolActivo !== 'dueno'
+    ? (permisosRolesEfectivos?.[rolActivo]?.nombre || permisosRolesEfectivos?.[rolActivo]?._label || rolActivo)
+    : null;
 
   return (
-    <View style={styles.root}>
-      {expanded && (
-        <Pressable style={[styles.overlay, { bottom: BAR_HEIGHT }]} onPress={closeMore}>
-          <Animated.View style={[styles.overlayTint, { opacity: overlayOpacity }]} />
-        </Pressable>
-      )}
+    <>
+      {/* Ocupa el lugar de la barra: las pantallas terminan justo arriba. */}
+      <View style={[styles.hueco, { height: altoTotal }]} />
 
-      {expanded && (
+      <View
+        ref={refCapa}
+        onLayout={medirTodo}
+        style={[styles.capa, desplegado ? styles.capaCompleta : { height: altoTotal }]}
+        pointerEvents="box-none"
+      >
         <Animated.View
-          onLayout={(e) => {
-            const h = e.nativeEvent.layout.height;
-            if (h <= 0) return;
-            const closed = Math.max(220, Math.round(h + 12));
-            sheetClosedRef.current = closed;
-          }}
-          style={[
-            styles.morePanel,
-            { paddingBottom: insets.bottom || spacing.sm },
-            { bottom: BAR_HEIGHT - 2 },
-            { transform: [{ translateY: sheetY }] },
-          ]}
-          {...panelPan.panHandlers}
+          pointerEvents={abierto ? 'auto' : 'none'}
+          style={[StyleSheet.absoluteFill, styles.velo, { opacity: crecer }]}
         >
-          <View style={styles.panelHandleWrap}>
-            <View style={styles.handleBar} />
-          </View>
-
-          <Text style={styles.moreTitle}>Funciones</Text>
-          <Text style={styles.moreTip}>
-            {selectedSlot === null
-              ? 'Paso 1: toca una posición rápida · Paso 2: toca una función'
-              : `Asignando posición ${selectedSlot + 1}: elige una función`}
-          </Text>
-
-          <View style={styles.quickRow}>
-            {effectiveSlots.map((screenName, idx) => {
-              const screen = availableScreens.find(s => s.name === screenName);
-              if (!screen) return null;
-              const picked = selectedSlot === idx;
-              return (
-                <Pressable
-                  key={`quick_${idx}`}
-                  style={[styles.quickItem, picked && styles.quickItemPicked]}
-                  onPress={() => setSelectedSlot(idx)}
-                >
-                  <Text style={[styles.quickIndex, picked && styles.quickIndexPicked]}>
-                    {idx + 1}
-                  </Text>
-                  <Text style={[styles.quickLabel, picked && styles.quickLabelPicked]} numberOfLines={1}>
-                    {screen.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          <View style={styles.moreGrid}>
-            {availableScreens.map(screen => {
-              const isActive = currentRoute === screen.name;
-              return (
-                <Pressable
-                  key={screen.name}
-                  style={styles.moreItem}
-                  onPress={() => {
-                    if (selectedSlot !== null) assignToSlot(screen.name);
-                    else navigateTo(screen.name);
-                  }}
-                >
-                  <View style={[styles.moreIconWrap, isActive && styles.moreIconWrapActive]}>
-                    {isActive && <View style={styles.moreGlowOuter} />}
-                    {isActive && <View style={styles.moreGlowInner} />}
-                    <Ionicons
-                      name={isActive ? screen.active : screen.icon}
-                      size={26}
-                      color={isActive ? colors.primary : colors.textSecondary}
-                    />
-                  </View>
-                  <Text style={[styles.moreItemLabel, isActive && styles.moreItemLabelActive]}>
-                    {screen.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {/* Cambiar perfil — visible si hay puestos activos */}
-          {Object.values(permisosRolesEfectivos || {}).some(p => p?.enabled) && (
-            <Pressable
-              style={styles.cambiarPerfilBtn}
-              onPress={() => { closeMore(); cambiarPerfil(); }}
-            >
-              <Ionicons name="swap-horizontal-outline" size={18} color={colors.textSecondary} />
-              <Text style={styles.cambiarPerfilText}>
-                {rolActivo && rolActivo !== 'dueno'
-                  ? `Activo: ${permisosRolesEfectivos?.[rolActivo]?.nombre || permisosRolesEfectivos?.[rolActivo]?._label || rolActivo} · Cambiar perfil`
-                  : 'Cambiar perfil'}
-              </Text>
-              <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
-            </Pressable>
-          )}
+          <Pressable style={StyleSheet.absoluteFill} onPress={cerrar} />
         </Animated.View>
-      )}
 
-      <View style={[styles.bar, { paddingBottom: insets.bottom || spacing.sm }]}>
-        <View {...openPan.panHandlers}>
-          <TouchableOpacity
-            style={styles.handleWrap}
-            onPress={openMore}
-            activeOpacity={0.7}
-            hitSlop={{ top: 6, bottom: 4, left: 60, right: 60 }}
+        <View style={[styles.pastilla, { bottom: abajo }]} {...pan.panHandlers}>
+          <Animated.View
+            style={[styles.cajon, { height: crecer.interpolate({ inputRange: [0, 1], outputRange: [0, altoCajon] }) }]}
           >
-            <View style={styles.pullNotch}>
-              <View style={styles.pullNotchLine} />
+            <View style={styles.cajonDentro} onLayout={e => setAltoCajon(e.nativeEvent.layout.height)}>
+              <View style={styles.cajonCabeza}>
+                <Text style={styles.cajonTitulo}>{editando ? 'Arrastra una encima de otra' : 'Más pantallas'}</Text>
+                {editando ? (
+                  <Pressable style={styles.listo} onPress={cerrar} hitSlop={8}>
+                    <Text style={styles.listoTexto}>Listo</Text>
+                  </Pressable>
+                ) : (
+                  <Text style={styles.cajonPista}>Mantén presionada para mover</Text>
+                )}
+              </View>
+
+              {extras.length > 0 && (
+                <View style={styles.rejilla}>
+                  {extras.map((s, i) => pintarPestana(s, i, true))}
+                </View>
+              )}
+
+              {hayPerfiles && !editando && (
+                <Pressable style={styles.perfil} onPress={() => { cerrar(); cambiarPerfil(); }}>
+                  <Icono nombre="intercambio" size={18} color={zc.enNocheGris} />
+                  <Text style={styles.perfilTexto} numberOfLines={1}>
+                    {nombrePuesto ? `Activo: ${nombrePuesto} · Cambiar perfil` : 'Cambiar perfil'}
+                  </Text>
+                  <Icono nombre="derecha" size={14} color={zc.enNocheGris} />
+                </Pressable>
+              )}
             </View>
-          </TouchableOpacity>
+          </Animated.View>
+
+          <View style={styles.fila} onLayout={e => setAnchoFila(e.nativeEvent.layout.width)}>
+            {idxIndicador >= 0 && celda > 0 && (
+              <Animated.View
+                pointerEvents="none"
+                style={[styles.indicador, { width: celda, transform: [{ translateX: indicX }] }]}
+              />
+            )}
+            {effectiveSlots.map((nombre, idx) => {
+              const screen = availableScreens.find(s => s.name === nombre);
+              return screen ? pintarPestana(screen, idx, false) : null;
+            })}
+            {conMas && (
+              <Pressable
+                style={[styles.pestana, editando && styles.masApagado]}
+                onPress={tocarMas}
+                accessibilityRole="button"
+                accessibilityLabel={abierto ? 'Cerrar' : 'Más pantallas'}
+              >
+                <View style={styles.pestanaDentro}>
+                  <Icono
+                    nombre={abierto ? 'abajo' : 'puntos'}
+                    size={22}
+                    color={idxActiva < 0 && !abierto ? zc.enNoche : zc.enNocheGris}
+                  />
+                  <Text style={[styles.etiqueta, idxActiva < 0 && !abierto && styles.etiquetaActiva]}>
+                    {abierto ? 'Cerrar' : 'Más'}
+                  </Text>
+                </View>
+              </Pressable>
+            )}
+          </View>
         </View>
 
-        <View
-          style={styles.tabs}
-          onLayout={(e) => setTabsWidth(e.nativeEvent.layout.width)}
-          {...(dragging ? reorderPan.panHandlers : {})}
-        >
-          {effectiveSlots.map((screenName, idx) => {
-            const screen = availableScreens.find(s => s.name === screenName);
-            if (!screen) return null;
-            const isActive = currentRoute === screenName;
-            const isDragging = dragging && draggedName === screenName;
-            return (
-              <Animated.View
-                key={idx}
-                style={[
-                  styles.tabWrap,
-                  expanded && styles.tabWrapDimmed,
-                  isDragging && {
-                    zIndex: 3,
-                    transform: [{ translateX: dragDx }],
-                  },
-                ]}
-              >
-                <Pressable
-                  style={styles.tab}
-                  onPress={() => !dragging && navigateTo(screenName)}
-                  onLongPress={() => startDrag(idx)}
-                  delayLongPress={260}
-                  onPressOut={() => {
-                    if (dragging && draggedName === screenName) endDrag();
-                  }}
-                >
-                  <View style={styles.iconWrap}>
-                    {isActive && <View style={styles.glowOuter} />}
-                    {isActive && <View style={styles.glowInner} />}
-                    <Ionicons
-                      name={isActive ? screen.active : screen.icon}
-                      size={26}
-                      color={isActive ? colors.primary : colors.textMuted}
-                    />
-                  </View>
-                  <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]} numberOfLines={1}>
-                    {screen.label}
-                  </Text>
-                </Pressable>
-              </Animated.View>
-            );
-          })}
-        </View>
+        {pantallaArrastrada && (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.fantasma,
+              { transform: [{ translateX: fantasma.x }, { translateY: fantasma.y }, { translateX: -34 }, { translateY: -78 }, { scale: 1.12 }] },
+            ]}
+          >
+            <Icono nombre={pantallaArrastrada.icon} size={22} color={zc.tinta} />
+            <Text style={styles.fantasmaTexto} numberOfLines={1}>{pantallaArrastrada.label}</Text>
+          </Animated.View>
+        )}
       </View>
-    </View>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    position: 'relative',
-    overflow: 'visible',
+  hueco: {
+    backgroundColor: zc.fondo,
   },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  overlayTint: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  bar: {
-    backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  handleWrap: {
-    alignItems: 'center',
-    paddingTop: 2,
-    paddingBottom: 4,
-  },
-  pullNotch: {
-    width: 74,
-    height: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: -14,
-    marginBottom: 4,
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-    borderBottomWidth: 0,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  pullNotchLine: {
-    width: 30,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
-  },
-  tabs: {
-    flexDirection: 'row',
-  },
-  tabWrap: {
-    flex: 1,
-  },
-  tabWrapDimmed: {
-    opacity: 0.3,
-  },
-  tab: {
-    alignItems: 'center',
-    paddingVertical: spacing.xs + 2,
-    gap: 2,
-  },
-  iconWrap: {
-    width: 48,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  glowOuter: {
-    position: 'absolute',
-    width: 48,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: colors.primary + '14',
-  },
-  glowInner: {
-    position: 'absolute',
-    width: 30,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.primary + '30',
-  },
-  tabLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
-  tabLabelActive: {
-    color: colors.primary,
-    fontWeight: '700',
-  },
-  morePanel: {
+  capa: {
     position: 'absolute',
     left: 0,
     right: 0,
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl,
-    zIndex: 6,
+    bottom: 0,
   },
-  panelHandleWrap: {
-    alignItems: 'center',
-    paddingTop: spacing.md,
-    paddingBottom: spacing.sm,
+  capaCompleta: {
+    top: 0,
   },
-  handleBar: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
+  velo: {
+    backgroundColor: zc.velo,
   },
-  moreTitle: {
-    fontSize: font.md,
-    fontWeight: '800',
-    color: colors.textPrimary,
-    marginBottom: spacing.xs,
-    textAlign: 'center',
+  pastilla: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    backgroundColor: zc.noche,
+    borderRadius: 28,
+    overflow: 'hidden',
+    shadowColor: zc.noche,
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
   },
-  moreTip: {
-    fontSize: 11,
-    color: colors.textMuted,
-    textAlign: 'center',
-    marginBottom: spacing.md,
+  cajon: {
+    overflow: 'hidden',
   },
-  quickRow: {
+  cajonDentro: {
+    paddingTop: 16,
+    paddingHorizontal: 10,
+    paddingBottom: 4,
+  },
+  cajonCabeza: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  quickItem: {
-    flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingVertical: spacing.sm,
-    gap: 3,
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    paddingBottom: 10,
+    minHeight: 30,
   },
-  quickIndex: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: colors.textMuted,
-  },
-  quickIndexPicked: {
-    color: colors.primary,
-  },
-  quickItemPicked: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary + '10',
-  },
-  quickLabel: {
-    fontSize: 10,
+  cajonTitulo: {
+    fontSize: 12,
     fontWeight: '700',
-    color: colors.textMuted,
+    color: zc.enNocheGris,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
   },
-  quickLabelPicked: {
-    color: colors.primary,
+  cajonPista: {
+    fontSize: 11,
+    color: zc.enNocheGris,
   },
-  moreGrid: {
+  listo: {
+    backgroundColor: zc.azul,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  listoTexto: {
+    color: zc.enNoche,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  rejilla: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: spacing.md,
-    marginBottom: spacing.md,
   },
-  moreItem: {
-    width: 72,
-    alignItems: 'center',
-    gap: spacing.xs,
+  celdaCajon: {
+    width: '25%',
+    padding: 2,
   },
-  moreIconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: radius.lg,
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  moreIconWrapActive: {
-    borderColor: colors.primary + '44',
-  },
-  moreGlowOuter: {
-    position: 'absolute',
-    width: 56,
-    height: 56,
-    borderRadius: radius.lg,
-    backgroundColor: colors.primary + '14',
-  },
-  moreGlowInner: {
-    position: 'absolute',
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: colors.primary + '2a',
-  },
-  moreItemLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  moreItemLabelActive: {
-    color: colors.primary,
-    fontWeight: '700',
-  },
-  cambiarPerfilBtn: {
+  perfil: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
-    marginTop: spacing.xs,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+    gap: 8,
+    marginTop: 8,
+    marginHorizontal: 4,
+    marginBottom: 4,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    backgroundColor: zc.vidrio,
   },
-  cambiarPerfilText: {
+  perfilTexto: {
     flex: 1,
-    fontSize: font.sm,
-    color: colors.textSecondary,
+    fontSize: 12.5,
     fontWeight: '600',
+    color: zc.enNocheSuave,
+  },
+  fila: {
+    flexDirection: 'row',
+    height: ALTO_BARRA,
+    marginHorizontal: 6,
+  },
+  indicador: {
+    position: 'absolute',
+    top: 6,
+    bottom: 6,
+    left: 0,
+    borderRadius: 20,
+    backgroundColor: zc.vidrio,
+  },
+  pestana: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  pestanaDentro: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    paddingVertical: 8,
+    borderRadius: 14,
+  },
+  activaCajon: {
+    backgroundColor: zc.vidrio,
+  },
+  editable: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: zc.vidrioBorde,
+    marginHorizontal: 2,
+  },
+  blanco: {
+    backgroundColor: zc.azulVidrio,
+    borderColor: zc.azul,
+    borderStyle: 'solid',
+  },
+  origen: {
+    opacity: 0.25,
+  },
+  masApagado: {
+    opacity: 0.35,
+  },
+  etiqueta: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: zc.enNocheGris,
+  },
+  etiquetaCajon: {
+    fontSize: 11,
+    color: zc.enNocheSuave,
+  },
+  etiquetaActiva: {
+    color: zc.enNoche,
+    fontWeight: '700',
+  },
+  fantasma: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: 68,
+    alignItems: 'center',
+    gap: 3,
+    paddingVertical: 9,
+    borderRadius: 16,
+    backgroundColor: zc.tarjeta,
+    shadowColor: zc.noche,
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 14,
+  },
+  fantasmaTexto: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: zc.tinta,
   },
 });
-
-
