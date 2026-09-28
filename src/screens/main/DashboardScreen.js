@@ -4,11 +4,12 @@ import {
   ActivityIndicator, Modal, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import Svg, { Path, Circle, Defs, LinearGradient, Stop, Text as SvgText } from 'react-native-svg';
 import IconoProducto from '../../components/IconoProducto';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
+import { ultimosDias } from '../../utils/tz';
 import { zc, letra, espacios } from '../../theme';
 import VerificacionBanner from '../../components/VerificacionBanner';
 import SelectorSucursal from '../../components/SelectorSucursal';
@@ -35,7 +36,7 @@ const fmt = (n, currency) => formatMoney(n, currency);
 const fmtNum = (n) => (parseInt(n) || 0).toLocaleString('es-MX');
 
 // ─── Gráfica de línea — últimos 7 días ───────────────────────────────────────
-function LineChart7Days({ data, currency }) {
+function LineChart7Days({ data, hoyLocal, currency }) {
   const [w, setW] = useState(0);
 
   const CHART_H = 140;
@@ -47,14 +48,12 @@ function LineChart7Days({ data, currency }) {
   const chartH = CHART_H - PAD_TOP - PAD_BOT;
   const chartW = Math.max(w - PAD_LEFT - PAD_RIGHT, 0);
 
-  // Construir array de 7 días completo (rellenar huecos con 0)
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (6 - i));
-    const dateStr = d.toISOString().split('T')[0];
-    const found = (data || []).find((item) => item.fecha === dateStr);
+  // Construir array de 7 días completo (rellenar huecos con 0). Los días son los
+  // del calendario del negocio (`hoyLocal`), igual que las fechas que agrupa el servidor.
+  const days = ultimosDias(hoyLocal, 7).map(({ fecha, diaSemana }, i) => {
+    const found = (data || []).find((item) => item.fecha === fecha);
     return {
-      day: DAYS[d.getDay()],
+      day: DAYS[diaSemana],
       isToday: i === 6,
       monto: found ? parseFloat(found.monto) : 0,
     };
@@ -210,6 +209,10 @@ const AUDIT_TIPOS = {
 
 export default function DashboardScreen() {
   const { settings, isOwner, sucursalId } = useAuth();
+  const navigation = useNavigation();
+  // Las pestañas registradas salen de `pantallasDisponibles()`: si Inventario no
+  // está (cajero, modo local), la fila de stock bajo no promete ir allá.
+  const puedeVerInventario = !!navigation.getState()?.routeNames?.includes('Inventario');
   const currency = settings?.currency_symbol || '$';
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -395,7 +398,7 @@ export default function DashboardScreen() {
 
         {/* ── Últimos 7 días (línea) ── */}
         <Tarjeta titulo="Últimos 7 días" icono="tendencia">
-          <LineChart7Days data={ultimos7Dias} currency={currency} />
+          <LineChart7Days data={ultimos7Dias} hoyLocal={stats?.hoyLocal} currency={currency} />
           <Text style={styles.pie}>
             Ayer: {fmt(ayer.monto_total, currency)} · {fmtNum(ayer.total_pedidos)} pedidos
           </Text>
@@ -411,7 +414,9 @@ export default function DashboardScreen() {
               primera
               texto={`${stockBajoCount} insumo${stockBajoCount !== 1 ? 's' : ''} con stock bajo`}
               detalle="Revisa el inventario para reponer"
-              flecha
+              // Solo lleva a Inventario si este puesto la tiene; si no, la flecha mentiría.
+              flecha={puedeVerInventario}
+              onPress={puedeVerInventario ? () => navigation.navigate('Inventario') : undefined}
             />
           )}
           {isOwner && auditLogs.map((log, i) => {

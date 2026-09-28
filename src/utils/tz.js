@@ -70,3 +70,25 @@ export function opcionesZona(tzActual) {
   if (tzActual && !opciones.some(([id]) => id === tzActual)) opciones.unshift([tzActual, tzActual]);
   return opciones;
 }
+
+/**
+ * Los últimos `n` días del calendario, terminando en `hoyLocal` ('YYYY-MM-DD').
+ * `hoyLocal` lo manda el servidor con la zona del NEGOCIO; si no llega (servidor
+ * viejo), se usa la fecha del teléfono. Antes la gráfica usaba `toISOString()`
+ * (UTC) y una venta de las 7 p.m. en México caía en el día siguiente.
+ * La cuenta va en UTC puro sobre la fecha ya local: no hay horario de verano que la mueva.
+ */
+export function ultimosDias(hoyLocal, n = 7) {
+  let base;
+  if (typeof hoyLocal === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(hoyLocal)) {
+    const [y, m, d] = hoyLocal.split('-').map(Number);
+    base = Date.UTC(y, m - 1, d);
+  } else {
+    const h = new Date();
+    base = Date.UTC(h.getFullYear(), h.getMonth(), h.getDate());
+  }
+  return Array.from({ length: n }, (_, i) => {
+    const d = new Date(base - (n - 1 - i) * 86400000);
+    return { fecha: d.toISOString().slice(0, 10), diaSemana: d.getUTCDay() };
+  });
+}
