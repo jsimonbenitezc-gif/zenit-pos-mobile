@@ -313,3 +313,4 @@ const s = StyleSheet.create({
 });
 
 export { PantallaDeTemas, TarjetaQuien } from './Temas';
+export { usePedirAdmin } from './PedirAdmin';

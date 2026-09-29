@@ -39,12 +39,28 @@ export function SeccionPuestos({
     return full;
   }
 
+  /**
+   * Pinta el cambio al instante y lo sube; si la nube no lo acepta, lo DESHACE y
+   * lo dice (PLAN_SEGURIDAD_V1, E). Antes era `.catch(() => {})` dentro del
+   * `setState`: la pantalla mostraba el PIN o el puesto y nada se guardaba.
+   * @returns {Promise<boolean>} true si quedó guardado
+   */
+  async function guardarEnNube(next) {
+    const antes = permisosRoles;
+    setPermisosRoles(next);
+    try {
+      await api.updateSettings({ permisos_roles: _buildFullPermisos(next) });
+      fullPermisosRef.current = _buildFullPermisos(next);
+      return true;
+    } catch (e) {
+      setPermisosRoles(antes);
+      Alert.alert('No se guardó', friendlyError(e));
+      return false;
+    }
+  }
+
   async function setPermiso(rol, clave, valor) {
-    setPermisosRoles(prev => {
-      const newPermisos = { ...prev, [rol]: { ...prev[rol], [clave]: valor } };
-      api.updateSettings({ permisos_roles: _buildFullPermisos(newPermisos) }).catch(() => {});
-      return newPermisos;
-    });
+    await guardarEnNube({ ...permisosRoles, [rol]: { ...permisosRoles[rol], [clave]: valor } });
   }
 
   async function guardarPuestos() {
@@ -66,12 +82,7 @@ export function SeccionPuestos({
     if (!/^\d+$/.test(pin)) { Alert.alert('Solo números', 'El PIN solo puede contener números.'); return false; }
     try {
       const { hash } = await api.hashProfilePin(pin);
-      setPermisosRoles(prev => {
-        const next = { ...prev, [rol]: { ...prev[rol], pin: hash, pin_bcrypt: hash, pin_set: true } };
-        api.updateSettings({ permisos_roles: _buildFullPermisos(next) }).catch(() => {});
-        return next;
-      });
-      return true;
+      return await guardarEnNube({ ...permisosRoles, [rol]: { ...permisosRoles[rol], pin: hash, pin_bcrypt: hash, pin_set: true } });
     } catch {
       Alert.alert('Error', 'No se pudo guardar el PIN. Verifica tu conexión.');
       return false;
@@ -82,14 +93,11 @@ export function SeccionPuestos({
     Alert.alert('Quitar PIN', '¿Seguro que quieres quitar el PIN de este puesto?', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Quitar', style: 'destructive', onPress: () => {
-        setPermisosRoles(prev => {
-          const p = { ...prev[rol] };
-          delete p.pin;
-          p.pin_set = false;
-          const next = { ...prev, [rol]: p };
-          api.updateSettings({ permisos_roles: _buildFullPermisos(next) }).catch(() => {});
-          return next;
-        });
+        const p = { ...permisosRoles[rol] };
+        delete p.pin;
+        delete p.pin_bcrypt;
+        p.pin_set = false;
+        guardarEnNube({ ...permisosRoles, [rol]: p });
       }},
     ]);
   }
@@ -98,17 +106,14 @@ export function SeccionPuestos({
     Alert.alert('Eliminar puesto', '¿Seguro que quieres eliminar este puesto?', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Eliminar', style: 'destructive', onPress: () => {
-        setPermisosRoles(prev => {
-          const next = { ...prev };
-          delete next[rol];
-          api.updateSettings({ permisos_roles: _buildFullPermisos(next) }).catch(() => {});
-          return next;
-        });
+        const next = { ...permisosRoles };
+        delete next[rol];
+        guardarEnNube(next);
       }},
     ]);
   }
 
-  function crearNuevoPuesto() {
+  async function crearNuevoPuesto() {
     const nombre = nuevoPuestoNombre.trim();
     if (!nombre) { Alert.alert('Falta el nombre', 'Escribe un nombre para el puesto.'); return; }
     const key = 'custom_' + nombre.toLowerCase().replace(/\s+/g, '_') + '_' + Date.now();
@@ -118,11 +123,7 @@ export function SeccionPuestos({
       ver_turno: true, ver_mesas: true, ver_productos: false,
       ver_clientes: true, ver_ofertas: false, ver_inventario: false, ver_ajustes: false,
     };
-    setPermisosRoles(prev => {
-      const next = { ...prev, [key]: nuevoPuesto };
-      api.updateSettings({ permisos_roles: _buildFullPermisos(next) }).catch(() => {});
-      return next;
-    });
+    if (!(await guardarEnNube({ ...permisosRoles, [key]: nuevoPuesto }))) return;
     setNuevoPuestoNombre('');
     setMostrarFormNuevo(false);
   }

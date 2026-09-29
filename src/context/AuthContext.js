@@ -10,6 +10,7 @@ import { useNetwork } from './NetworkContext';
 import { guardarSesionLocal, leerSesionLocal, limpiarSesionLocal } from '../offline/db';
 import { leerAjustesLocales, guardarAjustesLocales, borrarNegocioLocal, fijarModoLocal, esModoLocal } from '../offline/local';
 import { migrarANube } from '../offline/migrar';
+import { olvidarAdmin } from '../utils/candadoAdmin';
 import {
   esErrorDeRed, guardarVerificadorAdmin, verificarPasswordAdminLocal,
   hayVerificadorAdmin, borrarVerificadorAdmin, cargarBloqueoPin, resetFallosPin,
@@ -644,12 +645,14 @@ export function AuthProvider({ children }) {
   }
 
   function cambiarPerfil() {
+    olvidarAdmin();
     setRolActivo(null);
     setNombreActivo('');
     setProfileReady(false);
   }
 
   async function logout() {
+    olvidarAdmin();
     // Eliminar push token del backend antes de cerrar sesión
     try {
       const token = pushTokenRef.current || await SecureStore.getItemAsync('zenit_push_token');

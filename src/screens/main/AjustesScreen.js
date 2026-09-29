@@ -12,7 +12,7 @@ import * as Updates from 'expo-updates';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api/client';
 import { zc, radios, espacios, sombra } from '../../theme';
-import { Cabecera, FranjaSuperior, Icono, PantallaDeTemas, TarjetaQuien } from '../../components/ui';
+import { Cabecera, FranjaSuperior, Icono, PantallaDeTemas, TarjetaQuien, usePedirAdmin } from '../../components/ui';
 import { friendlyError } from '../../utils/errors';
 import { createSSE } from '../../utils/sse';
 import { zonaDelDispositivo, etiquetaZona, opcionesZona } from '../../utils/tz';
@@ -59,6 +59,8 @@ export default function AjustesScreen({ navigation }) {
     // los ajustes del negocio: dos equipos pueden estar en sucursales distintas.
     sucursalId, cambiarSucursalDispositivo, verificarPasswordAdmin,
   } = useAuth();
+  // Candado del administrador para lo delicado (PLAN_SEGURIDAD_V1, sesión 1).
+  const { pedirAdmin, modalAdmin } = usePedirAdmin();
   const plan      = user?.plan || 'free';
 
   // ── Estado: carga ──────────────────────────────────────────────────────
@@ -458,6 +460,8 @@ export default function AjustesScreen({ navigation }) {
   }
 
   async function togglePedirPasswordInicio(val) {
+    // Apagarlo deja el equipo sin cerrojo: pide la contraseña (PLAN_SEGURIDAD_V1, B).
+    if (!val && !(await pedirAdmin('Para dejar de pedir la contraseña al abrir la app.'))) return;
     setPedirPasswordInicio(val);
     await SecureStore.setItemAsync('pedir_password_inicio', val ? 'true' : 'false');
   }
@@ -635,7 +639,8 @@ export default function AjustesScreen({ navigation }) {
   // Cerrar sesión
   // ─────────────────────────────────────────────────────────────────────
 
-  function confirmarCerrarSesion() {
+  async function confirmarCerrarSesion() {
+    if (!(await pedirAdmin('Para cerrar la sesión de este celular.'))) return;
     Alert.alert('Cerrar sesión', '¿Seguro que quieres salir?', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Salir', style: 'destructive', onPress: logout },
@@ -1199,6 +1204,9 @@ export default function AjustesScreen({ navigation }) {
             ),
           },
           isOwner && {
+            // Aquí están los PINs de todos: pide la contraseña aunque el perfil sea
+            // el del dueño (PLAN_SEGURIDAD_V1, D).
+            antes: () => pedirAdmin('Para ver los puestos y sus PINs.'),
             id: 'equipo', titulo: 'Mi equipo', icono: 'usuarios', tono: 'lila',
             estado: `${_puestos} ${_puestos === 1 ? 'puesto activo' : 'puestos activos'} · ${branches.length} ${branches.length === 1 ? 'sucursal' : 'sucursales'}`,
             contenido: (
@@ -1543,6 +1551,7 @@ export default function AjustesScreen({ navigation }) {
           </SafeAreaView>
         </KeyboardAvoidingView>
       </Modal>
+      {modalAdmin}
     </SafeAreaView>
   );
 }

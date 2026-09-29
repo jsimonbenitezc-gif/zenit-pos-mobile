@@ -14,6 +14,8 @@
 //   · contenido  lo que se ve al abrir el tema (un elemento de React)
 //   · ir         en vez de abrir una página, ir a otra pantalla (Mi menú)
 //   · aviso      pinta un punto ámbar antes del estado ("Sin impresora")
+//   · antes      async () => boolean: un candado antes de abrir ("Mi equipo" pide
+//                la contraseña del administrador); false = no se abre
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, BackHandler } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
@@ -38,7 +40,10 @@ export function PantallaDeTemas({ titulo, subtitulo, arriba, temas = [], lista =
     return () => sub.remove();
   }, [tema]);
 
-  const abrir = (t) => (t.ir ? t.ir() : setAbierto(t.id));
+  const abrir = async (t) => {
+    if (t.antes && !(await t.antes())) return;
+    if (t.ir) t.ir(); else setAbierto(t.id);
+  };
 
   if (tema) {
     return (
