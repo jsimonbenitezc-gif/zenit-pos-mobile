@@ -1,6 +1,6 @@
 {
-  "base": "2c63135",
-  "bloque": "Candados del administrador (PLAN_SEGURIDAD_V1 sesión 1): lógica nueva a propósito, base movida encima",
+  "base": "0c590f7",
+  "bloque": "Avisos propios (PLAN_SEGURIDAD_V1 sesión 2): Alert.alert → aviso() y toasts, a propósito; base movida encima",
   "grupos": {},
   "permitidos": []
 }
