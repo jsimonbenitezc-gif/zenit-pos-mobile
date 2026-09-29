@@ -77,7 +77,7 @@ export function SeccionPropinas({ settings, currency = '$', onSaved, styles }) {
 
   return (
     <>
-      <SectionTitle label="Propinas" />
+      <SectionTitle label="Propinas" ayuda="propinas" />
       <SectionCard>
         <SwitchRow
           label="Aceptar propinas en el cobro"

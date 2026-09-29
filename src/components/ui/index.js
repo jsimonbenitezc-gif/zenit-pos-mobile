@@ -9,9 +9,11 @@ import { useIsFocused } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import Icono from './Icono';
+import Ayuda from './Ayuda';
 import { zc, tonos, radios, espacios, letra, sombra } from '../../theme';
 
 export { default as Icono } from './Icono';
+export { default as Ayuda } from './Ayuda';
 
 // ─── Cabecera ────────────────────────────────────────────────────────────────
 /**
@@ -23,8 +25,9 @@ export { default as Icono } from './Icono';
  * @param derecha    acción a la derecha (un botón, un selector)
  * @param solapa     espacio extra abajo para que las tarjetas se monten encima
  * @param children   contenido dentro de la franja (número grande, buscador…)
+ * @param ayuda      llave de un (?) junto al título (src/ayuda/textos.js)
  */
-export function Cabecera({ titulo, subtitulo, izquierda, derecha, solapa = 0, children, style }) {
+export function Cabecera({ titulo, subtitulo, izquierda, derecha, solapa = 0, children, style, ayuda }) {
   const insets = useSafeAreaInsets();
   // La barra del sistema en blanco SOLO mientras esta pantalla se ve: las
   // pestañas quedan montadas, y sin esto la de otra pantalla se quedaría blanca
@@ -51,7 +54,12 @@ export function Cabecera({ titulo, subtitulo, izquierda, derecha, solapa = 0, ch
       <View style={s.cabFila}>
         {izquierda}
         <View style={{ flex: 1, minWidth: 0 }}>
-          {titulo ? <Text style={s.cabTitulo} numberOfLines={1}>{titulo}</Text> : null}
+          {titulo ? (
+            <View style={s.cabTituloFila}>
+              <Text style={[s.cabTitulo, { flexShrink: 1 }]} numberOfLines={1}>{titulo}</Text>
+              {ayuda ? <Ayuda id={ayuda} enNoche /> : null}
+            </View>
+          ) : null}
           {subtitulo ? <Text style={s.cabSub} numberOfLines={1}>{subtitulo}</Text> : null}
         </View>
         {derecha}
@@ -250,6 +258,7 @@ const s = StyleSheet.create({
   cab: { paddingHorizontal: 18, overflow: 'hidden' },
   cabFila: { flexDirection: 'row', alignItems: 'center', gap: 9, minHeight: 34 },
   cabTitulo: { ...letra.titulo, color: zc.enNoche, letterSpacing: 0.1 },
+  cabTituloFila: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   cabSub: { ...letra.chica, color: zc.enNocheGris, marginTop: 1 },
   vidrio: {
     flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: 170,

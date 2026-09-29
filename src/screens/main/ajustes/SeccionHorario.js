@@ -141,7 +141,7 @@ export function SeccionHorario({ settings, onSaved, styles }) {
 
   return (
     <>
-      <SectionTitle label="Horario del negocio" />
+      <SectionTitle label="Horario del negocio" ayuda="horario" />
       <SectionCard>
         <SwitchRow
           label="Definir horario de operación"

@@ -4,7 +4,7 @@ import { aviso, toast } from '../../../components/ui/Aviso';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../../api/client';
 import { colors, spacing, font } from '../../../theme';
-import { PERMISOS_LABELS } from './shared';
+import { PERMISOS_LABELS, SectionTitle } from './shared';
 import { friendlyError } from '../../../utils/errors';
 
 export function SeccionPuestos({
@@ -138,7 +138,7 @@ export function SeccionPuestos({
 
   return (
     <>
-      <Text style={styles.sectionTitle}>Administrar Puestos</Text>
+      <SectionTitle label="Administrar Puestos" ayuda="puestos" />
       <Text style={styles.sectionSub}>
         El Dueño siempre tiene acceso completo. Activa y configura los otros puestos.
         {sucursalId ? ` Configurando: ${branches.find(b => b.id === sucursalId)?.name || `Sucursal ${sucursalId}`}` : ' (Configuración global)'}

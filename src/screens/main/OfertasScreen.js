@@ -353,6 +353,7 @@ export default function OfertasScreen() {
       {/* Cabecera azul noche (diseño A): Premium, la acción y las pestañas dentro */}
       <Cabecera
         titulo="Ofertas"
+        ayuda={tab}
         derecha={
           <View style={styles.accionesCab}>
             <View style={styles.premiumBadge}>

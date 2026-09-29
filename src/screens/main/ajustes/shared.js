@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Switch, TextInput, Platform, StyleSheet } from 'react-native';
 import { colors, zc, radios, letra, sombra } from '../../../theme';
-import { Icono } from '../../../components/ui';
+import { Icono, Ayuda } from '../../../components/ui';
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
@@ -48,8 +48,15 @@ export const PERMISOS_LABELS = {
 // finas en gris y negrita solo donde hay un título. Las usan todas las secciones
 // de Ajustes, así que cambiarlas aquí las cambia en todas a la vez.
 
-export function SectionTitle({ label }) {
-  return <Text style={styles.sectionTitle}>{label}</Text>;
+// `ayuda`: llave de un (?) junto al título (src/ayuda/textos.js).
+export function SectionTitle({ label, ayuda }) {
+  if (!ayuda) return <Text style={styles.sectionTitle}>{label}</Text>;
+  return (
+    <View style={styles.sectionTitleFila}>
+      <Text style={[styles.sectionTitle, { marginBottom: 0, marginTop: 0, marginLeft: 0 }]}>{label}</Text>
+      <Ayuda id={ayuda} />
+    </View>
+  );
 }
 
 export function SectionCard({ children }) {
@@ -114,6 +121,7 @@ export function FieldRow({ label, value, onChangeText, placeholder, keyboardType
 
 const styles = StyleSheet.create({
   sectionTitle: { fontSize: 13, fontWeight: '500', color: zc.gris, marginBottom: 8, marginTop: 14, marginLeft: 4 },
+  sectionTitleFila: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, marginTop: 14, marginLeft: 4 },
   section:      { backgroundColor: zc.tarjeta, borderRadius: radios.tarjeta, marginBottom: 8, ...sombra },
 
   menuItem:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 16 },

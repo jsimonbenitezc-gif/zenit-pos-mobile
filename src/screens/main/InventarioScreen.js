@@ -16,7 +16,7 @@ import {
 } from '../../offline/credenciales';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, radius, font, zc, tonos, radios, sombra } from '../../theme';
-import { Cabecera, Icono, IconoEnCuadro } from '../../components/ui';
+import { Cabecera, Icono, IconoEnCuadro, Ayuda } from '../../components/ui';
 import SelectorSucursal from '../../components/SelectorSucursal';
 import { createSSE } from '../../utils/sse';
 import { friendlyError } from '../../utils/errors';
@@ -737,6 +737,7 @@ export default function InventarioScreen() {
             placeholder={tab === 'insumos' ? 'Buscar insumo...' : tab === 'preparaciones' ? 'Buscar preparación...' : tab === 'recetas' ? 'Buscar producto...' : 'Buscar...'}
             placeholderTextColor={colors.textMuted}
           />
+          {(tab === 'preparaciones' || tab === 'recetas') ? <Ayuda id={tab} /> : null}
         </View>
       )}
 
@@ -917,7 +918,10 @@ export default function InventarioScreen() {
                     <TextInput style={styles.input} value={prepUnidad} onChangeText={setPrepUnidad} placeholder="porcion" placeholderTextColor={colors.textMuted} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.label}>Rinde</Text>
+                    <View style={styles.labelFila}>
+                      <Text style={[styles.label, { marginBottom: 0 }]}>Rinde</Text>
+                      <Ayuda id="rinde" />
+                    </View>
                     <TextInput style={styles.input} value={prepRinde} onChangeText={setPrepRinde} placeholder="1" placeholderTextColor={colors.textMuted} keyboardType="decimal-pad" />
                   </View>
                 </View>
@@ -1189,6 +1193,7 @@ const styles = StyleSheet.create({
   closeBtn:            { padding: spacing.xs },
   modalBody:           { padding: 18 },
   label:               { fontSize: 13, color: zc.gris, marginBottom: 6 },
+  labelFila:           { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
   input:               { ...campo, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15, color: zc.tinta },
   ingSelecRow:         { flexDirection: 'row', alignItems: 'center', backgroundColor: zc.azulSuave, borderRadius: radios.boton, padding: 12, gap: spacing.sm },
   ingSelecNombre:      { fontSize: 15, fontWeight: '500', color: zc.tinta },

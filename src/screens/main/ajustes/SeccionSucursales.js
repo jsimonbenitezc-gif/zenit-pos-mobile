@@ -4,6 +4,7 @@ import {
   Switch, ActivityIndicator, Platform, KeyboardAvoidingView,
 } from 'react-native';
 import { aviso } from '../../../components/ui/Aviso';
+import { Ayuda } from '../../../components/ui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../../api/client';
@@ -184,6 +185,7 @@ export function SeccionSucursales({
       {/* ── Inline section ──────────────────────────────────────────────── */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm, marginTop: spacing.xs }}>
         <Text style={[styles.sectionTitle, { marginBottom: 0, marginTop: 0 }]}>Sucursal</Text>
+        <Ayuda id="sucursal" />
         {!isPremium && (
           <View style={styles.premiumBadge}>
             <Ionicons name="lock-closed" size={10} color="#b45309" />

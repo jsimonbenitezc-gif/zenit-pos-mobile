@@ -292,7 +292,7 @@ export default function TurnoScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['left', 'right']}>
       {/* Cabecera azul noche (diseño A): con turno abierto, lo vendido en grande */}
-      <Cabecera titulo="Turno">
+      <Cabecera titulo="Turno" ayuda="turno">
         {turno && totales ? (
           <View style={{ marginTop: 14 }}>
             <NumeroGrande etiqueta="Vendido en este turno" valor={formatMoney(totales.total_ventas || 0, currency)} />

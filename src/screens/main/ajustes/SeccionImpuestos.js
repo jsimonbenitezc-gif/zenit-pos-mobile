@@ -112,7 +112,7 @@ export function SeccionImpuestos({ settings, currency = '$', onSaved, styles }) 
 
   return (
     <>
-      <SectionTitle label="Impuestos" />
+      <SectionTitle label="Impuestos" ayuda="impuesto" />
       <SectionCard>
         <SwitchRow
           label="Cobrar impuesto en las ventas"

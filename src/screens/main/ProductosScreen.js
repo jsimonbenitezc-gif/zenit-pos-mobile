@@ -15,7 +15,7 @@ import {
   crearCategoria, actualizarCategoria, borrarCategoria, fijarModificadoresDeProducto,
 } from '../../offline/catalogoEditable';
 import { colors, spacing, radius, font, zc, radios, sombra } from '../../theme';
-import { Cabecera, Icono } from '../../components/ui';
+import { Cabecera, Icono, Ayuda } from '../../components/ui';
 import { formatMoney } from '../../utils/money';
 import { friendlyError } from '../../utils/errors';
 import { useAuth } from '../../context/AuthContext';
@@ -459,7 +459,10 @@ export default function ProductosScreen() {
                   guardarlos requiere su id. */}
               {editandoProd && !modoLocal && (
                 <>
-                  <Text style={styles.label}>Modificadores</Text>
+                  <View style={styles.labelFila}>
+                    <Text style={[styles.label, { marginBottom: 0 }]}>Modificadores</Text>
+                    <Ayuda id="modificadores" />
+                  </View>
                   <SelectorGruposProducto
                     productId={editandoProd.id}
                     onCambio={setGruposProd}
@@ -568,6 +571,7 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 19, fontWeight: '500', color: zc.tinta },
   linkText: { color: zc.azul, fontWeight: '500', fontSize: 15 },
   label: { fontSize: 13, color: zc.gris, marginBottom: 6 },
+  labelFila: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
   input: { ...campo, padding: 12, fontSize: 15, color: zc.tinta },
   catOpcion: { ...campo, padding: 11, marginBottom: 6 },
   catOpcionActive: { backgroundColor: zc.noche, borderColor: zc.noche },
