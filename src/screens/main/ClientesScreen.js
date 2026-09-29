@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  TextInput, RefreshControl, ActivityIndicator, Alert, Modal,
+  TextInput, RefreshControl, ActivityIndicator, Modal,
   ScrollView, KeyboardAvoidingView, Platform, Switch,
 } from 'react-native';
+import { aviso } from '../../components/ui/Aviso';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../../api/client';
 import { listarClientes, crearCliente, actualizarCliente } from '../../offline/clientes';
@@ -61,7 +62,7 @@ export default function ClientesScreen() {
       const data = await listarClientes();
       setClientes(data);
     } catch {
-      Alert.alert('Error', 'No se pudo cargar la lista de clientes.');
+      aviso('Error', 'No se pudo cargar la lista de clientes.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -72,7 +73,7 @@ export default function ClientesScreen() {
 
   async function guardar() {
     if (!nombre.trim() || !telefono.trim()) {
-      Alert.alert('Campos requeridos', 'Nombre y teléfono son obligatorios.');
+      aviso('Campos requeridos', 'Nombre y teléfono son obligatorios.');
       return;
     }
     setGuardando(true);
@@ -84,7 +85,7 @@ export default function ClientesScreen() {
       setModalNuevo(false);
       setNombre(''); setTelefono(''); setDireccion('');
     } catch (e) {
-      Alert.alert('Error', friendlyError(e));
+      aviso('Error', friendlyError(e));
     } finally {
       setGuardando(false);
     }
@@ -100,7 +101,7 @@ export default function ClientesScreen() {
 
   function guardarEdicion() {
     if (!editNombre.trim() || !editTelefono.trim()) {
-      Alert.alert('Campos requeridos', 'Nombre y teléfono son obligatorios.');
+      aviso('Campos requeridos', 'Nombre y teléfono son obligatorios.');
       return;
     }
     // Mostrar modal de PIN antes de guardar
@@ -151,7 +152,7 @@ export default function ClientesScreen() {
 
   async function toggleFidelidad(cliente) {
     if (!isPremium) {
-      Alert.alert('Función Premium', 'El programa de fidelidad está disponible en el plan Premium.');
+      aviso('Función Premium', 'El programa de fidelidad está disponible en el plan Premium.');
       return;
     }
     const nuevo = !cliente.in_loyalty;
@@ -162,7 +163,7 @@ export default function ClientesScreen() {
         prev.map(c => c.id === cliente.id ? { ...c, in_loyalty: nuevo } : c)
       );
     } catch (e) {
-      Alert.alert('Error', friendlyError(e));
+      aviso('Error', friendlyError(e));
     } finally {
       setToggling(prev => { const s = new Set(prev); s.delete(cliente.id); return s; });
     }

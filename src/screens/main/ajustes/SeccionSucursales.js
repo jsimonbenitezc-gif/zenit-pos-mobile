@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, TextInput, Modal, ScrollView,
-  Switch, Alert, ActivityIndicator, Platform, KeyboardAvoidingView,
+  Switch, ActivityIndicator, Platform, KeyboardAvoidingView,
 } from 'react-native';
+import { aviso } from '../../../components/ui/Aviso';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../../api/client';
@@ -60,7 +61,7 @@ export function SeccionSucursales({
       ? `Todos los registros de este equipo (ventas, turnos, mesas e inventario) pasarán a "${nombre}".`
       : 'Este equipo quedará sin sucursal asignada y no podrá registrar ventas si tu negocio tiene varias sucursales.';
 
-    Alert.alert('Cambiar la sucursal de este equipo', mensaje, [
+    aviso('Cambiar la sucursal de este equipo', mensaje, [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Continuar', onPress: () => {
         setPendienteId(id);
@@ -104,7 +105,7 @@ export function SeccionSucursales({
 
   async function guardarNuevaSucursal() {
     if (!nuevaSucursalNombre.trim()) {
-      Alert.alert('Nombre requerido', 'Escribe un nombre para la sucursal.');
+      aviso('Nombre requerido', 'Escribe un nombre para la sucursal.');
       return;
     }
     setGuardandoSucursal(true);
@@ -123,7 +124,7 @@ export function SeccionSucursales({
       setModalNuevaSucursal(false);
       await onRefresh();
     } catch (e) {
-      Alert.alert('Error', friendlyError(e));
+      aviso('Error', friendlyError(e));
     } finally {
       setGuardandoSucursal(false);
     }
@@ -139,7 +140,7 @@ export function SeccionSucursales({
 
   async function guardarEditarSucursal() {
     if (!editNombre.trim()) {
-      Alert.alert('Nombre requerido', 'Escribe un nombre para la sucursal.');
+      aviso('Nombre requerido', 'Escribe un nombre para la sucursal.');
       return;
     }
     setGuardandoEditar(true);
@@ -153,14 +154,14 @@ export function SeccionSucursales({
       setModalEditarSucursal(false);
       await onRefresh();
     } catch (e) {
-      Alert.alert('Error', friendlyError(e));
+      aviso('Error', friendlyError(e));
     } finally {
       setGuardandoEditar(false);
     }
   }
 
   async function eliminarSucursal(branch) {
-    Alert.alert('Eliminar sucursal', `\u00bfEliminar "${branch.name}"?`, [
+    aviso('Eliminar sucursal', `\u00bfEliminar "${branch.name}"?`, [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Eliminar', style: 'destructive', onPress: async () => {
         try {
@@ -170,7 +171,7 @@ export function SeccionSucursales({
           // contraseña: es consecuencia de una acción que el dueño ya autorizó).
           if (sucursalId === branch.id) await cambiarSucursalDispositivo(null);
           await onRefresh();
-        } catch (e) { Alert.alert('Error', friendlyError(e)); }
+        } catch (e) { aviso('Error', friendlyError(e)); }
       }},
     ]);
   }

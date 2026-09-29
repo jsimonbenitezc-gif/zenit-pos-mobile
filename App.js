@@ -8,6 +8,7 @@ import { NetworkProvider, useNetwork } from './src/context/NetworkContext';
 import { initDB } from './src/offline/db';
 import { sincronizarVentasPendientes } from './src/offline/ventasOffline';
 import Navigation from './src/navigation';
+import { AvisosZenit } from './src/components/ui/Aviso';
 
 // Inicializa la BD local y registra el sync automático al reconectar.
 // No renderiza nada.
@@ -54,6 +55,8 @@ export default function App() {
           <OfflineBootstrap />
           <StatusBar style="dark" />
           <Navigation />
+          {/* aviso() y toast() se dibujan aquí, encima de todo (PLAN_SEGURIDAD_V1 s2) */}
+          <AvisosZenit />
         </AuthProvider>
       </NetworkProvider>
     </ErrorBoundary>

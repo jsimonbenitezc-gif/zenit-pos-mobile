@@ -12,8 +12,9 @@
 import { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet,
-  Switch, Alert, Modal, ActivityIndicator,
+  Switch, Modal, ActivityIndicator,
 } from 'react-native';
+import { aviso, toast } from '../../components/ui/Aviso';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 
@@ -76,7 +77,7 @@ export default function AjustesLocalScreen() {
   async function guardar() {
     const tasa = parseFloat(String(taxRate).replace(',', '.'));
     if (taxOn && (!isFinite(tasa) || tasa < 0 || tasa > 100)) {
-      Alert.alert('Tasa inválida', 'El impuesto debe estar entre 0 y 100.');
+      aviso('Tasa inválida', 'El impuesto debe estar entre 0 y 100.');
       return;
     }
     setGuardando(true);
@@ -96,9 +97,9 @@ export default function AjustesLocalScreen() {
           String(propSug).split(',').map(v => parseFloat(v.trim())).filter(v => isFinite(v))
         ),
       });
-      Alert.alert('Guardado', 'Los ajustes se aplicaron.');
+      toast('Ajustes guardados');
     } catch (e) {
-      Alert.alert('Error', friendlyError(e));
+      aviso('Error', friendlyError(e));
     } finally {
       setGuardando(false);
     }
@@ -107,12 +108,12 @@ export default function AjustesLocalScreen() {
   // ── Impresora (mismo flujo que con cuenta) ────────────────────────────────
   async function buscarImpresoras() {
     if (!isPrinterAvailable()) {
-      Alert.alert('No disponible', 'La impresión Bluetooth requiere el APK compilado (no funciona en Expo Go).');
+      aviso('No disponible', 'La impresión Bluetooth requiere el APK compilado (no funciona en Expo Go).');
       return;
     }
     setDevices([]); setModalPrinter(true); setScanning(true);
     try { setDevices(await getPairedDevices()); }
-    catch (e) { Alert.alert('Error al buscar', friendlyError(e)); }
+    catch (e) { aviso('Error al buscar', friendlyError(e)); }
     finally { setScanning(false); }
   }
 
@@ -125,16 +126,16 @@ export default function AjustesLocalScreen() {
       await SecureStore.setItemAsync('printer_name', device.name);
       setPrinterAddress(device.address); setPrinterName(device.name);
       setModalPrinter(false);
-      Alert.alert('Conectado', `Impresora "${device.name}" configurada.`);
+      aviso('Conectado', `Impresora "${device.name}" configurada.`);
     } catch (e) {
-      Alert.alert('Error al conectar', friendlyError(e));
+      aviso('Error al conectar', friendlyError(e));
     } finally { setConnecting(''); }
   }
 
   async function probarImpresora() {
-    if (!printerAddress) { Alert.alert('Sin impresora', 'Primero selecciona una impresora.'); return; }
+    if (!printerAddress) { aviso('Sin impresora', 'Primero selecciona una impresora.'); return; }
     try { await printTest(printerAddress, nombre || 'Mi Negocio', moneda); }
-    catch (e) { Alert.alert('Error al imprimir', friendlyError(e)); }
+    catch (e) { aviso('Error al imprimir', friendlyError(e)); }
   }
 
   // ── Migrar a una cuenta (Etapa 3) ─────────────────────────────────────────
@@ -154,7 +155,7 @@ export default function AjustesLocalScreen() {
 
   // ── Salidas del modo local ────────────────────────────────────────────────
   function irACuenta() {
-    Alert.alert(
+    aviso(
       'Crear cuenta o iniciar sesión',
       'Volverás a la pantalla de inicio. Lo que ya vendiste y capturaste NO se borra: sigue en este teléfono si vuelves al modo sin cuenta.',
       [
@@ -165,14 +166,14 @@ export default function AjustesLocalScreen() {
   }
 
   function borrarTodo() {
-    Alert.alert(
+    aviso(
       'Borrar el negocio de este teléfono',
       'Se borran TODOS tus productos y TODAS tus ventas. No hay copia en internet: esto no se puede deshacer.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Borrar todo', style: 'destructive',
-          onPress: () => Alert.alert(
+          onPress: () => aviso(
             '¿Seguro?', 'Última confirmación. Se perderá todo el historial.',
             [
               { text: 'Cancelar', style: 'cancel' },

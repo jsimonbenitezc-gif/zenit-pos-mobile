@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  TextInput, Alert, ActivityIndicator, Modal, KeyboardAvoidingView, Platform,
+  TextInput, ActivityIndicator, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { aviso } from '../../components/ui/Aviso';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Cabecera, Icono, IconoEnCuadro } from '../../components/ui';
 import * as SecureStore from 'expo-secure-store';
@@ -71,7 +72,7 @@ export default function PerfilScreen() {
   async function confirmarPin() {
     if (!pinInput || !puestoElegido) return;
     if (pinBloqueado()) {
-      Alert.alert('Bloqueado', `Demasiados intentos. Espera ${minutosBloqueoPin()} minutos.`);
+      aviso('Bloqueado', `Demasiados intentos. Espera ${minutosBloqueoPin()} minutos.`);
       return;
     }
     setVerificandoPin(true);
@@ -86,11 +87,11 @@ export default function PerfilScreen() {
         setPinError(true);
         setPinInput('');
         if (pinBloqueado()) {
-          Alert.alert('Bloqueado', 'Demasiados intentos. Espera 5 minutos.');
+          aviso('Bloqueado', 'Demasiados intentos. Espera 5 minutos.');
         }
       }
     } catch {
-      Alert.alert('Error', 'No se pudo verificar el PIN. Inténtalo de nuevo.');
+      aviso('Error', 'No se pudo verificar el PIN. Inténtalo de nuevo.');
     } finally {
       setVerificandoPin(false);
     }

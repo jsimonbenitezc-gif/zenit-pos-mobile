@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, FlatList, StyleSheet, ActivityIndicator, Alert,
+  View, Text, FlatList, StyleSheet, ActivityIndicator,
   TextInput, TouchableOpacity, Modal, Linking, ScrollView,
 } from 'react-native';
+import { aviso } from '../../components/ui/Aviso';
 import { Icono, IconoEnCuadro } from '../../components/ui';
 import { api } from '../../api/client';
 import { colors, spacing, radius, font, zc, radios, sombra } from '../../theme';
@@ -38,7 +39,7 @@ export default function ListaComprasSection({ branchId, nombreActivo }) {
       const lista = await api.getShoppingList(branchId);
       setItems(lista?.items || []);
     } catch (e) {
-      Alert.alert('Error', 'No se pudo cargar la lista de compras.');
+      aviso('Error', 'No se pudo cargar la lista de compras.');
     } finally {
       setLoading(false);
     }
@@ -79,12 +80,12 @@ export default function ListaComprasSection({ branchId, nombreActivo }) {
       const res = await api.generateShoppingList(branchId);
       setItems(res?.items || []);
       const n = res?.agregados || 0;
-      Alert.alert(
+      aviso(
         n > 0 ? 'Lista generada' : 'Todo en orden',
         n > 0 ? `Se agregaron ${n} insumo(s) bajo(s) de stock.` : 'No hay insumos por debajo de su mínimo.'
       );
     } catch (e) {
-      Alert.alert('Error', 'No se pudo generar la lista automática.');
+      aviso('Error', 'No se pudo generar la lista automática.');
     }
   }
 
@@ -101,7 +102,7 @@ export default function ListaComprasSection({ branchId, nombreActivo }) {
       setItems(prev => [...prev, item]);
       setManualNombre(''); setManualCantidad(''); setModalManual(false);
     } catch (e) {
-      Alert.alert('Error', 'No se pudo agregar el artículo.');
+      aviso('Error', 'No se pudo agregar el artículo.');
     }
   }
 
@@ -113,7 +114,7 @@ export default function ListaComprasSection({ branchId, nombreActivo }) {
       const yaEnLista = new Set(items.filter(i => i.ingredient_id).map(i => i.ingredient_id));
       setOpciones((ops || []).filter(o => !yaEnLista.has(o.ingredient_id)));
     } catch (e) {
-      Alert.alert('Error', 'No se pudieron cargar los insumos.');
+      aviso('Error', 'No se pudieron cargar los insumos.');
       setModalInv(false);
     } finally {
       setCargandoOpciones(false);
@@ -131,7 +132,7 @@ export default function ListaComprasSection({ branchId, nombreActivo }) {
       });
       setItems(prev => [...prev, item]);
     } catch (e) {
-      Alert.alert('Error', 'No se pudo agregar el insumo.');
+      aviso('Error', 'No se pudo agregar el insumo.');
     }
   }
 
@@ -152,20 +153,20 @@ export default function ListaComprasSection({ branchId, nombreActivo }) {
   }
 
   async function enviarWhatsapp() {
-    if (items.length === 0) { Alert.alert('Lista vacía', 'Agrega artículos antes de enviar.'); return; }
+    if (items.length === 0) { aviso('Lista vacía', 'Agrega artículos antes de enviar.'); return; }
     const url = `https://wa.me/?text=${encodeURIComponent(construirTexto())}`;
     try {
       const ok = await Linking.canOpenURL(url);
       if (ok) await Linking.openURL(url);
-      else Alert.alert('WhatsApp no disponible', 'No se encontró WhatsApp en este dispositivo.');
+      else aviso('WhatsApp no disponible', 'No se encontró WhatsApp en este dispositivo.');
     } catch {
-      Alert.alert('Error', 'No se pudo abrir WhatsApp.');
+      aviso('Error', 'No se pudo abrir WhatsApp.');
     }
   }
 
   async function enviarAlAdmin() {
-    if (items.length === 0) { Alert.alert('Lista vacía', 'Agrega artículos antes de enviar.'); return; }
-    Alert.alert(
+    if (items.length === 0) { aviso('Lista vacía', 'Agrega artículos antes de enviar.'); return; }
+    aviso(
       '¿Enviar al administrador?',
       'Se enviará la lista con una notificación a su teléfono, y se archivará para empezar una nueva.',
       [
@@ -175,9 +176,9 @@ export default function ListaComprasSection({ branchId, nombreActivo }) {
           try {
             await api.sendShoppingList(branchId, nombreActivo || '');
             setItems([]);
-            Alert.alert('Lista enviada', 'El administrador recibió la lista.');
+            aviso('Lista enviada', 'El administrador recibió la lista.');
           } catch (e) {
-            Alert.alert('Error', friendlyError(e) || 'No se pudo enviar la lista.');
+            aviso('Error', friendlyError(e) || 'No se pudo enviar la lista.');
           } finally {
             setEnviando(false);
           }
@@ -188,7 +189,7 @@ export default function ListaComprasSection({ branchId, nombreActivo }) {
 
   function vaciar() {
     if (items.length === 0) return;
-    Alert.alert('¿Vaciar la lista?', 'Se quitarán todos los artículos.', [
+    aviso('¿Vaciar la lista?', 'Se quitarán todos los artículos.', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Vaciar', style: 'destructive', onPress: async () => {
         setItems([]);

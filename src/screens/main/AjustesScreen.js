@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
-  View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert,
+  View, Text, TouchableOpacity, StyleSheet, ScrollView,
   Modal, TextInput, ActivityIndicator, Switch, Platform,
   RefreshControl, KeyboardAvoidingView, Image, Linking,
 } from 'react-native';
+import { aviso, toast } from '../../components/ui/Aviso';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import * as ImagePicker from 'expo-image-picker';
@@ -316,9 +317,9 @@ export default function AjustesScreen({ navigation }) {
           business_tipo:      tipo,
         });
       }
-      Alert.alert('Guardado', 'Información del negocio actualizada.');
+      toast('Información del negocio guardada');
     } catch (e) {
-      Alert.alert('Error', friendlyError(e));
+      aviso('Error', friendlyError(e));
     } finally {
       setSavingNegocio(false);
     }
@@ -344,7 +345,7 @@ export default function AjustesScreen({ navigation }) {
       await refreshSettings();
     } catch (e) {
       setZonaHoraria(anterior);
-      Alert.alert('No se pudo guardar', friendlyError(e));
+      aviso('No se pudo guardar', friendlyError(e));
     }
   }
 
@@ -391,7 +392,7 @@ export default function AjustesScreen({ navigation }) {
   async function seleccionarLogo() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permiso requerido', 'Necesitamos acceso a tu galería para seleccionar el logo.');
+      aviso('Permiso requerido', 'Necesitamos acceso a tu galería para seleccionar el logo.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -408,7 +409,7 @@ export default function AjustesScreen({ navigation }) {
       await api.updateSettings({ logo_base64: b64 });
       setLogoBase64(b64);
     } catch (e) {
-      Alert.alert('Error', 'No se pudo guardar el logo: ' + friendlyError(e));
+      aviso('Error', 'No se pudo guardar el logo: ' + friendlyError(e));
     } finally {
       setSavingLogo(false);
     }
@@ -418,7 +419,7 @@ export default function AjustesScreen({ navigation }) {
     try {
       const update = await Updates.checkForUpdateAsync();
       if (update.isAvailable) {
-        Alert.alert('Actualización disponible', '¿Descargar e instalar ahora?', [
+        aviso('Actualización disponible', '¿Descargar e instalar ahora?', [
           { text: 'Después', style: 'cancel' },
           { text: 'Instalar', onPress: async () => {
             await Updates.fetchUpdateAsync();
@@ -426,15 +427,15 @@ export default function AjustesScreen({ navigation }) {
           }},
         ]);
       } else {
-        Alert.alert('Todo al día', 'Tienes la versión más reciente de Zenit POS.');
+        aviso('Todo al día', 'Tienes la versión más reciente de Zenit POS.');
       }
     } catch {
-      Alert.alert('Sin actualizaciones', 'No se pudo verificar (normal en modo desarrollo).');
+      aviso('Sin actualizaciones', 'No se pudo verificar (normal en modo desarrollo).');
     }
   }
 
   async function quitarLogo() {
-    Alert.alert('Quitar logo', '¿Eliminar el logo del ticket?', [
+    aviso('Quitar logo', '¿Eliminar el logo del ticket?', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Quitar', style: 'destructive', onPress: async () => {
         setSavingLogo(true);
@@ -442,7 +443,7 @@ export default function AjustesScreen({ navigation }) {
           await api.updateSettings({ logo_base64: '' });
           setLogoBase64('');
         } catch (e) {
-          Alert.alert('Error', friendlyError(e));
+          aviso('Error', friendlyError(e));
         } finally {
           setSavingLogo(false);
         }
@@ -480,7 +481,7 @@ export default function AjustesScreen({ navigation }) {
       await api.updateSettings({ movimientos_caja_pin: val });
     } catch (e) {
       setMovCajaPin(!val); // revertir: el ajuste no quedó guardado
-      Alert.alert('No se pudo guardar', friendlyError(e) || 'Intenta de nuevo');
+      aviso('No se pudo guardar', friendlyError(e) || 'Intenta de nuevo');
     }
   }
 
@@ -495,11 +496,11 @@ export default function AjustesScreen({ navigation }) {
 
   async function guardarPinDescuentos() {
     if (pinDescuentos.length < 4) {
-      Alert.alert('PIN muy corto', 'El PIN debe tener al menos 4 dígitos.');
+      aviso('PIN muy corto', 'El PIN debe tener al menos 4 dígitos.');
       return;
     }
     await SecureStore.setItemAsync('pin_descuentos', pinDescuentos);
-    Alert.alert('Guardado', 'PIN de descuentos guardado.');
+    toast('PIN de descuentos guardado');
   }
 
   // ─────────────────────────────────────────────────────────────────────
@@ -511,7 +512,7 @@ export default function AjustesScreen({ navigation }) {
     const pb = parseInt(puntosBono, 10);
     const pv = parseFloat(puntosValor);
     if (isNaN(pp) || isNaN(pb) || isNaN(pv)) {
-      Alert.alert('Valores inválidos', 'Verifica que los campos sean números válidos.');
+      aviso('Valores inválidos', 'Verifica que los campos sean números válidos.');
       return;
     }
     setSavingPuntos(true);
@@ -523,9 +524,9 @@ export default function AjustesScreen({ navigation }) {
         puntos_valor: pv,
       });
       await refreshSettings();
-      Alert.alert('Guardado', 'Configuración de puntos actualizada.');
+      toast('Puntos guardados');
     } catch (e) {
-      Alert.alert('Error', friendlyError(e));
+      aviso('Error', friendlyError(e));
     } finally {
       setSavingPuntos(false);
     }
@@ -544,7 +545,7 @@ export default function AjustesScreen({ navigation }) {
 
   async function abrirBusquedaImpresoras() {
     if (!isPrinterAvailable()) {
-      Alert.alert(
+      aviso(
         'No disponible',
         'La impresión Bluetooth requiere una compilación personalizada con EAS Build. No funciona en Expo Go.',
       );
@@ -557,7 +558,7 @@ export default function AjustesScreen({ navigation }) {
       const devices = await getPairedDevices();
       setScannedDevices(devices);
     } catch (e) {
-      Alert.alert('Error al buscar', friendlyError(e));
+      aviso('Error al buscar', friendlyError(e));
     } finally {
       setScanning(false);
     }
@@ -574,9 +575,9 @@ export default function AjustesScreen({ navigation }) {
       setPrinterAddress(device.address);
       setPrinterName(device.name);
       setModalPrinter(false);
-      Alert.alert('Conectado', `Impresora "${device.name}" configurada.`);
+      aviso('Conectado', `Impresora "${device.name}" configurada.`);
     } catch (e) {
-      Alert.alert('Error al conectar', friendlyError(e));
+      aviso('Error al conectar', friendlyError(e));
     } finally {
       setConnecting('');
     }
@@ -584,18 +585,18 @@ export default function AjustesScreen({ navigation }) {
 
   async function imprimirPrueba() {
     if (!isPrinterAvailable()) {
-      Alert.alert('No disponible', 'La impresión Bluetooth requiere EAS Build.');
+      aviso('No disponible', 'La impresión Bluetooth requiere EAS Build.');
       return;
     }
     if (!printerAddress) {
-      Alert.alert('Sin impresora', 'Primero selecciona una impresora Bluetooth.');
+      aviso('Sin impresora', 'Primero selecciona una impresora Bluetooth.');
       return;
     }
     setTestingPrint(true);
     try {
       await printTest(printerAddress, nombre || 'Mi Negocio', moneda);
     } catch (e) {
-      Alert.alert('Error al imprimir', friendlyError(e));
+      aviso('Error al imprimir', friendlyError(e));
     } finally {
       setTestingPrint(false);
     }
@@ -612,24 +613,24 @@ export default function AjustesScreen({ navigation }) {
 
   async function guardarPassword() {
     if (!passActual.trim() || !passNueva.trim()) {
-      Alert.alert('Campos requeridos', 'Completa todos los campos.');
+      aviso('Campos requeridos', 'Completa todos los campos.');
       return;
     }
     if (passNueva !== passConfirm) {
-      Alert.alert('No coinciden', 'La nueva contraseña y su confirmación no son iguales.');
+      aviso('No coinciden', 'La nueva contraseña y su confirmación no son iguales.');
       return;
     }
     if (passNueva.length < 6) {
-      Alert.alert('Contraseña muy corta', 'Debe tener al menos 6 caracteres.');
+      aviso('Contraseña muy corta', 'Debe tener al menos 6 caracteres.');
       return;
     }
     setSavingPass(true);
     try {
       await api.changePassword(passActual, passNueva);
       setModalPassword(false);
-      Alert.alert('Listo', 'Contraseña actualizada correctamente.');
+      toast('Contraseña actualizada');
     } catch (e) {
-      Alert.alert('Error', friendlyError(e));
+      aviso('Error', friendlyError(e));
     } finally {
       setSavingPass(false);
     }
@@ -641,7 +642,7 @@ export default function AjustesScreen({ navigation }) {
 
   async function confirmarCerrarSesion() {
     if (!(await pedirAdmin('Para cerrar la sesión de este celular.'))) return;
-    Alert.alert('Cerrar sesión', '¿Seguro que quieres salir?', [
+    aviso('Cerrar sesión', '¿Seguro que quieres salir?', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Salir', style: 'destructive', onPress: logout },
     ]);
@@ -699,7 +700,7 @@ export default function AjustesScreen({ navigation }) {
               sub={isPremium ? 'Vista en tiempo real para el personal de cocina' : 'Función exclusiva del plan Premium'}
               onPress={isPremium
                 ? () => navigation.navigate('KDS')
-                : () => Alert.alert('Función Premium', 'Solicita al administrador que actualice el plan.')
+                : () => aviso('Función Premium', 'Solicita al administrador que actualice el plan.')
               }
               last
             />
@@ -1029,7 +1030,7 @@ export default function AjustesScreen({ navigation }) {
                         value={isPremium ? puntosActivos : false}
                         onChange={isPremium
                           ? togglePuntosActivos
-                          : () => Alert.alert('Función Premium', 'Actualiza tu plan para activar el programa de puntos.')
+                          : () => aviso('Función Premium', 'Actualiza tu plan para activar el programa de puntos.')
                         }
                         last={!puntosActivos || !isPremium}
                       />
@@ -1274,7 +1275,7 @@ export default function AjustesScreen({ navigation }) {
                     sub={isPremium ? 'Vista en tiempo real para el personal de cocina' : 'Función exclusiva del plan Premium'}
                     onPress={isPremium
                       ? () => navigation.navigate('KDS')
-                      : () => Alert.alert('Función Premium', 'Actualiza tu plan para usar la pantalla de cocina.')
+                      : () => aviso('Función Premium', 'Actualiza tu plan para usar la pantalla de cocina.')
                     }
                     last
                   />

@@ -19,7 +19,8 @@
 // "¡Descubre todas las funciones!" se cierra sin leer.
 // ============================================================================
 import { useState } from 'react';
-import { View, Text, Modal, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { aviso } from './ui/Aviso';
 import { Icono, IconoEnCuadro } from './ui';
 import * as SecureStore from 'expo-secure-store';
 import { colors, spacing, radius, font, zc, radios, sombra } from '../theme';
@@ -52,9 +53,9 @@ export default function AvisoSinCuenta({ visible, onClose, onCrearCuenta, resume
     const r = await exportarRespaldo();
     setRespaldando(false);
     if (!r.ok && r.motivo !== 'sin_compartir') {
-      Alert.alert('No se pudo respaldar', 'Intenta de nuevo en un momento.');
+      aviso('No se pudo respaldar', 'Intenta de nuevo en un momento.');
     } else if (r.motivo === 'sin_compartir') {
-      Alert.alert('No disponible', 'Este teléfono no puede compartir archivos.');
+      aviso('No disponible', 'Este teléfono no puede compartir archivos.');
     }
   }
 

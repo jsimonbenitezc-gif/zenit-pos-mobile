@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, RefreshControl, Alert, TextInput,
+  ActivityIndicator, RefreshControl, TextInput,
   Modal, ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { aviso } from '../../components/ui/Aviso';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import IconoProducto from '../../components/IconoProducto';
 import SvgIcon from '../../components/SvgIcon';
@@ -288,7 +289,7 @@ export default function MesasScreen() {
 
   function agregarPagoMesa() {
     if (pagosMesa.length >= PAGO_MAX) {
-      Alert.alert('Demasiados pagos', `Una cuenta admite como máximo ${PAGO_MAX} pagos.`);
+      aviso('Demasiados pagos', `Una cuenta admite como máximo ${PAGO_MAX} pagos.`);
       return;
     }
     if (modoDivision === 'items') {
@@ -357,7 +358,7 @@ export default function MesasScreen() {
       const data = await api.getTables(sucursalVista);
       setMesas(data);
     } catch (err) {
-      Alert.alert('Error', err?.message || 'No se pudieron cargar las mesas.');
+      aviso('Error', err?.message || 'No se pudieron cargar las mesas.');
     } finally {
       setLoading(false);
       setRefresh(false);
@@ -437,7 +438,7 @@ export default function MesasScreen() {
       setCategoriasMesa(grouped.map(g => ({ id: g.id, name: g.name })));
       setPromosMesa((combos || []).map(promoDeCatalogo).filter(Boolean));
     } catch {
-      Alert.alert('Error', 'No se pudieron cargar los productos.');
+      aviso('Error', 'No se pudieron cargar los productos.');
     } finally {
       setLoadingProductos(false);
     }
@@ -537,7 +538,7 @@ export default function MesasScreen() {
     // Mirando otra sucursal la vista es SOLO LECTURA: abrir una mesa de Norte con
     // una venta que se guarda en Centro cruzaría los datos de las dos.
     if (sucursalVista !== sucursalId) {
-      Alert.alert(
+      aviso(
         'Solo lectura',
         'Estás viendo las mesas de otra sucursal. Para registrar aquí, vuelve a la sucursal de este equipo en las pestañas de arriba.'
       );
@@ -545,7 +546,7 @@ export default function MesasScreen() {
     }
     // Abrir mesa crea un pedido: aplica la misma regla de sucursal que una venta
     if (!ordenActiva && !puedeRegistrarEnSucursal()) {
-      Alert.alert(
+      aviso(
         'Falta elegir la sucursal',
         'Este equipo todavía no tiene una sucursal asignada. Ve a Ajustes → Sucursal y elige en cuál registra este equipo.'
       );
@@ -592,7 +593,7 @@ export default function MesasScreen() {
       // Faltan existencias: la mesa NO se abrió. Antes esto se tragaba y la
       // comanda desaparecía sin decir nada. Avisa y deja mandarla igual (§56.3).
       if (esAvisoStock(e)) {
-        Alert.alert(
+        aviso(
           'Faltan existencias',
           textoAvisoStock(e.warnings) + '\n\nLa comanda todavía NO se ha enviado. ¿Enviarla de todas formas?',
           [
@@ -602,7 +603,7 @@ export default function MesasScreen() {
         );
         return;
       }
-      Alert.alert('Error', friendlyError(e));
+      aviso('Error', friendlyError(e));
     } finally {
       setAgregando(false);
     }
@@ -619,14 +620,14 @@ export default function MesasScreen() {
   function quitarRenglonMesa(item, nombrePromo) {
     if (!ordenActiva || !item) return;
     if (sucursalVista !== sucursalId) {
-      Alert.alert('Solo lectura', 'Estás viendo las mesas de otra sucursal.');
+      aviso('Solo lectura', 'Estás viendo las mesas de otra sucursal.');
       return;
     }
     const titulo = nombrePromo ? '¿Quitar la promo?' : '¿Quitar el producto?';
     const mensaje = nombrePromo
       ? `Se quita "${nombrePromo}" completa, con todos sus productos.`
       : `Se quita ${item.product?.name || 'el producto'} de la cuenta.`;
-    Alert.alert(titulo, mensaje, [
+    aviso(titulo, mensaje, [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Quitar', style: 'destructive', onPress: async () => {
@@ -636,7 +637,7 @@ export default function MesasScreen() {
             if (actualizado) setOrdenActiva(actualizado);
             load();
           } catch (e) {
-            Alert.alert('Error', friendlyError(e));
+            aviso('Error', friendlyError(e));
           } finally {
             setQuitando(false);
           }
@@ -656,7 +657,7 @@ export default function MesasScreen() {
     let pagosPayload = null;
     if (dividirCuenta) {
       const v = validarPagos(pagosMesa, totalCuenta);
-      if (!v.ok) { Alert.alert('La división no cuadra', v.error); return; }
+      if (!v.ok) { aviso('La división no cuadra', v.error); return; }
       pagosPayload = pagosMesa.map(pago => ({
         method: pago.method,
         amount: pago.amount,
@@ -724,7 +725,7 @@ export default function MesasScreen() {
       setMesaSel(null);
       load();
     } catch (e) {
-      Alert.alert('Error', friendlyError(e));
+      aviso('Error', friendlyError(e));
     } finally {
       setCobrando(false);
     }
@@ -738,7 +739,7 @@ export default function MesasScreen() {
 
   function abrirParte() {
     if (sucursalVista !== sucursalId) {
-      Alert.alert('Solo lectura', 'Estás viendo las mesas de otra sucursal.');
+      aviso('Solo lectura', 'Estás viendo las mesas de otra sucursal.');
       return;
     }
     setSeleccionParte({});
@@ -762,7 +763,7 @@ export default function MesasScreen() {
     let pagosPayload = null;
     if (dividirCuenta) {
       const v = validarPagos(pagosMesa, parte.total);
-      if (!v.ok) { Alert.alert('La división no cuadra', v.error); return; }
+      if (!v.ok) { aviso('La división no cuadra', v.error); return; }
       pagosPayload = pagosMesa.map(pago => ({
         method: pago.method, amount: pago.amount, tip_amount: pago.tip_amount || 0,
       }));
@@ -815,7 +816,7 @@ export default function MesasScreen() {
     } catch (e) {
       // El servidor explica lo que pasó (la mesa cambió, ya se cobró, no cuadra).
       // El uuid se conserva: si la parte SÍ se cobró, reintentar la devuelve.
-      Alert.alert('No se cobró', friendlyError(e));
+      aviso('No se cobró', friendlyError(e));
     } finally {
       setCobrando(false);
     }
@@ -829,14 +830,14 @@ export default function MesasScreen() {
         tableName: `${mesaSel?.name || 'Mesa'} · parte ${numero}`,
       });
     } catch (e) {
-      Alert.alert('No se imprimió', friendlyError(e));
+      aviso('No se imprimió', friendlyError(e));
     }
   }
 
   // ── Crear mesa ───────────────────────────────────────────────────────────────
 
   async function crearMesa() {
-    if (!nuevaNombre.trim()) return Alert.alert('Error', 'El nombre es requerido.');
+    if (!nuevaNombre.trim()) return aviso('Error', 'El nombre es requerido.');
     setCreando(true);
     try {
       await api.createTable({
@@ -850,7 +851,7 @@ export default function MesasScreen() {
       setNuevaNombre(''); setNuevaZona(''); setNuevaCapacidad('4');
       load();
     } catch (e) {
-      Alert.alert('Error', friendlyError(e));
+      aviso('Error', friendlyError(e));
     } finally {
       setCreando(false);
     }

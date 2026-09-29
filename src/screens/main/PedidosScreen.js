@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, ScrollView, TouchableOpacity, StyleSheet,
-  RefreshControl, ActivityIndicator, Alert, Modal, TextInput, KeyboardAvoidingView, Platform,
+  RefreshControl, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { aviso } from '../../components/ui/Aviso';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../../api/client';
 import {
@@ -215,7 +216,7 @@ export default function PedidosScreen() {
       sin_impresora: 'No hay una impresora configurada. Ve a Ajustes → Impresora.',
       error_impresora: 'No se pudo conectar con la impresora. Revisa que esté encendida y en alcance.',
     };
-    Alert.alert('No se imprimió', MOTIVOS[r.motivo] || 'No se pudo imprimir el ticket.');
+    aviso('No se imprimió', MOTIVOS[r.motivo] || 'No se pudo imprimir el ticket.');
   }
 
   const load = useCallback(async (isRefresh = false) => {
@@ -294,7 +295,7 @@ export default function PedidosScreen() {
       await api.updateOrderStatus(id, status);
       setPedidos(prev => prev.map(p => p.id === id ? { ...p, status } : p));
     } catch (e) {
-      Alert.alert('Error', friendlyError(e));
+      aviso('Error', friendlyError(e));
     }
   }
 

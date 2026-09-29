@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  TextInput, Alert, ActivityIndicator, Modal, KeyboardAvoidingView, Platform,
+  TextInput, ActivityIndicator, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { aviso } from '../../components/ui/Aviso';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -116,7 +117,7 @@ export default function TurnoScreen() {
   async function abrirTurno() {
     // Un turno sin sucursal descuadra el cierre de caja. Ver CLAUDE.md §24.
     if (!puedeRegistrarEnSucursal()) {
-      Alert.alert(
+      aviso(
         'Falta elegir la sucursal',
         'Este equipo todavía no tiene una sucursal asignada. Ve a Ajustes → Sucursal y elige en cuál registra este equipo.'
       );
@@ -132,7 +133,7 @@ export default function TurnoScreen() {
       setModal(false);
       setFondo('');
     } catch (e) {
-      Alert.alert('Error', friendlyError(e) || 'No se pudo abrir el turno');
+      aviso('Error', friendlyError(e) || 'No se pudo abrir el turno');
     } finally {
       setSaving(false);
     }
@@ -160,7 +161,7 @@ export default function TurnoScreen() {
 
   function abrirModalMovimiento() {
     if (!puedeRegistrarEnSucursal()) {
-      Alert.alert(
+      aviso(
         'Falta elegir la sucursal',
         'Este equipo todavía no tiene una sucursal asignada. Ve a Ajustes → Sucursal y elige en cuál registra este equipo.'
       );
@@ -235,7 +236,7 @@ export default function TurnoScreen() {
     const efectivo = parseFloat(efectivoCierre) || 0;
     const diferencia = efectivo - efectivoEsperado();
 
-    Alert.alert(
+    aviso(
       'Confirmar cierre de turno',
       `Efectivo contado: ${formatMoney(efectivo, currency)}\nEfectivo esperado: ${formatMoney(efectivoEsperado(), currency)}\nDiferencia: ${diferencia >= 0 ? '+' : ''}${formatMoney(Math.abs(diferencia), currency)}`,
       [
@@ -262,7 +263,7 @@ export default function TurnoScreen() {
               // mirando el dinero que hizo. Como mucho una vez al día.
               if (modoLocal && await tocaAvisar()) setAviso(resumenDelDia);
             } catch (e) {
-              Alert.alert('Error', friendlyError(e) || 'No se pudo cerrar el turno');
+              aviso('Error', friendlyError(e) || 'No se pudo cerrar el turno');
             } finally {
               setSaving(false);
             }

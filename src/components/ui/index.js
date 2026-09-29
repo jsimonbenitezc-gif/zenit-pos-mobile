@@ -314,3 +314,4 @@ const s = StyleSheet.create({
 
 export { PantallaDeTemas, TarjetaQuien } from './Temas';
 export { usePedirAdmin } from './PedirAdmin';
+export { aviso, toast, AvisosZenit } from './Aviso';

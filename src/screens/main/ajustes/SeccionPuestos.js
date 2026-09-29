@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, TextInput, Switch, Alert, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, Switch, Platform } from 'react-native';
+import { aviso, toast } from '../../../components/ui/Aviso';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../../api/client';
 import { colors, spacing, font } from '../../../theme';
@@ -54,7 +55,7 @@ export function SeccionPuestos({
       return true;
     } catch (e) {
       setPermisosRoles(antes);
-      Alert.alert('No se guardó', friendlyError(e));
+      aviso('No se guardó', friendlyError(e));
       return false;
     }
   }
@@ -68,9 +69,9 @@ export function SeccionPuestos({
     setSavingPuestos(true);
     try {
       await api.updateSettings({ permisos_roles: _buildFullPermisos(permisosRoles) });
-      Alert.alert('Guardado', 'Permisos de puestos actualizados.');
+      toast('Permisos de puestos guardados');
     } catch (e) {
-      Alert.alert('Error', friendlyError(e));
+      aviso('Error', friendlyError(e));
     } finally {
       setSavingPuestos(false);
     }
@@ -78,44 +79,46 @@ export function SeccionPuestos({
 
   async function guardarPinPuesto(rol, pinInput) {
     const pin = pinInput.trim();
-    if (!pin || pin.length < 4) { Alert.alert('PIN muy corto', 'El PIN debe tener al menos 4 dígitos.'); return false; }
-    if (!/^\d+$/.test(pin)) { Alert.alert('Solo números', 'El PIN solo puede contener números.'); return false; }
+    if (!pin || pin.length < 4) { aviso('PIN muy corto', 'El PIN debe tener al menos 4 dígitos.'); return false; }
+    if (!/^\d+$/.test(pin)) { aviso('Solo números', 'El PIN solo puede contener números.'); return false; }
     try {
       const { hash } = await api.hashProfilePin(pin);
-      return await guardarEnNube({ ...permisosRoles, [rol]: { ...permisosRoles[rol], pin: hash, pin_bcrypt: hash, pin_set: true } });
+      const ok = await guardarEnNube({ ...permisosRoles, [rol]: { ...permisosRoles[rol], pin: hash, pin_bcrypt: hash, pin_set: true } });
+      if (ok) toast('PIN guardado');
+      return ok;
     } catch {
-      Alert.alert('Error', 'No se pudo guardar el PIN. Verifica tu conexión.');
+      aviso('Error', 'No se pudo guardar el PIN. Verifica tu conexión.');
       return false;
     }
   }
 
   function quitarPinPuesto(rol) {
-    Alert.alert('Quitar PIN', '¿Seguro que quieres quitar el PIN de este puesto?', [
+    aviso('Quitar PIN', '¿Seguro que quieres quitar el PIN de este puesto?', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Quitar', style: 'destructive', onPress: () => {
         const p = { ...permisosRoles[rol] };
         delete p.pin;
         delete p.pin_bcrypt;
         p.pin_set = false;
-        guardarEnNube({ ...permisosRoles, [rol]: p });
+        guardarEnNube({ ...permisosRoles, [rol]: p }).then((ok) => { if (ok) toast('PIN quitado'); });
       }},
     ]);
   }
 
   function eliminarPuesto(rol) {
-    Alert.alert('Eliminar puesto', '¿Seguro que quieres eliminar este puesto?', [
+    aviso('Eliminar puesto', '¿Seguro que quieres eliminar este puesto?', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Eliminar', style: 'destructive', onPress: () => {
         const next = { ...permisosRoles };
         delete next[rol];
-        guardarEnNube(next);
+        guardarEnNube(next).then((ok) => { if (ok) toast('Puesto eliminado'); });
       }},
     ]);
   }
 
   async function crearNuevoPuesto() {
     const nombre = nuevoPuestoNombre.trim();
-    if (!nombre) { Alert.alert('Falta el nombre', 'Escribe un nombre para el puesto.'); return; }
+    if (!nombre) { aviso('Falta el nombre', 'Escribe un nombre para el puesto.'); return; }
     const key = 'custom_' + nombre.toLowerCase().replace(/\s+/g, '_') + '_' + Date.now();
     const nuevoPuesto = {
       enabled: false, _custom: true, _label: nombre,
@@ -126,6 +129,7 @@ export function SeccionPuestos({
     if (!(await guardarEnNube({ ...permisosRoles, [key]: nuevoPuesto }))) return;
     setNuevoPuestoNombre('');
     setMostrarFormNuevo(false);
+    toast('Puesto creado');
   }
 
   // ── JSX ─────────────────────────────────────────────────────────────

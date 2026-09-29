@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { aviso } from './ui/Aviso';
 import { IconoEnCuadro } from './ui';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -27,9 +28,9 @@ export default function VerificacionBanner() {
         await refreshUser();
         return;
       }
-      Alert.alert('Correo enviado', r?.message || 'Te enviamos el correo de confirmación. Revisa tu bandeja (y spam).');
+      aviso('Correo enviado', r?.message || 'Te enviamos el correo de confirmación. Revisa tu bandeja (y spam).');
     } catch (err) {
-      Alert.alert('No se pudo enviar', err?.message || 'Intenta de nuevo en unos minutos.');
+      aviso('No se pudo enviar', err?.message || 'Intenta de nuevo en unos minutos.');
     } finally {
       setEnviando(false);
     }

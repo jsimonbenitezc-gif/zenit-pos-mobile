@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, TextInput, Modal, ScrollView,
-  Alert, ActivityIndicator, Platform, KeyboardAvoidingView,
+  ActivityIndicator, Platform, KeyboardAvoidingView,
 } from 'react-native';
+import { aviso } from '../../../components/ui/Aviso';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../../api/client';
@@ -58,7 +59,7 @@ export function SeccionImpuestos({ settings, currency = '$', onSaved, styles }) 
       await api.updateSettings({ tax_enabled: !!valor });
       await onSaved?.();
     } catch (e) {
-      Alert.alert('No se pudo guardar', friendlyError(e));
+      aviso('No se pudo guardar', friendlyError(e));
     } finally {
       setGuardando(false);
     }
@@ -67,7 +68,7 @@ export function SeccionImpuestos({ settings, currency = '$', onSaved, styles }) 
   async function guardar(apagar = false) {
     const tasaFinal = apagar ? 0 : tasaNum;
     if (!apagar && (tasaFinal <= 0 || tasaFinal > 100)) {
-      Alert.alert('Tasa inválida', 'La tasa debe ser mayor a 0 y hasta 100.');
+      aviso('Tasa inválida', 'La tasa debe ser mayor a 0 y hasta 100.');
       return;
     }
 
@@ -75,7 +76,7 @@ export function SeccionImpuestos({ settings, currency = '$', onSaved, styles }) 
     // desde la siguiente venta, y eso lo nota el cliente en la caja.
     if (!apagar && !incluido) {
       const confirmado = await new Promise(resolve => {
-        Alert.alert(
+        aviso(
           '¿Aplicar el impuesto?',
           `A partir de ahora se cobrará ${tasaFinal}% de ${nombre || 'IVA'} SOBRE el precio de cada producto. ` +
           `Un producto de ${formatMoney(100, currency)} pasará a cobrarse en ${formatMoney(ejemplo.total, currency)}.`,
@@ -103,7 +104,7 @@ export function SeccionImpuestos({ settings, currency = '$', onSaved, styles }) 
       await onSaved?.();
       setModal(false);
     } catch (e) {
-      Alert.alert('No se pudo guardar', friendlyError(e));
+      aviso('No se pudo guardar', friendlyError(e));
     } finally {
       setGuardando(false);
     }

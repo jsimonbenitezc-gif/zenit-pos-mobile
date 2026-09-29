@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, Alert, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, Linking } from 'react-native';
+import { aviso } from '../../../components/ui/Aviso';
 import { api } from '../../../api/client';
 import { colors, spacing, font } from '../../../theme';
 import { PLAN_LABEL, PLAN_COLOR, SectionTitle, SectionCard } from './shared';
@@ -39,7 +40,7 @@ export function SeccionPlan({ plan, user, refreshUser, styles }) {
           pollingRef.current = null;
           setPollingPlan(false);
           await refreshUser();
-          Alert.alert('¡Pago confirmado!', 'Tu plan Premium ya está activo.');
+          aviso('¡Pago confirmado!', 'Tu plan Premium ya está activo.');
           return;
         }
       } catch {}
@@ -60,7 +61,7 @@ export function SeccionPlan({ plan, user, refreshUser, styles }) {
         iniciarPollingPlan();
       }
     } catch (e) {
-      Alert.alert('Error', friendlyError(e) || 'No se pudo iniciar el proceso de pago.');
+      aviso('Error', friendlyError(e) || 'No se pudo iniciar el proceso de pago.');
     } finally {
       setLoadingCheckout(false);
     }
@@ -71,9 +72,9 @@ export function SeccionPlan({ plan, user, refreshUser, styles }) {
     try {
       await api.startTrial();
       await refreshUser();
-      Alert.alert('¡Prueba activada!', 'Tienes 30 días de Premium gratis. ¡Disfrútalo!');
+      aviso('¡Prueba activada!', 'Tienes 30 días de Premium gratis. ¡Disfrútalo!');
     } catch (e) {
-      Alert.alert('Error', friendlyError(e) || 'No se pudo activar la prueba gratuita.');
+      aviso('Error', friendlyError(e) || 'No se pudo activar la prueba gratuita.');
     } finally {
       setLoadingTrial(false);
     }
@@ -85,7 +86,7 @@ export function SeccionPlan({ plan, user, refreshUser, styles }) {
       const data = await api.getBillingPortal();
       if (data?.url) await Linking.openURL(data.url);
     } catch (e) {
-      Alert.alert('Error', friendlyError(e) || 'No se pudo abrir el portal de facturación.');
+      aviso('Error', friendlyError(e) || 'No se pudo abrir el portal de facturación.');
     } finally {
       setLoadingPortal(false);
     }

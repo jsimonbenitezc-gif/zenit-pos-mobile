@@ -2,9 +2,10 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import {
   View, Text, FlatList, StyleSheet, ActivityIndicator,
-  RefreshControl, Alert, TextInput, TouchableOpacity,
+  RefreshControl, TextInput, TouchableOpacity,
   Modal, ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { aviso, toast } from '../../components/ui/Aviso';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import IconoProducto from '../../components/IconoProducto';
 import ListaComprasSection from './ListaComprasSection';
@@ -138,7 +139,7 @@ function RecetaRow({ product, items, ingredients, preparations, onDelete, onEdit
   };
 
   const confirmarBorrar = () => {
-    Alert.alert(
+    aviso(
       'Borrar receta',
       `¿Eliminar la receta de "${product.name}"? Puedes crearla de nuevo después.`,
       [
@@ -404,8 +405,8 @@ export default function InventarioScreen() {
 
   // ── Guardar insumo ────────────────────────────────────────────────────────
   const guardarInsumo = async () => {
-    if (!ingNombre.trim()) { Alert.alert('Error', 'Escribe el nombre del insumo'); return; }
-    if (!ingUnidad.trim()) { Alert.alert('Error', 'Escribe la unidad'); return; }
+    if (!ingNombre.trim()) { aviso('Error', 'Escribe el nombre del insumo'); return; }
+    if (!ingUnidad.trim()) { aviso('Error', 'Escribe la unidad'); return; }
     setSaving(true);
     try {
       const data = {
@@ -421,9 +422,9 @@ export default function InventarioScreen() {
       }
       await load(true);
       setModalIng(false);
-      Alert.alert(ingEditando ? '✓ Insumo actualizado' : '✓ Insumo creado', ingNombre.trim());
+      toast(`${ingEditando ? 'Insumo actualizado' : 'Insumo creado'}: ${ingNombre.trim()}`);
     } catch (e) {
-      Alert.alert('Error', friendlyError(e) || 'No se pudo guardar el insumo.');
+      aviso('Error', friendlyError(e) || 'No se pudo guardar el insumo.');
     } finally {
       setSaving(false);
     }
@@ -478,9 +479,9 @@ export default function InventarioScreen() {
 
   // ── Guardar movimiento ────────────────────────────────────────────────────
   const guardarMovimiento = () => {
-    if (!ingSelec) { Alert.alert('Error', 'Selecciona un insumo'); return; }
+    if (!ingSelec) { aviso('Error', 'Selecciona un insumo'); return; }
     const qty = parseFloat(cantidad);
-    if (!qty || qty <= 0) { Alert.alert('Error', 'Escribe una cantidad válida'); return; }
+    if (!qty || qty <= 0) { aviso('Error', 'Escribe una cantidad válida'); return; }
 
     // Los ajustes manuales requieren PIN
     if (tipoMov === 'ajuste') {
@@ -511,12 +512,12 @@ export default function InventarioScreen() {
       }
       await load(true);
       setModalMov(false);
-      Alert.alert(
+      aviso(
         tipoMov === 'entrada' ? '✓ Entrada registrada' : tipoMov === 'ajuste' ? '✓ Ajuste registrado' : '✓ Salida registrada',
         `${tipoMov === 'entrada' ? '+' : '−'}${qty} ${ingSelec.unit ?? ''} de ${ingSelec.name}`
       );
     } catch {
-      Alert.alert('Error', 'No se pudo registrar el movimiento. Verifica tu conexión.');
+      aviso('Error', 'No se pudo registrar el movimiento. Verifica tu conexión.');
     } finally {
       setSaving(false);
     }
@@ -558,7 +559,7 @@ export default function InventarioScreen() {
 
   // ── Guardar preparación ───────────────────────────────────────────────────
   const guardarPreparacion = async () => {
-    if (!prepNombre.trim()) { Alert.alert('Error', 'Escribe el nombre de la preparación'); return; }
+    if (!prepNombre.trim()) { aviso('Error', 'Escribe el nombre de la preparación'); return; }
     setSaving(true);
     try {
       let prepId;
@@ -587,9 +588,9 @@ export default function InventarioScreen() {
       }
       await load(true);
       setModalPrep(false);
-      Alert.alert(prepEditandoId ? '✓ Preparación actualizada' : '✓ Preparación creada', prepNombre.trim());
+      toast(`${prepEditandoId ? 'Preparación actualizada' : 'Preparación creada'}: ${prepNombre.trim()}`);
     } catch(e) {
-      Alert.alert('Error', friendlyError(e) || 'No se pudo guardar la preparación.');
+      aviso('Error', friendlyError(e) || 'No se pudo guardar la preparación.');
     } finally {
       setSaving(false);
     }
@@ -601,15 +602,15 @@ export default function InventarioScreen() {
       await api.deleteProductRecipe(productId);
       await load(true);
     } catch(e) {
-      Alert.alert('Error', friendlyError(e) || 'No se pudo borrar la receta.');
+      aviso('Error', friendlyError(e) || 'No se pudo borrar la receta.');
     }
   };
 
   // ── Guardar receta ────────────────────────────────────────────────────────
   const guardarReceta = async () => {
-    if (!recetaProd) { Alert.alert('Error', 'Selecciona un producto'); return; }
+    if (!recetaProd) { aviso('Error', 'Selecciona un producto'); return; }
     const itemsValidos = recetaItems.filter(it => it.ing && it.qty > 0);
-    if (itemsValidos.length === 0) { Alert.alert('Error', 'Agrega al menos un ingrediente o preparación'); return; }
+    if (itemsValidos.length === 0) { aviso('Error', 'Agrega al menos un ingrediente o preparación'); return; }
     setSaving(true);
     try {
       await api.saveProductRecipe(recetaProd.id, itemsValidos.map(it => ({
@@ -620,9 +621,9 @@ export default function InventarioScreen() {
       })));
       await load(true);
       setModalReceta(false);
-      Alert.alert('✓ Receta guardada', recetaProd.name);
+      toast(`Receta guardada: ${recetaProd.name}`);
     } catch(e) {
-      Alert.alert('Error', friendlyError(e) || 'No se pudo guardar la receta.');
+      aviso('Error', friendlyError(e) || 'No se pudo guardar la receta.');
     } finally {
       setSaving(false);
     }

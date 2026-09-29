@@ -14,8 +14,9 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, Modal, ScrollView, TouchableOpacity, TextInput,
-  StyleSheet, Alert, ActivityIndicator, SafeAreaView,
+  StyleSheet, ActivityIndicator, SafeAreaView,
 } from 'react-native';
+import { aviso } from './ui/Aviso';
 import { Icono } from './ui';
 import { api } from '../api/client';
 import { colors, spacing, radius, font, zc, radios, sombra } from '../theme';
@@ -103,7 +104,7 @@ export function ModalBibliotecaModificadores({ visible, onClose }) {
       const catalogo = await api.getModifiers();
       setGrupos(catalogo.groups || []);
     } catch (e) {
-      Alert.alert('Error', friendlyError(e));
+      aviso('Error', friendlyError(e));
     } finally {
       setCargando(false);
     }
@@ -115,18 +116,18 @@ export function ModalBibliotecaModificadores({ visible, onClose }) {
     try {
       await api.createModifierGroup({ name: 'Nuevo grupo', min_select: 0, max_select: 1 });
       cargar();
-    } catch (e) { Alert.alert('Error', friendlyError(e)); }
+    } catch (e) { aviso('Error', friendlyError(e)); }
   }
 
   async function guardarGrupo(grupo, cambios) {
     try {
       await api.updateModifierGroup(grupo.id, { ...cambios });
       cargar();
-    } catch (e) { Alert.alert('Error', friendlyError(e)); }
+    } catch (e) { aviso('Error', friendlyError(e)); }
   }
 
   function borrarGrupo(grupo) {
-    Alert.alert(
+    aviso(
       '¿Eliminar el grupo?',
       `Se quitará "${grupo.name}" de todos los productos que lo usan. Los tickets ya cobrados no cambian.`,
       [
@@ -136,7 +137,7 @@ export function ModalBibliotecaModificadores({ visible, onClose }) {
           style: 'destructive',
           onPress: async () => {
             try { await api.deleteModifierGroup(grupo.id); cargar(); }
-            catch (e) { Alert.alert('Error', friendlyError(e)); }
+            catch (e) { aviso('Error', friendlyError(e)); }
           },
         },
       ]
@@ -145,7 +146,7 @@ export function ModalBibliotecaModificadores({ visible, onClose }) {
 
   async function crearOpcion(grupo) {
     const borrador = nuevas[grupo.id] || {};
-    if (!borrador.nombre?.trim()) { Alert.alert('Falta el nombre', 'La opción necesita un nombre.'); return; }
+    if (!borrador.nombre?.trim()) { aviso('Falta el nombre', 'La opción necesita un nombre.'); return; }
     try {
       await api.createModifierOption(grupo.id, {
         name: borrador.nombre.trim(),
@@ -153,11 +154,11 @@ export function ModalBibliotecaModificadores({ visible, onClose }) {
       });
       setNuevas((prev) => ({ ...prev, [grupo.id]: { nombre: '', delta: '' } }));
       cargar();
-    } catch (e) { Alert.alert('Error', friendlyError(e)); }
+    } catch (e) { aviso('Error', friendlyError(e)); }
   }
 
   function borrarOpcion(opcion) {
-    Alert.alert(
+    aviso(
       '¿Eliminar la opción?',
       `"${opcion.name}" dejará de poder elegirse. Los tickets ya cobrados no cambian.`,
       [
@@ -167,7 +168,7 @@ export function ModalBibliotecaModificadores({ visible, onClose }) {
           style: 'destructive',
           onPress: async () => {
             try { await api.deleteModifierOption(opcion.id); cargar(); }
-            catch (e) { Alert.alert('Error', friendlyError(e)); }
+            catch (e) { aviso('Error', friendlyError(e)); }
           },
         },
       ]

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, TextInput, Modal, ScrollView,
-  Alert, ActivityIndicator, Platform, KeyboardAvoidingView,
+  ActivityIndicator, Platform, KeyboardAvoidingView,
 } from 'react-native';
+import { aviso } from '../../../components/ui/Aviso';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
@@ -158,7 +159,7 @@ export function SeccionPantallasKDS({ sucursalId, rolActivo, nombreActivo, style
   }
 
   function quitarDeLaLista(dispositivo) {
-    Alert.alert(
+    aviso(
       'Quitar de la lista',
       'El registro desaparece de aquí. La pantalla seguirá sin acceso.',
       [
@@ -171,7 +172,7 @@ export function SeccionPantallasKDS({ sucursalId, rolActivo, nombreActivo, style
               await api.eliminarDispositivoKds(dispositivo.id);
               await cargar();
             } catch (e) {
-              Alert.alert('No se pudo quitar', friendlyError(e));
+              aviso('No se pudo quitar', friendlyError(e));
             }
           },
         },

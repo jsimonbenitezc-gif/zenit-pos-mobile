@@ -238,6 +238,30 @@ for (const f of archivos) {
   }
 }
 
+// ─── 3.d Nada de avisos nativos ──────────────────────────────────────────────
+// PLAN_SEGURIDAD_V1 sesión 2: los 207 `Alert.alert` (los avisos grises
+// "genéricos de Android") se cambiaron por `aviso()` de src/components/ui/Aviso.js,
+// con la misma firma. Ese archivo es el ÚNICO que puede tocar `Alert` (lo usa de
+// respaldo si el anfitrión no está montado). Se mira el AST: importar `Alert` de
+// react-native ya es la falta, se llame como se llame después.
+const RUTA_AVISO = path.join(RAIZ, 'src/components/ui/Aviso.js');
+for (const f of archivos) {
+  if (f === RUTA_AVISO) continue;
+  const arbol = ast.get(f);
+  if (!arbol) continue;
+  for (const nodo of arbol.program.body) {
+    if (nodo.type !== 'ImportDeclaration' || nodo.source.value !== 'react-native') continue;
+    for (const s of nodo.specifiers) {
+      if (s.type === 'ImportSpecifier' && s.imported.name === 'Alert') {
+        problemas.push(
+          `[alert] ${rel(f)}:${nodo.loc?.start.line}: importa Alert de react-native — usa ` +
+          `aviso() de src/components/ui/Aviso.js (misma firma que Alert.alert).`
+        );
+      }
+    }
+  }
+}
+
 // ─── 4. Métodos de `api` ─────────────────────────────────────────────────────
 const RUTA_CLIENTE = path.join(RAIZ, 'src/api/client.js');
 const metodosApi = new Set();

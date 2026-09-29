@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Alert, Image,
+  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image,
 } from 'react-native';
+import { aviso } from '../../components/ui/Aviso';
 import { useAuth } from '../../context/AuthContext';
 import { StatusBar } from 'expo-status-bar';
 import { colors, spacing, radius, font, zc, radios, sombra } from '../../theme';
@@ -21,20 +22,20 @@ export default function RegisterScreen({ navigation }) {
     const nombre = name.trim();
     const correo = email.trim();
     if (!nombre || !correo || !password) {
-      Alert.alert('Campos requeridos', 'Completa nombre, correo y contraseña.');
+      aviso('Campos requeridos', 'Completa nombre, correo y contraseña.');
       return;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(correo)) {
-      Alert.alert('Correo inválido', 'Ingresa un correo electrónico válido.');
+      aviso('Correo inválido', 'Ingresa un correo electrónico válido.');
       return;
     }
     if (password.length < 8) {
-      Alert.alert('Contraseña muy corta', 'La contraseña debe tener al menos 8 caracteres.');
+      aviso('Contraseña muy corta', 'La contraseña debe tener al menos 8 caracteres.');
       return;
     }
     if (password !== confirm) {
-      Alert.alert('Las contraseñas no coinciden', 'Verifica que ambas contraseñas sean iguales.');
+      aviso('Las contraseñas no coinciden', 'Verifica que ambas contraseñas sean iguales.');
       return;
     }
     setLoading(true);
@@ -42,7 +43,7 @@ export default function RegisterScreen({ navigation }) {
       await registerOwner(nombre, correo, password);
       // Al registrarse queda con sesión iniciada; la navegación cambia sola al detectar user.
     } catch (e) {
-      Alert.alert('No se pudo crear la cuenta', friendlyError(e) || 'Intenta de nuevo.');
+      aviso('No se pudo crear la cuenta', friendlyError(e) || 'Intenta de nuevo.');
     } finally {
       setLoading(false);
     }

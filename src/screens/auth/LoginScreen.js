@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Alert, Image,
+  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image,
 } from 'react-native';
+import { aviso } from '../../components/ui/Aviso';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api/client';
 import { StatusBar } from 'expo-status-bar';
@@ -20,14 +21,14 @@ export default function LoginScreen({ navigation }) {
 
   async function handleLogin() {
     if (!username.trim() || !password) {
-      Alert.alert('Campos requeridos', 'Ingresa tu correo y contraseña.');
+      aviso('Campos requeridos', 'Ingresa tu correo y contraseña.');
       return;
     }
     setLoading(true);
     try {
       await loginOwner(username.trim(), password);
     } catch (e) {
-      Alert.alert('Error al iniciar sesión', friendlyError(e) || 'Verifica tus credenciales.');
+      aviso('Error al iniciar sesión', friendlyError(e) || 'Verifica tus credenciales.');
     } finally {
       setLoading(false);
     }
@@ -36,24 +37,24 @@ export default function LoginScreen({ navigation }) {
   async function handleLocal() {
     setEntrandoLocal(true);
     try { await entrarModoLocal(); }
-    catch (e) { Alert.alert('Error', 'No se pudo iniciar el modo sin cuenta.'); setEntrandoLocal(false); }
+    catch (e) { aviso('Error', 'No se pudo iniciar el modo sin cuenta.'); setEntrandoLocal(false); }
   }
 
   async function handleForgot() {
     const email = username.trim();
     if (!email) {
-      Alert.alert('Escribe tu correo', 'Ingresa tu correo electrónico arriba y vuelve a pulsar "¿Olvidaste tu contraseña?".');
+      aviso('Escribe tu correo', 'Ingresa tu correo electrónico arriba y vuelve a pulsar "¿Olvidaste tu contraseña?".');
       return;
     }
     setEnviandoReset(true);
     try {
       const r = await api.forgotPassword(email);
-      Alert.alert(
+      aviso(
         'Revisa tu correo',
         (r && r.message) || 'Si existe una cuenta con ese correo, te enviamos un enlace para restablecer tu contraseña.'
       );
     } catch (e) {
-      Alert.alert('No se pudo enviar', friendlyError(e) || 'Intenta de nuevo en unos minutos.');
+      aviso('No se pudo enviar', friendlyError(e) || 'Intenta de nuevo en unos minutos.');
     } finally {
       setEnviandoReset(false);
     }

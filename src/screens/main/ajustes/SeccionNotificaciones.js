@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput } from 'react-native';
+import { aviso, toast } from '../../../components/ui/Aviso';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../../api/client';
 import { colors, spacing, font } from '../../../theme';
@@ -67,7 +68,7 @@ export function SeccionNotificaciones({ initialSettings, styles }) {
 
   async function toggleNotif(key, val, setter) {
     setter(val);
-    try { await api.updateSettings({ [key]: val }); } catch { setter(!val); Alert.alert('Error', 'No se pudo guardar'); }
+    try { await api.updateSettings({ [key]: val }); } catch { setter(!val); aviso('Error', 'No se pudo guardar'); }
   }
 
   async function guardarUmbralesNotif() {
@@ -79,9 +80,9 @@ export function SeccionNotificaciones({ initialSettings, styles }) {
         notif_venta_grande_umbral:    parseFloat(notifVentaUmbral) || 500,
         notif_resumen_diario_hora:    parseInt(notifResumenHora) || 22,
       });
-      Alert.alert('Guardado', 'Umbrales de notificación actualizados.');
+      toast('Umbrales de notificación guardados');
     } catch (e) {
-      Alert.alert('Error', friendlyError(e));
+      aviso('Error', friendlyError(e));
     } finally {
       setSavingNotif(false);
     }

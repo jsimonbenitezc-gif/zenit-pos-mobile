@@ -2,7 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import * as SecureStore from 'expo-secure-store';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
-import { Platform, Alert } from 'react-native';
+import { Platform } from 'react-native';
+import { aviso } from '../components/ui/Aviso';
 import { api } from '../api/client';
 import { zonaDelDispositivo } from '../utils/tz';
 import { normalizarSugerencias } from '../utils/propinas';
@@ -103,7 +104,7 @@ export function AuthProvider({ children }) {
       setNombreActivo('');
       setProfileReady(false);
       setSessionEmail('');
-      Alert.alert('Sesión expirada', 'Tu sesión expiró. Inicia sesión de nuevo.');
+      aviso('Sesión expirada', 'Tu sesión expiró. Inicia sesión de nuevo.');
     };
     // Persistir nuevos tokens cuando el cliente API rota el access token
     api.onTokenRefreshed = async (token, refreshToken) => {

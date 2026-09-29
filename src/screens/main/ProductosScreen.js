@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  TextInput, RefreshControl, ActivityIndicator, Alert, Modal,
+  TextInput, RefreshControl, ActivityIndicator, Modal,
   ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { aviso } from '../../components/ui/Aviso';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'react-native';
@@ -110,7 +111,7 @@ export default function ProductosScreen() {
       setCategorias(cats);
     } catch (e) {
       console.warn('[ProductosScreen] load error:', e);
-      Alert.alert('Error', 'No se pudo cargar la información.');
+      aviso('Error', 'No se pudo cargar la información.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -145,7 +146,7 @@ export default function ProductosScreen() {
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert('Permiso necesario', 'Autoriza el acceso a tus fotos para elegir una imagen.');
+        aviso('Permiso necesario', 'Autoriza el acceso a tus fotos para elegir una imagen.');
         return;
       }
       const res = await ImagePicker.launchImageLibraryAsync({
@@ -160,18 +161,18 @@ export default function ProductosScreen() {
       const mime = asset.mimeType || 'image/jpeg';
       setImagenProd(`data:${mime};base64,${asset.base64}`);
     } catch (e) {
-      Alert.alert('Error', 'No se pudo cargar la imagen.');
+      aviso('Error', 'No se pudo cargar la imagen.');
     }
   }
 
   async function guardarProd() {
     if (!nombre.trim() || !precio) {
-      Alert.alert('Campos requeridos', 'Nombre y precio son obligatorios.');
+      aviso('Campos requeridos', 'Nombre y precio son obligatorios.');
       return;
     }
     const precioNum = parseFloat(precio);
     if (isNaN(precioNum) || precioNum <= 0) {
-      Alert.alert('Precio inválido', 'Ingresa un precio válido mayor a 0.');
+      aviso('Precio inválido', 'Ingresa un precio válido mayor a 0.');
       return;
     }
     setGuardando(true);
@@ -202,20 +203,20 @@ export default function ProductosScreen() {
       }
       setModalProd(false);
     } catch (e) {
-      Alert.alert('Error', friendlyError(e));
+      aviso('Error', friendlyError(e));
     } finally {
       setGuardando(false);
     }
   }
 
   async function eliminarProd(p) {
-    Alert.alert('Eliminar producto', `¿Eliminar "${p.name}"?`, [
+    aviso('Eliminar producto', `¿Eliminar "${p.name}"?`, [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Eliminar', style: 'destructive', onPress: async () => {
         try {
           await borrarProducto(p.id);
           setProductos(prev => prev.filter(x => x.id !== p.id));
-        } catch (e) { Alert.alert('Error', friendlyError(e)); }
+        } catch (e) { aviso('Error', friendlyError(e)); }
       }},
     ]);
   }
@@ -237,7 +238,7 @@ export default function ProductosScreen() {
 
   async function guardarCat() {
     if (!catNombre.trim()) {
-      Alert.alert('Campo requerido', 'El nombre es obligatorio.');
+      aviso('Campo requerido', 'El nombre es obligatorio.');
       return;
     }
     setGuardCat(true);
@@ -252,20 +253,20 @@ export default function ProductosScreen() {
       }
       setModalCat(false);
     } catch (e) {
-      Alert.alert('Error', friendlyError(e));
+      aviso('Error', friendlyError(e));
     } finally {
       setGuardCat(false);
     }
   }
 
   async function eliminarCat(c) {
-    Alert.alert('Eliminar categoría', `¿Eliminar "${c.name}"?`, [
+    aviso('Eliminar categoría', `¿Eliminar "${c.name}"?`, [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Eliminar', style: 'destructive', onPress: async () => {
         try {
           await borrarCategoria(c.id);
           setCategorias(prev => prev.filter(x => x.id !== c.id));
-        } catch (e) { Alert.alert('Error', friendlyError(e)); }
+        } catch (e) { aviso('Error', friendlyError(e)); }
       }},
     ]);
   }

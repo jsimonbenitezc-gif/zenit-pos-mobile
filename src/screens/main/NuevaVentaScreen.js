@@ -2,9 +2,10 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, Pressable,
-  TextInput, Alert, ActivityIndicator, Modal, ScrollView,
+  TextInput, ActivityIndicator, Modal, ScrollView,
   KeyboardAvoidingView, Platform, Animated, PanResponder,
 } from 'react-native';
+import { aviso } from '../../components/ui/Aviso';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import IconoProducto from '../../components/IconoProducto';
 import SvgIcon from '../../components/SvgIcon';
@@ -325,7 +326,7 @@ export default function NuevaVentaScreen() {
       sincronizarVentasPendientes().then(() => refrescarPendientes?.()).catch(() => {});
     } catch (e) {
       console.warn('[NuevaVenta] load error:', e);
-      Alert.alert('Error', 'No se pudo cargar el catálogo.');
+      aviso('Error', 'No se pudo cargar el catálogo.');
     } finally {
       setLoading(false);
     }
@@ -495,7 +496,7 @@ export default function NuevaVentaScreen() {
   }
 
   function vaciarCarrito() {
-    Alert.alert('Vaciar ticket', '¿Eliminar todos los productos?', [
+    aviso('Vaciar ticket', '¿Eliminar todos los productos?', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Vaciar', style: 'destructive', onPress: () => setCarrito([]) },
     ]);
@@ -620,7 +621,7 @@ export default function NuevaVentaScreen() {
 
   function agregarPago() {
     if (pagos.length >= PAGO_MAX) {
-      Alert.alert('Demasiados pagos', `Una venta admite como máximo ${PAGO_MAX} pagos.`);
+      aviso('Demasiados pagos', `Una venta admite como máximo ${PAGO_MAX} pagos.`);
       return;
     }
     // El pago nuevo arranca con lo que falte: es lo que el cajero va a teclear.
@@ -750,7 +751,7 @@ export default function NuevaVentaScreen() {
     // Sin sucursal la venta quedaría huérfana: el backend la rechaza y, si se
     // registró sin internet, se quedaría atorada en la cola. Ver CLAUDE.md §24.
     if (!puedeRegistrarEnSucursal()) {
-      Alert.alert(
+      aviso(
         'Falta elegir la sucursal',
         'Este equipo todavía no tiene una sucursal asignada, y tu negocio tiene varias. ' +
         'Ve a Ajustes → Sucursal y elige en cuál registra este equipo.'
@@ -761,15 +762,15 @@ export default function NuevaVentaScreen() {
       // Se valida aquí para que el cajero vea el problema en la pantalla y no
       // como un 400 del backend (que además nunca llegaría estando offline).
       const v = validarPagos(pagos, totalFinal);
-      if (!v.ok) { Alert.alert('La división no cuadra', v.error); return; }
+      if (!v.ok) { aviso('La división no cuadra', v.error); return; }
     }
     if (!pagoDividido && metodoPago === 'efectivo' && recibido < totalAEntregar) {
-      Alert.alert('Efectivo insuficiente', 'El monto recibido es menor al total a cobrar.');
+      aviso('Efectivo insuficiente', 'El monto recibido es menor al total a cobrar.');
       return;
     }
     if (tipoPedido === 'domicilio' && !domDireccion.trim() && !sinRevisarStock) {
       const continuar = await new Promise(resolve =>
-        Alert.alert(
+        aviso(
           'Sin dirección',
           'No se registró una dirección para este pedido. ¿Continuar de todas formas?',
           [
@@ -902,7 +903,7 @@ export default function NuevaVentaScreen() {
         api.getProductsStock(sucursalId).then(map => setStockMap(map)).catch(() => {});
       }
 
-      Alert.alert(
+      aviso(
         'Venta registrada',
         `Total: ${formatMoney(totalFinal, currency)}` +
           (res.modo === 'offline' ? '\n\nSin conexión: se subirá automáticamente al reconectar.' : '')
@@ -911,7 +912,7 @@ export default function NuevaVentaScreen() {
       // Faltan existencias: la venta NO se guardó. Avisa y deja cobrar igual —
       // el número del inventario puede estar mal y el producto estar ahí (§56.3).
       if (esAvisoStock(e)) {
-        Alert.alert(
+        aviso(
           'Faltan existencias',
           textoAvisoStock(e.warnings) + '\n\nLa venta todavía NO se ha registrado. ¿Cobrar de todas formas?',
           [
@@ -921,7 +922,7 @@ export default function NuevaVentaScreen() {
         );
         return;
       }
-      Alert.alert('Error al registrar', friendlyError(e));
+      aviso('Error al registrar', friendlyError(e));
     } finally {
       setEnviando(false);
     }

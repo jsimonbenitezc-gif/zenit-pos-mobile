@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, TextInput, Modal, ScrollView,
-  Alert, ActivityIndicator, Platform, KeyboardAvoidingView,
+  ActivityIndicator, Platform, KeyboardAvoidingView,
 } from 'react-native';
+import { aviso } from '../../../components/ui/Aviso';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../../api/client';
@@ -50,7 +51,7 @@ export function SeccionPropinas({ settings, currency = '$', onSaved, styles }) {
       await api.updateSettings({ propinas_activas: !!valor });
       await onSaved?.();
     } catch (e) {
-      Alert.alert('No se pudo guardar', friendlyError(e));
+      aviso('No se pudo guardar', friendlyError(e));
     } finally {
       setGuardando(false);
     }
@@ -68,7 +69,7 @@ export function SeccionPropinas({ settings, currency = '$', onSaved, styles }) {
       await onSaved?.();
       setModal(false);
     } catch (e) {
-      Alert.alert('No se pudo guardar', friendlyError(e));
+      aviso('No se pudo guardar', friendlyError(e));
     } finally {
       setGuardando(false);
     }

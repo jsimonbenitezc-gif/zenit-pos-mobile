@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, Modal, ScrollView, Pressable,
-  Alert, ActivityIndicator,
+  ActivityIndicator,
 } from 'react-native';
+import { aviso } from '../../../components/ui/Aviso';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../../../api/client';
 import { zc, radios, sombra } from '../../../theme';
@@ -67,7 +68,7 @@ export function SeccionHorario({ settings, onSaved, styles }) {
       await api.updateSettings({ horario_operacion: null });
       await onSaved?.();
     } catch (e) {
-      Alert.alert('No se pudo guardar', friendlyError(e));
+      aviso('No se pudo guardar', friendlyError(e));
     } finally {
       setGuardando(false);
     }
@@ -109,12 +110,12 @@ export function SeccionHorario({ settings, onSaved, styles }) {
 
   async function guardar() {
     const r = normalizarHorario(semana);
-    if (!r.ok) { Alert.alert('Horario inválido', r.error); return; }
+    if (!r.ok) { aviso('Horario inválido', r.error); return; }
     if (!r.horario) {
       // Los siete días cerrados no son un horario: es no tenerlo. Se dice en vez
       // de guardarlo en silencio, porque el dueño creería que configuró algo y
       // esperaría unas alertas que nunca van a llegar.
-      Alert.alert(
+      aviso(
         'Sin horario',
         'Marcaste los siete días como cerrados, así que no hay horario que aplicar. ' +
         'Deja abierto al menos un día, o apaga el horario del negocio.'
@@ -128,7 +129,7 @@ export function SeccionHorario({ settings, onSaved, styles }) {
       await onSaved?.();
       setModal(false);
     } catch (e) {
-      Alert.alert('No se pudo guardar', friendlyError(e));
+      aviso('No se pudo guardar', friendlyError(e));
     } finally {
       setGuardando(false);
     }

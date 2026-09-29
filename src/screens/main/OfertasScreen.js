@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, FlatList, StyleSheet, ActivityIndicator, ScrollView,
-  RefreshControl, Alert, TouchableOpacity, TextInput, Modal, Switch,
+  RefreshControl, TouchableOpacity, TextInput, Modal, Switch,
 } from 'react-native';
+import { aviso } from '../../components/ui/Aviso';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { api } from '../../api/client';
@@ -153,7 +154,7 @@ export default function OfertasScreen() {
       setCategorias((grouped || []).map(g => ({ id: g.id, name: g.name })));
       setProductos((grouped || []).flatMap(g => (g.products || []).map(p => ({ ...p, category_id: g.id }))));
     } catch {
-      Alert.alert('Error', 'No se pudieron cargar las ofertas. Revisa tu conexión.');
+      aviso('Error', 'No se pudieron cargar las ofertas. Revisa tu conexión.');
     } finally {
       setLoading(false);
       setRefresh(false);
@@ -164,7 +165,7 @@ export default function OfertasScreen() {
 
   function sinConexion(accion) {
     if (online) return false;
-    Alert.alert('Sin conexión', `${accion} necesita conexión con tu cuenta Zenit. Vender las promos que ya existen, no.`);
+    aviso('Sin conexión', `${accion} necesita conexión con tu cuenta Zenit. Vender las promos que ya existen, no.`);
     return true;
   }
 
@@ -191,16 +192,16 @@ export default function OfertasScreen() {
   }
 
   const guardar = async () => {
-    if (!form.nombre.trim()) { Alert.alert('Error', 'Escribe un nombre'); return; }
+    if (!form.nombre.trim()) { aviso('Error', 'Escribe un nombre'); return; }
     const v = parseFloat(form.valor);
-    if (!v || v <= 0) { Alert.alert('Error', 'Valor inválido'); return; }
+    if (!v || v <= 0) { aviso('Error', 'Valor inválido'); return; }
     if (form.tipo === 'percentage' && (v < 1 || v > 100)) {
-      Alert.alert('Error', 'El porcentaje debe estar entre 1 y 100');
+      aviso('Error', 'El porcentaje debe estar entre 1 y 100');
       return;
     }
     // "10% los lunes" (§3.3): el mismo calendario que las promos.
     const cal = calendarioDeFormulario(form.calendario);
-    if (!cal.ok) { Alert.alert('Revisa el calendario', cal.error); return; }
+    if (!cal.ok) { aviso('Revisa el calendario', cal.error); return; }
     setSaving(true);
     try {
       const payload = {
@@ -220,14 +221,14 @@ export default function OfertasScreen() {
       setModal(false);
       await load(true);
     } catch (e) {
-      Alert.alert('Error', friendlyError(e) || 'No se pudo guardar el descuento.');
+      aviso('Error', friendlyError(e) || 'No se pudo guardar el descuento.');
     } finally {
       setSaving(false);
     }
   };
 
   const confirmarBorrar = (d) => {
-    Alert.alert(
+    aviso(
       'Eliminar descuento',
       `¿Eliminar "${d.name}"? Esta acción no se puede deshacer.`,
       [
@@ -242,7 +243,7 @@ export default function OfertasScreen() {
       await api.deleteDiscount(id);
       await load(true);
     } catch (e) {
-      Alert.alert('Error', friendlyError(e) || 'No se pudo eliminar el descuento.');
+      aviso('Error', friendlyError(e) || 'No se pudo eliminar el descuento.');
     }
   };
 
@@ -275,15 +276,15 @@ export default function OfertasScreen() {
   async function guardarPromo() {
     if (sinConexion('Guardar una promo')) return;
     const v = validarFormularioPromo(formPromo);
-    if (!v.ok) { Alert.alert('Revisa la promo', v.error); return; }
+    if (!v.ok) { aviso('Revisa la promo', v.error); return; }
     setSaving(true);
     try {
       await guardarPromoEnServidor(api, v, formPromo.id || null);
       setModalPromo(false);
       await load(true);
-      Alert.alert('¡Promo guardada!', 'Ya aparece en Nueva Venta y en Mesas en su día y su hora.');
+      aviso('¡Promo guardada!', 'Ya aparece en Nueva Venta y en Mesas en su día y su hora.');
     } catch (e) {
-      Alert.alert('No se pudo guardar la promo', friendlyError(e));
+      aviso('No se pudo guardar la promo', friendlyError(e));
     } finally {
       setSaving(false);
     }
@@ -294,7 +295,7 @@ export default function OfertasScreen() {
     if (sinConexion('Quitar una promo')) return;
     // Borrado SUAVE (trampa 6): los tickets ya cobrados no cambian, porque el
     // nombre y el precio van congelados en cada venta.
-    Alert.alert('¿Quitar la promo?', `"${formPromo.nombre}" dejará de aparecer en la venta. Los tickets ya cobrados no cambian.`, [
+    aviso('¿Quitar la promo?', `"${formPromo.nombre}" dejará de aparecer en la venta. Los tickets ya cobrados no cambian.`, [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Quitar', style: 'destructive', onPress: async () => {
@@ -303,7 +304,7 @@ export default function OfertasScreen() {
             setModalPromo(false);
             await load(true);
           } catch (e) {
-            Alert.alert('No se pudo quitar la promo', friendlyError(e));
+            aviso('No se pudo quitar la promo', friendlyError(e));
           }
         },
       },
@@ -320,7 +321,7 @@ export default function OfertasScreen() {
       await refreshSettings?.();
     } catch (e) {
       setAcumulables(antes);
-      Alert.alert('No se pudo guardar', friendlyError(e));
+      aviso('No se pudo guardar', friendlyError(e));
     }
   }
 
