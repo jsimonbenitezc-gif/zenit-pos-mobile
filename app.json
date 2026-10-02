@@ -2,7 +2,7 @@
   "expo": {
     "name": "zenit-pos-mobile",
     "slug": "zenit-pos",
-    "version": "1.8.2",
+    "version": "1.8.3",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
